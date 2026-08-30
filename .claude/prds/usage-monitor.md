@@ -51,6 +51,7 @@ related_adrs: []
 - ❌ 不同帳號間的用量合併計算或合併顯示（例如「兩個 DeepSeek 帳號加總餘額」）——憲法 R5 明訂帳號彼此獨立，本期不提供任何跨帳號彙總視圖
 - ❌ Claude/Codex/DeepSeek/Kimi/Grok 以外尚未被憲法納入的 AI 類型——模型設計上可延續同一套 `aiType × accessType` 組合擴充，但本期不主動實作，需求出現時另行評估（憲法 R1）
 - ❌ **Grok 的 API key 制帳號**（**已查證，2026-08-31**）：xAI 官方文件沒有餘額/用量查詢端點，技術上做不到，本期 Grok 只支援訂閱制
+- ❌ **Claude / Codex 的 API key 制帳號**（**已查證不可行，2026-08-31**）：兩家官方用量/成本 API 都需要 Admin 等級憑證，個人帳號用不了；業務 owner 實測自己的帳號確認卡在同一個限制；且「查詢剩餘額度」這個功能本身 Anthropic 都還沒實作（見 §5 技術選型表），詳細查證過程見 §9/§12
 - ❌ 任何雲端同步或伺服器端資料儲存（憲法 I1 明文禁止，本工具沒有伺服器）
 - ❌ 系統匣常駐圖示（tray icon）——README 既有骨架列為後續強化方向，但業務憲法未要求此為核心功能，本期不做，列入 §11 後續追蹤觀察，需要時另外走 PRD 增修或 ADR
 
@@ -198,6 +199,7 @@ related_adrs: []
 | Claude 用量來源（多帳號，**已查證，2026-08-31**） | 偵測本機是否安裝 `cswap`（`claude-swap`）；有的話 shell out 呼叫 `cswap list --json`（官方文件化的「JSON output for scripting」介面），一次拿到所有帳號的 email/5h/7d 百分比/重置時間；沒裝則退回上一列的單帳號直接呼叫 | 已查證：`cswap list --json` 回傳格式跟直接打官方 API 一致，已實測比對數字相符。**限制**：多帳號功能等於選用依賴 `cswap`，這是社群工具、非官方保證的介面（見 README「已知風險與揭露」） |
 | Codex 用量來源 | shell out 呼叫 `ccusage codex`（維持原設計） | Codex 沒有等同 Claude 5h 窗的官方端點可查，只能顯示原始 token 數，`isEstimated: true` |
 | Grok 用量來源（**已查證，2026-08-31**） | 僅支援**訂閱制**（Grok Build CLI）：shell out 呼叫 `ccusage grok`，跟 Codex 一樣是本機 log 估算，`isEstimated: true` | 已查證：xAI 官方文件（`docs.x.ai`）沒有任何餘額/用量查詢端點，**API key 制目前技術上做不到**，使用者已拍板本期只做訂閱制（見 §3/§12） |
+| Claude / Codex API key 制（**已查證不可行，2026-08-31**） | **不支援**，兩個 AI 類型都只保留原本的訂閱制入口，「API key 制」分區暫時只有 DeepSeek/Kimi | 已查證：Anthropic 的 Usage & Cost Admin API（`/v1/organizations/usage_report/messages`、`/cost_report`）與 OpenAI 的對應 API（`/v1/organization/usage/*`、`/costs`）都**需要 Admin API key**，文件明講「The Admin API is unavailable for individual accounts」「workspace API keys don't work」；業務 owner 實測自己的 workspace key 確認卡在同樣的限制。且**連「查詢目前剩餘額度」這個功能本身，Anthropic 目前都還沒有**（[官方 GitHub issue #47574](https://github.com/anthropics/claude-code/issues/47574) 是社群還在跟 Anthropic 要這個功能的 feature request，尚未實作）。唯一能拿到的資訊是一般 key 呼叫 `/v1/messages` 時回應帶的 `anthropic-ratelimit-*` headers（速率限制 headroom，非金額餘額），但取得方式是**真的花錢打一次 API**，跟本工具「唯讀監控、不主動使用服務」的定位衝突，判斷不值得做 |
 | UI 庫 | **@sanring/ui**（透過 `@sanring/cli`，shadcn 體系、copy-in-repo） | 已拍板；元件已內建語意色 token（success/warn/error）直接對齊憲法 §4 三態顏色。本次追加需求：`collapsible`（卡片摺疊/展開）元件，需確認 `@sanring/ui` 是否已提供，若無則自製 |
 | CSS | **Tailwind CSS v4（固定）** | sanring 唯一鎖定預設 |
 | Cache | 無（單機應用） | 不適用伺服器快取情境；前端內狀態用 Angular Signals 於記憶體管理即可，跨 session 持久化見 §6 |
@@ -412,6 +414,7 @@ interface UsageSummary {
 - [ ] TODO: Kimi 有 `platform.kimi.ai`/`kimi.com` 與 `platform.moonshot.ai`/`.cn` 兩組互不相通的帳號體系，是否要讓 base URL 可設定，待確認
 - [x] ~~Grok 用量查詢技術方案~~ —— **已查證（2026-08-31）**：無官方 API key balance 端點；訂閱制走 `ccusage grok`，API key 制不支援（見 §3/§5/§9）
 - [x] ~~Claude 多訂閱帳號技術上如何同時讀取兩組 OAuth session~~ —— **已查證（2026-08-31）**：靠選用外部工具 `cswap`（`cswap list --json`），沒裝則維持只能讀「當下登入的那一個」的限制（見 §5/§9，法律/ToS 揭露見 README）
+- [x] ~~Claude / Codex API key 制可不可行~~ —— **已查證不可行（2026-08-31）**：兩家官方 Admin 用量/成本 API 都排除個人帳號、workspace key 打不進去（業務 owner 實測自己帳號確認）；「查詢剩餘額度」這個功能 Anthropic 自己都還沒做（[GitHub issue #47574](https://github.com/anthropics/claude-code/issues/47574) 仍是待實作的 feature request）；一般 key 唯一拿得到的 `anthropic-ratelimit-*` headers 是速率限制而非金額餘額，且要花錢打一次 API 才能拿到，跟本工具「唯讀不主動使用服務」的定位衝突，判定不值得做（見 §3/§5）
 - [ ] TODO（**新增，2026-08-31**）：**卡片摺疊/展開的預設狀態**（展開 or 摺疊）——使用者原話僅描述互動機制（點右上角 V），未拍板預設值
 - [ ] TODO（**新增，2026-08-31**）：`credentialRef` 的 key 產生規則與 `accountId` 產生方式（見 §6）
 - [ ] TODO（**新增，2026-08-31**）：既有單帳號模型資料（4 個固定 sourceId）遷移到新多帳號模型的策略（見 §6/§9）
