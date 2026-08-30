@@ -45,6 +45,9 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 return Build(account, "expired", detail: "Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入");
 
+            if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests)
+                return Build(account, "invalid", detail: "請求太頻繁被 Anthropic 限流（HTTP 429），稍後再按重新整理即可，不是憑證壞了");
+
             if (!response.IsSuccessStatusCode)
                 return Build(account, "invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}");
 

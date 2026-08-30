@@ -52,6 +52,9 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 return Build(account, "expired", detail: "Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`");
 
+            if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests)
+                return Build(account, "invalid", detail: "請求太頻繁被 Kimi 限流（HTTP 429），稍後再按重新整理即可，不是憑證壞了");
+
             var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
                 return Build(account, "invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}　{Truncate(body)}");
