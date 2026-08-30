@@ -47,15 +47,15 @@
               <!-- 拖曳排序用的把手，跟改名點擊區分開，才不會兩個手勢互搶 -->
               <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" title="拖曳調整順序">⠿</span>
               <span class="h-2.5 w-2.5 rounded-full shrink-0" [class]="connectionDotClass(item.connectionState)"></span>
-              <!-- 主標題＝AI 類型，不可改；副標題＝帳號自訂標籤，點一下可編輯（沒有時顯示「＋ 命名」提示） -->
+              <!-- 標題本身可點擊改名：預設顯示 AI 類型（如 "Codex"），改過名字後顯示自訂標籤蓋過去。
+                   底層存的還是 accountLabel，displayName 沒被動到——只是畫面上不再分兩行顯示。 -->
               <div class="flex-1 min-w-0">
-                <span sanringCardTitle class="text-sm block truncate">{{ item.displayName }}</span>
                 @if (editingLabelAccountId() === item.source) {
                   <input
                     sanringInput
                     type="text"
-                    class="h-6 text-[10px] mt-0.5"
-                    placeholder="輸入標籤"
+                    class="h-6 text-sm"
+                    [placeholder]="item.displayName"
                     [value]="editingLabelValue()"
                     (input)="onRenameInput($event)"
                     (keydown)="onRenameKeydown($event)"
@@ -63,19 +63,13 @@
                     (click)="$event.stopPropagation()"
                     autofocus
                   />
-                } @else if (item.accountLabel) {
-                  <button
-                    type="button"
-                    class="text-[10px] text-[var(--sanring-muted)] block truncate text-left hover:underline"
-                    title="點一下改名"
-                    (click)="startRename(item)"
-                  >{{ item.accountLabel }}</button>
                 } @else {
                   <button
                     type="button"
-                    class="text-[10px] text-[var(--sanring-muted)] block truncate text-left hover:underline"
+                    class="text-sm font-semibold block truncate text-left hover:underline w-full"
+                    title="點一下改名"
                     (click)="startRename(item)"
-                  >＋ 命名</button>
+                  >{{ item.accountLabel ?? item.displayName }}</button>
                 }
               </div>
               @if (item.isEstimated) {

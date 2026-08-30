@@ -186,10 +186,10 @@ export class App {
     this.pendingRemoval.set(null);
   }
 
-  /** 點名稱進入編輯：預填目前的 accountLabel，沒有就從空字串開始（不用 displayName 當預設值，避免存出一個跟 AI 類型撞名的標籤）。 */
+  /** 點名稱進入編輯：預填畫面上目前顯示的文字（自訂標籤，沒有的話就是 displayName 本身，例如 "Codex"）。 */
   protected startRename(item: UsageSummary): void {
     this.editingLabelAccountId.set(item.source);
-    this.editingLabelValue.set(item.accountLabel ?? '');
+    this.editingLabelValue.set(item.accountLabel ?? item.displayName);
   }
 
   protected onRenameInput(event: Event): void {
