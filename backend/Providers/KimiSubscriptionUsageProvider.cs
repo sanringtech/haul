@@ -135,10 +135,16 @@ internal sealed class KimiManagedUsageResponse
 
 internal sealed class KimiUsageSummaryRow
 {
+    // Per the official "Managed Platform Usage API Reference" (docs.kimi.com/code, checked 2026-08-31),
+    // used/limit "arrive as decimal strings" and the CLI's own parser (toInt()) accepts either a
+    // number or a string — so this must too, or a real (string-typed) response throws JsonException
+    // and gets misreported as "呼叫用量端點失敗" instead of actually parsing.
     [JsonPropertyName("used")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public double Used { get; set; }
 
     [JsonPropertyName("limit")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public double Limit { get; set; }
 
     [JsonPropertyName("resetTime")]
