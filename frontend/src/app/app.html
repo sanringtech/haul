@@ -85,7 +85,8 @@
               }
             </div>
           </sanring-card-header>
-          <sanring-card-content class="p-3 pt-0 flex flex-col gap-3">
+          <!-- pt-3 而非 pt-0：跟 header 的 pb-2 疊出夠明顯的間距，把「標題/備註」跟下面的用量內容視覺分開 -->
+          <sanring-card-content class="p-3 pt-3 flex flex-col gap-3">
             <!-- 卡片內容機械地依 windows(item) 的長度顯示：1 個視窗的來源一行，2 個視窗（Claude 5h+7d）自然兩行 -->
             @for (w of windows(item); track w.label ?? '') {
               <div class="flex flex-col gap-1">
