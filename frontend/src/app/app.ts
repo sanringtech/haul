@@ -1,4 +1,5 @@
 import { Component, computed, signal } from '@angular/core';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
 import { ProgressComponent } from './components/ui/progress';
@@ -74,6 +75,9 @@ interface CatalogEntry {
     InputDirective,
     SpinnerComponent,
     SkeletonDirective,
+    CdkDropList,
+    CdkDrag,
+    CdkDragHandle,
     ...SANRING_CARD_IMPORTS,
     ...SANRING_ALERT_IMPORTS,
     ...SANRING_TOOLTIP_IMPORTS,
@@ -92,6 +96,10 @@ export class App {
 
   /** Which source is mid "取消追蹤" confirmation (constitution §8: must be a deliberate 2-step action). */
   protected readonly pendingRemoval = signal<string | null>(null);
+
+  /** Which account's label is currently showing an edit input, and its in-progress value. */
+  protected readonly editingLabelAccountId = signal<string | null>(null);
+  protected readonly editingLabelValue = signal('');
 
   // ── "＋ 新增來源" flow state ──────────────────────────────────────────
   protected readonly view = signal<View>('list');
@@ -176,6 +184,49 @@ export class App {
 
   protected cancelRemove(): void {
     this.pendingRemoval.set(null);
+  }
+
+  /** 點名稱進入編輯：預填目前的 accountLabel，沒有就從空字串開始（不用 displayName 當預設值，避免存出一個跟 AI 類型撞名的標籤）。 */
+  protected startRename(item: UsageSummary): void {
+    this.editingLabelAccountId.set(item.source);
+    this.editingLabelValue.set(item.accountLabel ?? '');
+  }
+
+  protected onRenameInput(event: Event): void {
+    this.editingLabelValue.set((event.target as HTMLInputElement).value);
+  }
+
+  /** Enter 確定、Escape 放棄，跟其他輸入框行為一致。 */
+  protected onRenameKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitRename();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelRename();
+    }
+  }
+
+  /** 空字串＝清除標籤，回到只顯示 displayName。 */
+  protected commitRename(): void {
+    const accountId = this.editingLabelAccountId();
+    if (!accountId) return;
+    const label = this.editingLabelValue().trim();
+    this.editingLabelAccountId.set(null);
+    this.send({ type: 'rename-account', source: accountId, label: label || null });
+  }
+
+  protected cancelRename(): void {
+    this.editingLabelAccountId.set(null);
+  }
+
+  /** 拖放結束：本地先重排（拖曳當下要立即看到效果），再把新順序整批送回後端持久化。 */
+  protected onDrop(event: CdkDragDrop<UsageSummary[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const reordered = [...this.summaries()];
+    moveItemInArray(reordered, event.previousIndex, event.currentIndex);
+    this.summaries.set(reordered);
+    this.send({ type: 'reorder-accounts', order: reordered.map((item) => item.source) });
   }
 
   /** 憲法 §4：連線狀態 有效=綠 / 失效=橘 / 過期=紅 / 尚未設定=灰 — 用 sanring badge-* 語意色 token。 */

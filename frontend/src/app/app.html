@@ -30,7 +30,7 @@
       </sanring-alert>
     }
 
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3" cdkDropList (cdkDropListDropped)="onDrop($event)">
       @if (isLoading() && summaries().length === 0) {
         <!-- 第一次載入還沒有任何資料時的骨架屏，避免空白卡片閃一下 -->
         @for (i of [1, 2, 3]; track i) {
@@ -41,15 +41,41 @@
         }
       }
       @for (item of summaries(); track item.source) {
-        <sanring-card>
+        <sanring-card cdkDrag [cdkDragData]="item">
           <sanring-card-header class="p-3 pb-2">
             <div class="flex items-center gap-2">
+              <!-- 拖曳排序用的把手，跟改名點擊區分開，才不會兩個手勢互搶 -->
+              <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" title="拖曳調整順序">⠿</span>
               <span class="h-2.5 w-2.5 rounded-full shrink-0" [class]="connectionDotClass(item.connectionState)"></span>
-              <!-- 主標題＝AI 類型；副標題＝帳號，只有這個 AI 類型底下有多個帳號時才會有值（例如 "DeepSeek #2"） -->
+              <!-- 主標題＝AI 類型，不可改；副標題＝帳號自訂標籤，點一下可編輯（沒有時顯示「＋ 命名」提示） -->
               <div class="flex-1 min-w-0">
                 <span sanringCardTitle class="text-sm block truncate">{{ item.displayName }}</span>
-                @if (item.accountLabel) {
-                  <span class="text-[10px] text-[var(--sanring-muted)] block truncate">{{ item.accountLabel }}</span>
+                @if (editingLabelAccountId() === item.source) {
+                  <input
+                    sanringInput
+                    type="text"
+                    class="h-6 text-[10px] mt-0.5"
+                    placeholder="輸入標籤"
+                    [value]="editingLabelValue()"
+                    (input)="onRenameInput($event)"
+                    (keydown)="onRenameKeydown($event)"
+                    (blur)="commitRename()"
+                    (click)="$event.stopPropagation()"
+                    autofocus
+                  />
+                } @else if (item.accountLabel) {
+                  <button
+                    type="button"
+                    class="text-[10px] text-[var(--sanring-muted)] block truncate text-left hover:underline"
+                    title="點一下改名"
+                    (click)="startRename(item)"
+                  >{{ item.accountLabel }}</button>
+                } @else {
+                  <button
+                    type="button"
+                    class="text-[10px] text-[var(--sanring-muted)] block truncate text-left hover:underline"
+                    (click)="startRename(item)"
+                  >＋ 命名</button>
                 }
               </div>
               @if (item.isEstimated) {

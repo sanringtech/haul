@@ -120,6 +120,35 @@ public sealed class UsageService
         if (changed) SettingsStore.Save(settings);
     }
 
+    /// <summary>使用者自訂這個帳號的標籤（不動 displayName——那是 AI 類型，同類型每個帳號都一樣）。空字串視同清除。</summary>
+    public void RenameAccount(string accountId, string? label)
+    {
+        var settings = SettingsStore.Load();
+        var index = settings.TrackedAccounts.FindIndex(a => a.AccountId == accountId);
+        if (index < 0) return;
+
+        var trimmed = string.IsNullOrWhiteSpace(label) ? null : label.Trim();
+        if (settings.TrackedAccounts[index].Label == trimmed) return;
+
+        settings.TrackedAccounts[index] = settings.TrackedAccounts[index] with { Label = trimmed };
+        SettingsStore.Save(settings);
+    }
+
+    /// <summary>拖曳排序（前端送整批新順序的 accountId）。列表順序即顯示順序，沒有另外的 SortOrder 欄位。</summary>
+    public void ReorderAccounts(IReadOnlyList<string> orderedAccountIds)
+    {
+        var settings = SettingsStore.Load();
+        var byId = settings.TrackedAccounts.ToDictionary(a => a.AccountId);
+
+        var reordered = orderedAccountIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+        // Defensive: an account this call didn't mention (stale client state, race with add/remove)
+        // keeps its relative order appended at the end rather than silently vanishing from settings.
+        reordered.AddRange(settings.TrackedAccounts.Where(a => !orderedAccountIds.Contains(a.AccountId)));
+
+        settings.TrackedAccounts = reordered;
+        SettingsStore.Save(settings);
+    }
+
     private static bool EnsureHidden(AppSettings settings, string accountId)
     {
         if (settings.HiddenAccountIds.Contains(accountId)) return false;

@@ -92,6 +92,7 @@ backend/
   - 兩者都不影響「AI 類型 × 存取類型 × 帳號」的架構模型本身，只是某些組合目前技術上不可行/需要額外外部依賴
 - [x] Kimi 訂閱制（2026-08-31，⚠️ 未實測）：`KimiSubscriptionUsageProvider` + `KimiCliAuthReader`，從開源的 `MoonshotAI/kimi-code` repo 讀出端點/憑證格式；headless 測過「找不到本機憑證」這條路徑，但真的打通端點這件事沒人能驗證（沒有真實 Kimi Code 帳號）。Grok 訂閱制同理查過（見上）但更不確定，先沒動手寫
 - [x] **修掉一個藏很深的 bug（2026-08-31）**：`AppPaths.cs` 用錯 `SpecialFolder.Personal`，導致 macOS 上設定檔存到 `~/Documents/Library/...` 而不是 `~/Library/...`，改用 `.UserProfile` 修正（詳見上面架構區塊）
+- [x] 清單拖曳排序 + 帳號改名（2026-08-31）：`sanring-card` 掛 `@angular/cdk` 的 `cdkDropList`/`cdkDrag`（左側 ⠿ 把手拖曳），排序即時反映在 UI 並整批送 `reorder-accounts` 存回 `TrackedAccounts` 順序；點副標題（`accountLabel`）進入行內編輯改名，走新的 `rename-account` 訊息，只改帳號自訂標籤，不動 `displayName`（AI 類型固定不可改）
 - [ ] M3：設定頁（刷新頻率、保留期、接近上限閾值可調）
 - [ ] M4：取消追蹤（完整刪除本機資料，含 Keychain）vs 關閉顯示，兩個獨立操作 + 二次確認
 - [ ] M5：Windows 上實際跑一次打包驗證（`WindowsSecretStore` 目前只是照文件寫的 P/Invoke，還沒真的在 Windows 上測過）

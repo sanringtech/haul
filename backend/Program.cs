@@ -88,6 +88,16 @@ async void OnWebMessageReceived(object? sender, string message)
                 await RespondWithSummaries();
                 break;
 
+            case "rename-account" when request.Source is not null:
+                usageService.RenameAccount(request.Source, request.Label);
+                await RespondWithSummaries();
+                break;
+
+            case "reorder-accounts" when request.Order is not null:
+                usageService.ReorderAccounts(request.Order);
+                await RespondWithSummaries();
+                break;
+
             default:
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(null, null, $"未知或缺少必要欄位的訊息: {message}"), jsonOptions));
                 break;
@@ -105,7 +115,13 @@ async void OnWebMessageReceived(object? sender, string message)
     }
 }
 
-file sealed record HostRequest(string Type, string? Source = null, HostCredential? Credential = null, bool? Visible = null);
+file sealed record HostRequest(
+    string Type,
+    string? Source = null,
+    HostCredential? Credential = null,
+    bool? Visible = null,
+    string? Label = null,
+    string[]? Order = null);
 
 file sealed record HostCredential(string? ApiKey);
 
