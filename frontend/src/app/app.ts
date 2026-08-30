@@ -207,26 +207,33 @@ export class App {
     }
   }
 
-  /** 空字串＝清除標籤，回到只顯示 displayName。 */
+  /**
+   * 空字串＝清除標籤，回到只顯示 displayName。前端先樂觀更新畫面，後端只是把它寫進設定檔——
+   * 不用等一輪完整刷新才看到新名字，也不需要為了改個名字重打任何 provider 的即時 API。
+   */
   protected commitRename(): void {
     const accountId = this.editingLabelAccountId();
     if (!accountId) return;
-    const label = this.editingLabelValue().trim();
+    const label = this.editingLabelValue().trim() || null;
     this.editingLabelAccountId.set(null);
-    this.send({ type: 'rename-account', source: accountId, label: label || null });
+    this.summaries.set(this.summaries().map((item) => (item.source === accountId ? { ...item, accountLabel: label } : item)));
+    this.sendSilent({ type: 'rename-account', source: accountId, label });
   }
 
   protected cancelRename(): void {
     this.editingLabelAccountId.set(null);
   }
 
-  /** 拖放結束：本地先重排（拖曳當下要立即看到效果），再把新順序整批送回後端持久化。 */
+  /**
+   * 拖放結束：本地先重排（拖曳當下要立即看到效果），新順序只靜默存回後端設定檔——不是完整刷新，
+   * 拖曳本身不該觸發任何 provider 的即時 API 呼叫（同上，見 sendSilent 的說明）。
+   */
   protected onDrop(event: CdkDragDrop<UsageSummary[]>): void {
     if (event.previousIndex === event.currentIndex) return;
     const reordered = [...this.summaries()];
     moveItemInArray(reordered, event.previousIndex, event.currentIndex);
     this.summaries.set(reordered);
-    this.send({ type: 'reorder-accounts', order: reordered.map((item) => item.source) });
+    this.sendSilent({ type: 'reorder-accounts', order: reordered.map((item) => item.source) });
   }
 
   /** 憲法 §4：連線狀態 有效=綠 / 失效=橘 / 過期=紅 / 尚未設定=灰 — 用 sanring badge-* 語意色 token。 */
@@ -308,6 +315,13 @@ export class App {
       return;
     }
     this.isLoading.set(true);
+    window.external!.sendMessage!(JSON.stringify(message));
+  }
+
+  /** 跟 send() 一樣送訊息給後端，但不點亮「重新整理中…」——用於純本地異動（排序/改名），
+   * 這兩者已經在呼叫端樂觀更新過畫面了，不該讓使用者以為觸發了一次真正的用量刷新。 */
+  private sendSilent(message: Record<string, unknown>): void {
+    if (!this.isDesktopHost()) return;
     window.external!.sendMessage!(JSON.stringify(message));
   }
 

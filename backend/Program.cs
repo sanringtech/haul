@@ -88,14 +88,18 @@ async void OnWebMessageReceived(object? sender, string message)
                 await RespondWithSummaries();
                 break;
 
+            // 排序/改名是純本地資料異動，不該像 add/remove/visibility 一樣觸發 RespondWithSummaries()
+            // 那個完整刷新——那會真的重打一輪所有 provider 的即時 API（跟按「重新整理用量」同一支），
+            // 拖一下清單就多打好幾次外部 API 沒有必要，還可能撞到限流。前端已經樂觀更新過畫面了，
+            // 這裡只需要把異動存到本機設定檔，回一個空 ack 讓前端把 loading 狀態關掉就好。
             case "rename-account" when request.Source is not null:
                 usageService.RenameAccount(request.Source, request.Label);
-                await RespondWithSummaries();
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("ack", null, null), jsonOptions));
                 break;
 
             case "reorder-accounts" when request.Order is not null:
                 usageService.ReorderAccounts(request.Order);
-                await RespondWithSummaries();
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("ack", null, null), jsonOptions));
                 break;
 
             default:
