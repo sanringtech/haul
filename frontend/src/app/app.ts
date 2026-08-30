@@ -227,12 +227,18 @@ export class App {
   /**
    * 拖放結束：本地先重排（拖曳當下要立即看到效果），新順序只靜默存回後端設定檔——不是完整刷新，
    * 拖曳本身不該觸發任何 provider 的即時 API 呼叫（同上，見 sendSilent 的說明）。
+   *
+   * setTimeout(0) 是刻意的，不是隨手的非同步：CDK 放開滑鼠後自己還在跑一段「把卡片滑回定位」的
+   * transform 動畫/DOM 清理，如果同一個 tick 內就改 summaries() 觸發 Angular `@for` 依新順序重排
+   * DOM，兩邊會搶同一批卡片元素，卡高不一致（Codex 兩條進度列 vs. Kimi 一條）時特別容易看到卡片
+   * 疊在一起的穿幫畫面。延後一個 tick，讓 CDK 自己的動畫先跑完、把它加的 transform/樣式清乾淨，
+   * Angular 才接手重排——這是 Angular CDK 那類 drag+framework-bound-array race 的標準解法。
    */
   protected onDrop(event: CdkDragDrop<UsageSummary[]>): void {
     if (event.previousIndex === event.currentIndex) return;
     const reordered = [...this.summaries()];
     moveItemInArray(reordered, event.previousIndex, event.currentIndex);
-    this.summaries.set(reordered);
+    setTimeout(() => this.summaries.set(reordered), 0);
     this.sendSilent({ type: 'reorder-accounts', order: reordered.map((item) => item.source) });
   }
 
