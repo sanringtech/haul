@@ -27,7 +27,8 @@ public sealed class UsageService
             new ClaudeUsageProvider(),
             new CodexUsageProvider(),
             new DeepSeekUsageProvider(_secretStore),
-            new KimiUsageProvider(_secretStore),
+            new KimiUsageProvider(_secretStore),        // api_key 制（既有）
+            new KimiSubscriptionUsageProvider(),         // 訂閱制（2026-08-31 新增，未實測，見該檔案註解）
         ];
         _providersBySourceId = providers.ToDictionary(p => p.SourceId);
     }

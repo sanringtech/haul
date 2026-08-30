@@ -13,6 +13,7 @@
 
 - **Claude 用量（`ClaudeUsageProvider`）**：直接呼叫 Anthropic 內部/beta 用量端點 `GET /api/oauth/usage`（帶 `anthropic-beta` header），用的是 Claude Code 自己在本機的 OAuth session。這不是文件化的公開 API，Anthropic 可能無預告改版或停用。
 - **Codex 用量（`CodexUsageProvider`）**：同樣直接呼叫 OpenAI/ChatGPT 內部端點 `GET https://chatgpt.com/backend-api/wham/usage`，用的是 Codex CLI 自己在本機的 ChatGPT 登入 session。一樣不是文件化的公開 API，OpenAI 可能無預告改版或停用。
+- **Kimi 訂閱制（`KimiSubscriptionUsageProvider`，2026-08-31 新增，⚠️ 未實測）**：同一類做法，打 `GET https://api.kimi.com/coding/v1/usages`，用 Kimi Code CLI 本機的 OAuth session。這次是從**開源的 `MoonshotAI/kimi-code` repo 原始碼**直接讀出來的，不是猜的，但專案裡沒有人有真實 Kimi Code 帳號可以實測——第一次真的有人用時才會知道對不對，失敗時會把原始回應內容顯示出來方便除錯。
 - **Claude/Codex 官方「API key 制」用量查詢已查證不可行**（2026-08-31）：兩家的官方 Admin 用量/成本 API 都排除個人帳號、workspace/一般 key 打不進去；「查詢剩餘額度」這個功能本身 Anthropic 目前甚至都還沒實作（見 [`anthropics/claude-code` issue #47574](https://github.com/anthropics/claude-code/issues/47574)）。詳見 PRD §5/§9/§12。
 - **Claude 多帳號（規劃中）**：依賴選用的外部工具 [`claude-swap`](https://pypi.org/project/claude-swap/)（`cswap`）——沒裝 `cswap` 只能看到「目前登入中」的那一個 Claude 帳號。
 - **ccusage / cswap 都是 MIT 授權的開源工具**，本工具只是在執行期呼叫使用者自行安裝的獨立程式（不是把它們的原始碼包進本工具），授權合規負擔低；但呼叫 Anthropic 非公開端點的 ToS 風險，不會因為透過 `cswap` 或直接呼叫而有差別——兩者本質上打的是同一支端點。
@@ -57,14 +58,18 @@ backend/
 │   ├── IUsageProvider.cs
 │   ├── ClaudeUsageProvider.cs   打 Anthropic 官方（非公開 beta）用量端點（見下），不再靠 ccusage 估算
 │   ├── CodexUsageProvider.cs    打 ChatGPT 後端的（非公開）用量端點（見下），不再靠 ccusage 估算
-│   ├── DeepSeekUsageProvider.cs / KimiUsageProvider.cs   打官方 balance API，key 從 Keychain 讀
+│   ├── DeepSeekUsageProvider.cs / KimiUsageProvider.cs   打官方 balance API，key 從 Keychain 讀（API key 制）
+│   ├── KimiSubscriptionUsageProvider.cs   打 Kimi Code CLI 的用量端點（見下，⚠️ 未實測）（訂閱制，SourceId="kimi-subscription"，跟上面的 "kimi" 是同一個 AI 類型的不同存取類型）
 │   ├── CcusageDtos.cs
 │   └── ShellCommandRunner.cs    透過使用者登入 shell 執行指令，繞開 GUI app 沒有 PATH 的問題
 └── Security/
     ├── ISecretStore.cs / MacKeychainSecretStore.cs / WindowsSecretStore.cs / SecretStoreFactory.cs
-    │     使用者提供的 API key 存這裡（DeepSeek/Kimi）
-    └── ClaudeAuthReader.cs   唯讀讀取 Claude Code 自己的 OAuth session（見下），不寫入不刷新
+    │     使用者提供的 API key 存這裡（DeepSeek/Kimi），2026-08-31 起 key 是 accountId 不是 sourceId（多帳號支援）
+    ├── ClaudeAuthReader.cs / CodexAuthReader.cs / KimiCliAuthReader.cs
+    │     唯讀讀取各 CLI 自己的本機 session（見下），不寫入不刷新
 ```
+
+**⚠️ 已修過的路徑 bug（2026-08-31）**：`Services/AppPaths.cs` 原本用 `Environment.SpecialFolder.Personal` 想拿使用者根目錄，但 **.NET 在 macOS 上這個值實際指向 `~/Documents`，不是 `~`**——本機資料檔一度被存到 `~/Documents/Library/Application Support/...` 這種錯誤的巢狀路徑。已改用 `.UserProfile`（本來 `ClaudeAuthReader` 等三個 auth reader 就用對了，只有這一處寫錯）。**代價**：修這個 bug 換了資料夾，舊路徑下的設定（含手動測試新增過的帳號）不會自動搬過來。
 
 **除錯用旗標**：`dotnet run --project backend -- --print-usage` 印一次 JSON 結果就結束，不開 GUI 視窗，方便驗證 provider 邏輯。
 
@@ -85,8 +90,9 @@ backend/
   - **Claude 多帳號**：查到 `cswap list --json` 是官方文件化的「JSON output for scripting」介面，會回傳每個帳號的 email/5h/7d 百分比/重置時間，資料格式跟我們自己打 `/api/oauth/usage` 一致。設計：偵測到本機有裝 `cswap` 就 shell out 呼叫它拿多帳號；沒裝就退回現有的單帳號直接呼叫
   - **Grok API key 制**：查了 xAI 官方文件（`docs.x.ai`），沒有查到任何餘額/用量查詢端點，**目前技術上做不到**，先只做 Grok 訂閱制（`ccusage grok` 有支援）
   - 兩者都不影響「AI 類型 × 存取類型 × 帳號」的架構模型本身，只是某些組合目前技術上不可行/需要額外外部依賴
+- [x] Kimi 訂閱制（2026-08-31，⚠️ 未實測）：`KimiSubscriptionUsageProvider` + `KimiCliAuthReader`，從開源的 `MoonshotAI/kimi-code` repo 讀出端點/憑證格式；headless 測過「找不到本機憑證」這條路徑，但真的打通端點這件事沒人能驗證（沒有真實 Kimi Code 帳號）。Grok 訂閱制同理查過（見上）但更不確定，先沒動手寫
+- [x] **修掉一個藏很深的 bug（2026-08-31）**：`AppPaths.cs` 用錯 `SpecialFolder.Personal`，導致 macOS 上設定檔存到 `~/Documents/Library/...` 而不是 `~/Library/...`，改用 `.UserProfile` 修正（詳見上面架構區塊）
 - [ ] M3：設定頁（刷新頻率、保留期、接近上限閾值可調）
 - [ ] M4：取消追蹤（完整刪除本機資料，含 Keychain）vs 關閉顯示，兩個獨立操作 + 二次確認
-- [ ] M5：多帳號重構（`TrackedAccount` 資料模型、`aiType`/`accessType`/`accountId` 訊息契約、UI 分組摺疊）——見 PRD 2026-08-31 修訂版
-- [ ] M6：Windows 上實際跑一次打包驗證（`WindowsSecretStore` 目前只是照文件寫的 P/Invoke，還沒真的在 Windows 上測過）
+- [ ] M5：Windows 上實際跑一次打包驗證（`WindowsSecretStore` 目前只是照文件寫的 P/Invoke，還沒真的在 Windows 上測過）
 - [ ] 系統匣圖示（tray icon）：Photino.NET 沒有內建跨平台 tray API，PRD 已將其列為非本期範圍（見 `.claude/prds/usage-monitor.md` §3）

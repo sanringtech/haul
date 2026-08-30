@@ -199,6 +199,8 @@ related_adrs: []
 | Claude 用量來源（多帳號，**已查證，2026-08-31**） | 偵測本機是否安裝 `cswap`（`claude-swap`）；有的話 shell out 呼叫 `cswap list --json`（官方文件化的「JSON output for scripting」介面），一次拿到所有帳號的 email/5h/7d 百分比/重置時間；沒裝則退回上一列的單帳號直接呼叫 | 已查證：`cswap list --json` 回傳格式跟直接打官方 API 一致，已實測比對數字相符。**限制**：多帳號功能等於選用依賴 `cswap`，這是社群工具、非官方保證的介面（見 README「已知風險與揭露」） |
 | Codex 用量來源（**已升級，2026-08-31**） | 打 ChatGPT 後端（非公開）用量端點 `GET https://chatgpt.com/backend-api/wham/usage`，用 Codex CLI 自己在本機的 ChatGPT 登入 session（`~/.codex/auth.json` 或 `$CODEX_HOME/auth.json`），帶 `Authorization: Bearer` + `chatgpt-account-id` header | 原本（M1/M2 初版）是 `ccusage codex` 估算 token 數。從 [`openai/codex` 官方 repo 的 bug report #10869](https://github.com/openai/codex/issues/10869) 發現這支非公開端點，實測打通並跟 ChatGPT 設定「使用情況」頁面（5 小時窗 + 每週窗）數字比對一致，改採這個做法。`isEstimated: false`。風險跟 Claude 那支同一類：非公開端點，OpenAI 可能無預告改版；壞掉的 fallback 是退回 ccusage 估算 |
 | Grok 用量來源（**已查證，2026-08-31**） | 僅支援**訂閱制**（Grok Build CLI）：shell out 呼叫 `ccusage grok`，跟 Codex 一樣是本機 log 估算，`isEstimated: true` | 已查證：xAI 官方文件（`docs.x.ai`）沒有任何餘額/用量查詢端點，**API key 制目前技術上做不到**，使用者已拍板本期只做訂閱制（見 §3/§12） |
+| Grok 訂閱制官方端點（Grok Build CLI，**查過但暫不實作，2026-08-31**） | 維持上一列的 `ccusage grok` 估算 | Grok Build **完全開源**（`github.com/xai-org/grok-build`），查到非公開端點 `GET cli-chat-proxy.grok.com/v1/billing?format=credits`，但認證需要 5 個 headers、本機憑證檔 `~/.grok/auth.json` 有多個 scope 不確定挑哪個、且沒有真實帳號能實測，不確定性明顯比 Claude/Codex/Kimi 高，故暫不實作，見 §12 |
+| Kimi 訂閱制（**已新增，2026-08-31，⚠️ 未實測**） | 新 provider `KimiSubscriptionUsageProvider`（`SourceId: "kimi-subscription"`，跟既有 API key 制的 `"kimi"` 是同一 AI 類型的不同存取類型），打 `GET https://api.kimi.com/coding/v1/usages`，用本機 `~/.kimi-code/credentials/kimi-code.json` 的 OAuth session | 從**開源的 `MoonshotAI/kimi-code` repo**（`packages/oauth/src/managed-usage.ts`）直接讀出端點/認證/回應格式，信心程度高於 Grok（單一乾淨 header、官方 docs 頁部分佐證），但同樣沒有真實帳號可實測。**已知風險**：repo 的 `docs/en/reference/server-api.md` 文件另外記載一個不同端點 `/api/v1/oauth/usage`，本 provider 選用的是 CLI 自己實際呼叫的那支（信心來源不同但可能是兩個獨立功能），詳見程式碼註解 |
 | Claude / Codex API key 制（**已查證不可行，2026-08-31**） | **不支援**，兩個 AI 類型都只保留原本的訂閱制入口，「API key 制」分區暫時只有 DeepSeek/Kimi | 已查證：Anthropic 的 Usage & Cost Admin API（`/v1/organizations/usage_report/messages`、`/cost_report`）與 OpenAI 的對應 API（`/v1/organization/usage/*`、`/costs`）都**需要 Admin API key**，文件明講「The Admin API is unavailable for individual accounts」「workspace API keys don't work」；業務 owner 實測自己的 workspace key 確認卡在同樣的限制。且**連「查詢目前剩餘額度」這個功能本身，Anthropic 目前都還沒有**（[官方 GitHub issue #47574](https://github.com/anthropics/claude-code/issues/47574) 是社群還在跟 Anthropic 要這個功能的 feature request，尚未實作）。唯一能拿到的資訊是一般 key 呼叫 `/v1/messages` 時回應帶的 `anthropic-ratelimit-*` headers（速率限制 headroom，非金額餘額），但取得方式是**真的花錢打一次 API**，跟本工具「唯讀監控、不主動使用服務」的定位衝突，判斷不值得做 |
 | UI 庫 | **@sanring/ui**（透過 `@sanring/cli`，shadcn 體系、copy-in-repo） | 已拍板；元件已內建語意色 token（success/warn/error）直接對齊憲法 §4 三態顏色。本次追加需求：`collapsible`（卡片摺疊/展開）元件，需確認 `@sanring/ui` 是否已提供，若無則自製 |
 | CSS | **Tailwind CSS v4（固定）** | sanring 唯一鎖定預設 |
@@ -367,6 +369,7 @@ interface UsageSummary {
 | DeepSeek/Kimi/其他 API key 制帳號的官方用量 API 若變動或不穩定 | medium | provider 抽象化 + 逾時降級，失敗時沿用最後成功數字並標示非即時 |
 | Claude 用量改打非公開 beta 端點（`/api/oauth/usage`），Anthropic 隨時可能改版或停用，且不是文件化的公開合約 | high | 已知風險，使用者已拍板接受；401/其他錯誤時明確回報「憑證過期，請重新登入」而非靜默壞掉；長期 fallback 是退回 ccusage 估算法 |
 | Codex 用量改打非公開端點（`/backend-api/wham/usage`，**2026-08-31 新增**），OpenAI 隨時可能改版或停用，同樣不是文件化的公開合約 | high | 已知風險，同 Claude 的處理方式；401/403 時明確回報「憑證過期，請重新登入」；長期 fallback 是退回 ccusage 估算法 |
+| **Kimi 訂閱制未實測就上線**（`KimiSubscriptionUsageProvider`，2026-08-31 新增）：端點/回應格式是讀開源碼推論出來的，沒有真實帳號驗證過，第一次真的有人用可能發現端點錯誤或欄位對不上 | medium | 失敗時回傳原始回應內容（截斷）方便除錯，不會靜默顯示錯誤數字；`connectionState` 會誠實顯示 invalid/not_configured 而非假裝成功 |
 | **（已查證，2026-08-31）Grok 沒有 API key 制的官方查詢端點**：查了 xAI 官方文件（`docs.x.ai`），沒有找到任何餘額/用量端點 | high | 已拍板：本期 Grok 只做訂閱制（`ccusage grok`），API key 制標記為技術上不可行，非本期範圍（見 §3） |
 | **（已查證，2026-08-31）Claude 多訂閱帳號需依賴選用外部工具 `cswap`**：`ClaudeAuthReader` 本身只能讀「當下登入的那一個」OAuth session；查證後確認 `cswap list --json` 是官方文件化的 scripting 介面，能一次取得多帳號資料，但**這代表多帳號功能等於間接依賴一個社群工具**，且跟我們自己直接呼叫的做法一樣，本質是打同一支 Anthropic 非公開端點（法律/ToS 風險已知，見 README「已知風險與揭露」） | high | 已拍板：有裝 `cswap` 走 `cswap list --json`；沒裝則維持單帳號限制並在 UI 明確告知使用者原因 |
 | **（新增，2026-08-31）既有單帳號資料模型遷移**：既有程式碼以固定 sourceId（如 `"deepseek"`）為 key 的 Keychain 項目與 `AppSettings.HiddenSources` 等欄位，需重構為以 `accountId` 為 key 的多帳號模型，若處理不當可能導致既有使用者升級後既有帳號憑證遺失或無法對應 | medium-high | 見 §6 TODO，需在實作前規劃明確的遷移/映射策略，必要時提供一次性遷移腳本或啟動時自動偵測轉換 |
@@ -407,13 +410,15 @@ interface UsageSummary {
 - [x] ~~Claude Code / Codex 本機估算演算法~~ —— **已拍板**：shell out 呼叫 `ccusage`
 - [x] ~~Codex 有沒有等同 Claude「5 小時窗」的配額概念~~ —— **已查證**：沒有，`ccusage codex` 只有 daily/monthly/session 累計
 - [x] ~~DeepSeek/Kimi 用量怎麼算「百分比」~~ —— **已查證+設計**：兩家 API 只回報絕對餘額（USD），改用低額度警告門檻設計
-- [ ] TODO: 本機資料儲存路徑（macOS / Windows 各自的慣例路徑）
+- [x] ~~本機資料儲存路徑~~ —— **已實作+已修 bug（2026-08-31）**：`AppPaths.cs`，macOS `~/Library/Application Support/SanRingUsageMonitor/`、Windows `%AppData%\SanRingUsageMonitor\`。**踩過一次真的 bug**：一開始誤用 `SpecialFolder.Personal`（macOS 上實際指向 `~/Documents`，不是 home），已改用 `.UserProfile` 修正
 - [ ] TODO: 「時間窗口用量」（5 小時滾動窗 / 每週）的重置時間點計算規則，需要官方文件佐證
 - [ ] TODO: 背景 timer 在應用視窗被最小化（非關閉）時是否持續運作？Photino 生命週期細節待驗證
 - [ ] TODO: 本機除錯 log 檔的格式、路徑、是否也適用 §9 保留期規則
 - [ ] TODO: `design_output_mode` 尚未與使用者確認（`assets_only` 還是需同步 Figma）
 - [ ] TODO: Kimi 有 `platform.kimi.ai`/`kimi.com` 與 `platform.moonshot.ai`/`.cn` 兩組互不相通的帳號體系，是否要讓 base URL 可設定，待確認
 - [x] ~~Grok 用量查詢技術方案~~ —— **已查證（2026-08-31）**：無官方 API key balance 端點；訂閱制走 `ccusage grok`，API key 制不支援（見 §3/§5/§9）
+- [ ] TODO（**新增，2026-08-31**）：**Kimi 訂閱制需要真實帳號驗證** —— `KimiSubscriptionUsageProvider` 已寫但未測，需要有人申請 Kimi Code 帳號實際跑一次確認端點/欄位對不對（見 §5/§9）
+- [ ] TODO（**新增，2026-08-31**）：**Grok 訂閱制官方端點要不要做** —— 已查到非公開端點但不確定性較高（多 headers、scope 選擇不明），目前擱置，等有真實 Grok Build 帳號能測再評估（見 §5）
 - [x] ~~Claude 多訂閱帳號技術上如何同時讀取兩組 OAuth session~~ —— **已查證（2026-08-31）**：靠選用外部工具 `cswap`（`cswap list --json`），沒裝則維持只能讀「當下登入的那一個」的限制（見 §5/§9，法律/ToS 揭露見 README）
 - [x] ~~Claude / Codex API key 制可不可行~~ —— **已查證不可行（2026-08-31）**：兩家官方 Admin 用量/成本 API 都排除個人帳號、workspace key 打不進去（業務 owner 實測自己帳號確認）；「查詢剩餘額度」這個功能 Anthropic 自己都還沒做（[GitHub issue #47574](https://github.com/anthropics/claude-code/issues/47574) 仍是待實作的 feature request）；一般 key 唯一拿得到的 `anthropic-ratelimit-*` headers 是速率限制而非金額餘額，且要花錢打一次 API 才能拿到，跟本工具「唯讀不主動使用服務」的定位衝突，判定不值得做（見 §3/§5）
 - [ ] TODO（**新增，2026-08-31**）：**卡片摺疊/展開的預設狀態**（展開 or 摺疊）——使用者原話僅描述互動機制（點右上角 V），未拍板預設值

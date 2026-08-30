@@ -14,8 +14,11 @@ public static class AppPaths
     {
         get
         {
+            // .SpecialFolder.Personal is a classic .NET trap on macOS — it resolves to ~/Documents,
+            // not the home directory, despite plenty of code (including an earlier version of this
+            // file) assuming otherwise. .UserProfile is the one that actually means "home dir" here.
             var dir = OperatingSystem.IsMacOS()
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library", "Application Support", AppFolderName)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", AppFolderName)
                 : OperatingSystem.IsWindows()
                     ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppFolderName)
                     : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppFolderName);
