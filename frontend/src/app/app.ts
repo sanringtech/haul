@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
 import { ProgressComponent } from './components/ui/progress';
@@ -22,10 +22,14 @@ declare global {
 type SourceType = 'subscription' | 'api_key';
 type UsageState = 'normal' | 'near_limit' | 'exceeded' | 'unknown';
 type ConnectionState = 'not_configured' | 'valid' | 'invalid' | 'expired';
+type View = 'list' | 'add';
+type AddStatus = 'idle' | 'pending' | 'success' | 'error';
 
 /** Mirrors backend/Models/UsageSummary.cs (camelCase on the wire, see Program.cs jsonOptions). */
 interface UsageSummary {
+  /** Now an accountId, not a bare sourceId — unique per tracked account (multi-account support). */
   source: string;
+  /** AI 類型顯示名稱（例如 "DeepSeek"）— 卡片主標題，同類型的每個帳號都一樣。 */
   displayName: string;
   sourceType: SourceType;
   percentUsed: number | null;
@@ -40,6 +44,8 @@ interface UsageSummary {
   secondaryUsageState: UsageState | null;
   secondaryPercentUsedLabel: string | null;
   secondaryDetail: string | null;
+  /** 帳號副標題（例如 "DeepSeek #2"）——null 時代表這個來源目前只有單一帳號，不用另外標示。 */
+  accountLabel: string | null;
 }
 
 /** One progress row's worth of data, built from either the primary or secondary window fields. */
@@ -48,6 +54,14 @@ interface UsageWindow {
   percent: number | null;
   state: UsageState;
   detail: string | null;
+}
+
+/** Mirrors backend's SourceCatalogEntry — the fixed set of known provider types, tracked or not. */
+interface CatalogEntry {
+  sourceId: string;
+  displayName: string;
+  sourceType: SourceType;
+  isTracked: boolean;
 }
 
 @Component({
@@ -76,11 +90,24 @@ export class App {
   /** Shown once next to the refresh button instead of once per card — every card's `asOf` is effectively the same refresh instant. */
   protected readonly lastRefreshedAt = signal<string | null>(null);
 
-  /** In-progress API key text per source, keyed by source id (constitution R2: api_key sources only). */
-  protected readonly draftApiKeys = signal<Record<string, string>>({});
-
   /** Which source is mid "取消追蹤" confirmation (constitution §8: must be a deliberate 2-step action). */
   protected readonly pendingRemoval = signal<string | null>(null);
+
+  // ── "＋ 新增來源" flow state ──────────────────────────────────────────
+  protected readonly view = signal<View>('list');
+  protected readonly catalog = signal<CatalogEntry[]>([]);
+  protected readonly addSelectedSourceId = signal<string | null>(null);
+  protected readonly addApiKey = signal('');
+  protected readonly addStatus = signal<AddStatus>('idle');
+  protected readonly addResultMessage = signal<string | null>(null);
+
+  protected readonly addSelectedEntry = computed(
+    () => this.catalog().find((c) => c.sourceId === this.addSelectedSourceId()) ?? null,
+  );
+
+  /** 新增畫面第一層改用「存取類型」分兩區顯示，而不是每一項各自掛 hover 說明。 */
+  protected readonly catalogBySubscription = computed(() => this.catalog().filter((c) => c.sourceType === 'subscription'));
+  protected readonly catalogByApiKey = computed(() => this.catalog().filter((c) => c.sourceType === 'api_key'));
 
   constructor() {
     window.external?.receiveMessage?.((message) => this.onHostMessage(message));
@@ -90,19 +117,51 @@ export class App {
     this.send({ type: 'get-usage-summary' });
   }
 
-  protected onApiKeyInput(sourceId: string, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.draftApiKeys.update((keys) => ({ ...keys, [sourceId]: value }));
+  protected openAddView(): void {
+    this.view.set('add');
+    this.addSelectedSourceId.set(null);
+    this.addApiKey.set('');
+    this.addStatus.set('idle');
+    this.addResultMessage.set(null);
+    this.send({ type: 'get-catalog' });
   }
 
-  protected addSource(sourceId: string): void {
-    const apiKey = this.draftApiKeys()[sourceId]?.trim();
-    if (!apiKey) {
-      this.lastError.set('請先輸入 API key');
+  protected closeAddView(): void {
+    this.view.set('list');
+  }
+
+  protected selectAddSource(sourceId: string): void {
+    this.addSelectedSourceId.set(sourceId);
+    this.addApiKey.set('');
+    this.addStatus.set('idle');
+    this.addResultMessage.set(null);
+  }
+
+  protected resetAddSelection(): void {
+    this.addSelectedSourceId.set(null);
+    this.addStatus.set('idle');
+    this.addResultMessage.set(null);
+  }
+
+  protected onAddApiKeyInput(event: Event): void {
+    this.addApiKey.set((event.target as HTMLInputElement).value);
+  }
+
+  /** API key 制：真的送出金鑰驗證。訂閱制：沒有東西好打，這顆按鈕只是「開始偵測本機」。 */
+  protected submitAdd(): void {
+    const entry = this.addSelectedEntry();
+    if (!entry) return;
+
+    if (entry.sourceType === 'api_key' && !this.addApiKey().trim()) {
+      this.addStatus.set('error');
+      this.addResultMessage.set('請先輸入 API key');
       return;
     }
-    this.send({ type: 'add-source', source: sourceId, credential: { apiKey } });
-    this.draftApiKeys.update((keys) => ({ ...keys, [sourceId]: '' }));
+
+    this.addStatus.set('pending');
+    this.addResultMessage.set(null);
+    const apiKey = entry.sourceType === 'api_key' ? this.addApiKey().trim() : undefined;
+    this.send({ type: 'add-source', source: entry.sourceId, credential: apiKey ? { apiKey } : undefined });
   }
 
   /** First click arms the confirmation, second click (on the same source) actually removes it. */
@@ -139,6 +198,18 @@ export class App {
         near_limit: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
         exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-white',
         unknown: 'border-transparent bg-[var(--sanring-neutral-30)] text-[var(--sanring-neutral-90)]',
+      } satisfies Record<UsageState, string>
+    )[state];
+  }
+
+  /** 沒有百分比概念的來源（DeepSeek/Kimi 的絕對餘額）不畫假進度條，狀態改用文字 badge。 */
+  protected usageStateLabel(state: UsageState): string {
+    return (
+      {
+        normal: '正常',
+        near_limit: '偏低',
+        exceeded: '已用盡',
+        unknown: '—',
       } satisfies Record<UsageState, string>
     )[state];
   }
@@ -192,12 +263,42 @@ export class App {
   private onHostMessage(raw: string): void {
     this.isLoading.set(false);
     try {
-      const payload = JSON.parse(raw) as { type: string; data?: UsageSummary[]; error?: string };
+      const payload = JSON.parse(raw) as {
+        type: string;
+        data?: UsageSummary[];
+        catalog?: CatalogEntry[];
+        error?: string;
+      };
+
+      if (payload.type === 'catalog' && payload.catalog) {
+        this.catalog.set(payload.catalog);
+        return;
+      }
+
+      // 新增來源的結果現在後端會單獨送一則（因為 API key 制的 accountId 是伺服器產生的 GUID，
+      // 前端沒辦法從一般的清單裡用 sourceId 反查回「剛剛加的是哪一個」）。
+      if (payload.type === 'account-added' && payload.data?.[0]) {
+        const added = payload.data[0];
+        if (added.connectionState === 'valid') {
+          this.addStatus.set('success');
+          this.addResultMessage.set(`已新增 ${added.accountLabel ?? added.displayName}`);
+          // 讓使用者瞄到一眼「成功了」再切回去，不是完全無感跳轉，但也不用再多按一次確認。
+          setTimeout(() => this.closeAddView(), 900);
+        } else {
+          this.addStatus.set('error');
+          this.addResultMessage.set(added.detail ?? '新增失敗，原因不明');
+        }
+        return;
+      }
+
       if (payload.type === 'usage-summary' && payload.data) {
         this.summaries.set(payload.data);
         this.lastError.set(null);
         this.lastRefreshedAt.set(payload.data[0]?.asOf ?? null);
-      } else if (payload.error) {
+        return;
+      }
+
+      if (payload.error) {
         this.lastError.set(payload.error);
       }
     } catch {
