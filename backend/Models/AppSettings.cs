@@ -30,6 +30,14 @@ public sealed class AppSettings
 
     public double? KimiLowBalanceThresholdUsd { get; set; }
 
-    /// <summary>Source ids the user has hidden (constitution §8 "關閉顯示") — data/keys stay, just not shown.</summary>
-    public List<string> HiddenSources { get; set; } = [];
+    /// <summary>Account ids the user has hidden (constitution §8 "關閉顯示") — data/keys stay, just not shown.</summary>
+    public List<string> HiddenAccountIds { get; set; } = [];
+
+    /// <summary>
+    /// Accounts the user has explicitly added via the "＋ 新增來源" flow (憲法 R5：多帳號各自獨立).
+    /// Default empty — a fresh install shows nothing until the user adds something. Subscription-type
+    /// sources (Claude/Codex) only ever have one entry here (one person, one active login); api_key-type
+    /// sources (DeepSeek/Kimi) can have several, each its own TrackedAccount with its own AccountId.
+    /// </summary>
+    public List<TrackedAccount> TrackedAccounts { get; set; } = [];
 }

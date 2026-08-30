@@ -19,11 +19,12 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public async Task<UsageSummary> GetUsageAsync(AppSettings settings, CancellationToken ct)
+    public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
-        var apiKey = secretStore.Get(SourceId);
+        // Keyed by AccountId, not SourceId — that's what lets two DeepSeek accounts hold two different keys.
+        var apiKey = secretStore.Get(account.AccountId);
         if (string.IsNullOrEmpty(apiKey))
-            return Build("not_configured", null, null, "尚未設定 API key");
+            return Build(account, "not_configured", null, null, "尚未設定 API key");
 
         try
         {
@@ -32,10 +33,10 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build("invalid", null, null, "API key 被拒絕（撤銷或格式錯誤）");
+                return Build(account, "invalid", null, null, "API key 被拒絕（撤銷或格式錯誤）");
 
             if (!response.IsSuccessStatusCode)
-                return Build("invalid", null, null, $"DeepSeek 回應錯誤：HTTP {(int)response.StatusCode}");
+                return Build(account, "invalid", null, null, $"DeepSeek 回應錯誤：HTTP {(int)response.StatusCode}");
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var parsed = JsonSerializer.Deserialize<DeepSeekBalanceResponse>(body, JsonOptions);
@@ -44,25 +45,25 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
                 // Include the raw body (truncated) instead of a bare "can't parse" — it's the
                 // user's own balance figures on their own machine, safe to surface, and the only
                 // way to actually debug a future schema mismatch without guessing again.
-                return Build("invalid", null, null, $"DeepSeek 回應內容無法解析：{Truncate(body)}");
+                return Build(account, "invalid", null, null, $"DeepSeek 回應內容無法解析：{Truncate(body)}");
 
             var threshold = settings.DeepSeekLowBalanceThresholdUsd;
             var usageState = !parsed!.IsAvailable ? "exceeded"
                 : threshold is { } t && balance <= t ? "near_limit"
                 : "normal";
 
-            return Build("valid", usageState, null, $"剩餘額度 {info.Currency} {balance:N2}");
+            return Build(account, "valid", usageState, null, $"剩餘額度 {info.Currency} {balance:N2}");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build("invalid", null, null, $"呼叫 DeepSeek 用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", null, null, $"呼叫 DeepSeek 用量端點失敗：{ex.Message}");
         }
     }
 
     private static string Truncate(string s) => s.Length <= 200 ? s : s[..200] + "…";
 
-    private UsageSummary Build(string connectionState, string? usageState, double? percentUsed, string detail) => new(
-        Source: SourceId,
+    private UsageSummary Build(TrackedAccount account, string connectionState, string? usageState, double? percentUsed, string detail) => new(
+        Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,
         PercentUsed: percentUsed,
@@ -70,7 +71,8 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
         ConnectionState: connectionState,
         IsEstimated: false, // DeepSeek's own official balance endpoint — not a local estimate (constitution R3 only requires the badge for local estimates).
         AsOf: DateTime.Now.ToString("HH:mm:ss"),
-        Detail: detail);
+        Detail: detail,
+        AccountLabel: account.Label);
 }
 
 internal sealed class DeepSeekBalanceResponse

@@ -21,11 +21,11 @@ public sealed class KimiUsageProvider(ISecretStore secretStore) : IUsageProvider
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public async Task<UsageSummary> GetUsageAsync(AppSettings settings, CancellationToken ct)
+    public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
-        var apiKey = secretStore.Get(SourceId);
+        var apiKey = secretStore.Get(account.AccountId);
         if (string.IsNullOrEmpty(apiKey))
-            return Build("not_configured", null, "尚未設定 API key");
+            return Build(account, "not_configured", null, "尚未設定 API key");
 
         try
         {
@@ -34,15 +34,15 @@ public sealed class KimiUsageProvider(ISecretStore secretStore) : IUsageProvider
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build("invalid", null, "API key 被拒絕（撤銷、格式錯誤，或這是 platform.kimi.ai 而非 moonshot.ai 發的 key）");
+                return Build(account, "invalid", null, "API key 被拒絕（撤銷、格式錯誤，或這是 platform.kimi.ai 而非 moonshot.ai 發的 key）");
 
             if (!response.IsSuccessStatusCode)
-                return Build("invalid", null, $"Kimi 回應錯誤：HTTP {(int)response.StatusCode}");
+                return Build(account, "invalid", null, $"Kimi 回應錯誤：HTTP {(int)response.StatusCode}");
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var parsed = JsonSerializer.Deserialize<KimiBalanceResponse>(body, JsonOptions);
             if (parsed is null || !parsed.Status || parsed.Data is null)
-                return Build("invalid", null, $"Kimi 回應內容無法解析或回報失敗：{Truncate(body)}");
+                return Build(account, "invalid", null, $"Kimi 回應內容無法解析或回報失敗：{Truncate(body)}");
 
             var balance = parsed.Data.AvailableBalance;
             var threshold = settings.KimiLowBalanceThresholdUsd;
@@ -50,18 +50,18 @@ public sealed class KimiUsageProvider(ISecretStore secretStore) : IUsageProvider
                 : threshold is { } t && balance <= t ? "near_limit"
                 : "normal";
 
-            return Build("valid", usageState, $"剩餘額度 {balance:N2}", isEstimated: false);
+            return Build(account, "valid", usageState, $"剩餘額度 {balance:N2}", isEstimated: false);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build("invalid", null, $"呼叫 Kimi 用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", null, $"呼叫 Kimi 用量端點失敗：{ex.Message}");
         }
     }
 
     private static string Truncate(string s) => s.Length <= 200 ? s : s[..200] + "…";
 
-    private UsageSummary Build(string connectionState, string? usageState, string detail, bool isEstimated = false) => new(
-        Source: SourceId,
+    private UsageSummary Build(TrackedAccount account, string connectionState, string? usageState, string detail, bool isEstimated = false) => new(
+        Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,
         PercentUsed: null,
@@ -69,7 +69,8 @@ public sealed class KimiUsageProvider(ISecretStore secretStore) : IUsageProvider
         ConnectionState: connectionState,
         IsEstimated: isEstimated,
         AsOf: DateTime.Now.ToString("HH:mm:ss"),
-        Detail: detail);
+        Detail: detail,
+        AccountLabel: account.Label);
 }
 
 internal sealed class KimiBalanceResponse

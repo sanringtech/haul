@@ -25,14 +25,14 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public async Task<UsageSummary> GetUsageAsync(AppSettings settings, CancellationToken ct)
+    public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
         var token = ClaudeAuthReader.Read();
         if (token is null)
-            return Build("not_configured", detail: "找不到 Claude Code 的登入憑證，請先執行 `claude` 完成登入");
+            return Build(account, "not_configured", detail: "找不到 Claude Code 的登入憑證，請先執行 `claude` 完成登入");
 
         if (ClaudeAuthReader.IsExpired(token))
-            return Build("expired", detail: "登入憑證已過期，請執行一次 `claude` 讓它自動刷新");
+            return Build(account, "expired", detail: "登入憑證已過期，請執行一次 `claude` 讓它自動刷新");
 
         try
         {
@@ -43,25 +43,25 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build("expired", detail: "Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入");
+                return Build(account, "expired", detail: "Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入");
 
             if (!response.IsSuccessStatusCode)
-                return Build("invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}");
+                return Build(account, "invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}");
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var parsed = JsonSerializer.Deserialize<AnthropicUsageResponse>(body, JsonOptions);
             if (parsed is null)
-                return Build("invalid", detail: $"用量端點回應內容無法解析：{Truncate(body)}");
+                return Build(account, "invalid", detail: $"用量端點回應內容無法解析：{Truncate(body)}");
 
-            return BuildFromUsage(parsed, settings);
+            return BuildFromUsage(account, parsed, settings);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build("invalid", detail: $"呼叫用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", detail: $"呼叫用量端點失敗：{ex.Message}");
         }
     }
 
-    private UsageSummary BuildFromUsage(AnthropicUsageResponse usage, AppSettings settings)
+    private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings)
     {
         var threshold = settings.NearLimitThresholdPercent;
         var now = DateTime.Now.ToString("HH:mm:ss");
@@ -75,7 +75,7 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         string? sevenDayDetail = usage.SevenDay?.ResetsAt is { } d7Reset ? $"{FormatResetLocal(d7Reset)} 重置" : null;
 
         return new UsageSummary(
-            Source: SourceId,
+            Source: account.AccountId,
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: fiveHourPct,
@@ -88,7 +88,8 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             SecondaryPercentUsed: sevenDayPct,
             SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
             SecondaryPercentUsedLabel: "7 天",
-            SecondaryDetail: sevenDayDetail);
+            SecondaryDetail: sevenDayDetail,
+            AccountLabel: account.Label);
     }
 
     private static string ClassifyState(double? percent, int threshold) => percent switch
@@ -111,8 +112,8 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         }
     }
 
-    private UsageSummary Build(string connectionState, string detail) => new(
-        Source: SourceId,
+    private UsageSummary Build(TrackedAccount account, string connectionState, string detail) => new(
+        Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,
         PercentUsed: null,
@@ -120,7 +121,8 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         ConnectionState: connectionState,
         IsEstimated: false,
         AsOf: DateTime.Now.ToString("HH:mm:ss"),
-        Detail: detail);
+        Detail: detail,
+        AccountLabel: account.Label);
 
     private static string Truncate(string s) => s.Length <= 200 ? s : s[..200] + "…";
 }

@@ -17,7 +17,7 @@ public sealed class CodexUsageProvider : IUsageProvider
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public async Task<UsageSummary> GetUsageAsync(AppSettings settings, CancellationToken ct)
+    public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
         var today = DateTime.UtcNow.ToString("yyyyMMdd");
         var command = $"npx --yes ccusage@latest codex daily --json --since {today}";
@@ -29,11 +29,11 @@ public sealed class CodexUsageProvider : IUsageProvider
         }
         catch (Exception ex) when (ex is TimeoutException or InvalidOperationException)
         {
-            return NotConfigured($"無法執行 ccusage：{ex.Message}");
+            return NotConfigured(account, $"無法執行 ccusage：{ex.Message}");
         }
 
         if (result.ExitCode != 0)
-            return NotConfigured($"ccusage 執行失敗：{Truncate(result.StdErr)}");
+            return NotConfigured(account, $"ccusage 執行失敗：{Truncate(result.StdErr)}");
 
         CcusageCodexDailyResponse? parsed;
         try
@@ -42,18 +42,18 @@ public sealed class CodexUsageProvider : IUsageProvider
         }
         catch (JsonException)
         {
-            return NotConfigured("ccusage 回傳的內容無法解析（可能是版本輸出格式變動）");
+            return NotConfigured(account, "ccusage 回傳的內容無法解析（可能是版本輸出格式變動）");
         }
 
         if (parsed is null)
-            return NotConfigured("ccusage 沒有回傳任何資料");
+            return NotConfigured(account, "ccusage 沒有回傳任何資料");
 
         // A totals block with zero everywhere and no daily rows either means "no Codex data ever
         // found on this machine" (not configured) or "found Codex, just nothing used today" (valid).
         // ccusage doesn't distinguish these for us, so treat "ran successfully" as valid either way —
         // consistent with how ClaudeUsageProvider treats an empty active-block list.
         return new UsageSummary(
-            Source: SourceId,
+            Source: account.AccountId,
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: null,
@@ -61,11 +61,12 @@ public sealed class CodexUsageProvider : IUsageProvider
             ConnectionState: "valid",
             IsEstimated: true,
             AsOf: DateTime.Now.ToString("HH:mm:ss"),
-            Detail: $"今日 {parsed.Totals.TotalTokens:N0} tokens（Codex 無已知額度上限，僅顯示原始用量）");
+            Detail: $"今日 {parsed.Totals.TotalTokens:N0} tokens（Codex 無已知額度上限，僅顯示原始用量）",
+            AccountLabel: account.Label);
     }
 
-    private UsageSummary NotConfigured(string detail) => new(
-        Source: SourceId,
+    private UsageSummary NotConfigured(TrackedAccount account, string detail) => new(
+        Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,
         PercentUsed: null,
@@ -73,7 +74,8 @@ public sealed class CodexUsageProvider : IUsageProvider
         ConnectionState: "not_configured",
         IsEstimated: true,
         AsOf: DateTime.Now.ToString("HH:mm:ss"),
-        Detail: detail);
+        Detail: detail,
+        AccountLabel: account.Label);
 
     private static string Truncate(string s) => s.Length <= 200 ? s : s[..200] + "…";
 }

@@ -5,106 +5,153 @@ using UsageMonitor.Desktop.Services;
 
 namespace UsageMonitor.Desktop;
 
+/// <summary>One known provider type's metadata, for the "＋ 新增來源" picker — not tied to a specific account.</summary>
+public sealed record SourceCatalogEntry(string SourceId, string DisplayName, string SourceType, bool IsTracked);
+
 /// <summary>
-/// Orchestrates all <see cref="IUsageProvider"/>s (constitution R1: Claude/Codex/DeepSeek/Kimi, PRD M2
-/// complete) plus the add/remove/visibility operations from PRD §7 and constitution §8.
+/// Orchestrates all <see cref="IUsageProvider"/>s (constitution R1: Claude/Codex/DeepSeek/Kimi) across
+/// however many <see cref="TrackedAccount"/>s the user has added (constitution R5: multi-account —
+/// api_key-type sources like DeepSeek/Kimi can have several accounts; subscription-type sources
+/// stay singleton, one login at a time) plus the add/remove/visibility operations from PRD §7.
 /// </summary>
 public sealed class UsageService
 {
     private readonly ISecretStore _secretStore;
-    private readonly IReadOnlyList<IUsageProvider> _providers;
+    private readonly IReadOnlyDictionary<string, IUsageProvider> _providersBySourceId;
 
     public UsageService()
     {
         _secretStore = SecretStoreFactory.Create();
-        _providers =
+        IUsageProvider[] providers =
         [
             new ClaudeUsageProvider(),
             new CodexUsageProvider(),
             new DeepSeekUsageProvider(_secretStore),
             new KimiUsageProvider(_secretStore),
         ];
+        _providersBySourceId = providers.ToDictionary(p => p.SourceId);
     }
 
-    /// <summary>Everything except sources the user has hidden (constitution §8 "關閉顯示").</summary>
+    /// <summary>Only accounts the user has explicitly added and not hidden. A fresh install returns an empty array.</summary>
     public async Task<UsageSummary[]> GetSummariesAsync(CancellationToken ct = default)
     {
         var settings = SettingsStore.Load();
-        var results = await Task.WhenAll(_providers.Select(p => GetOneAsync(p, settings, ct)));
-        return [.. results.Where(r => !settings.HiddenSources.Contains(r.Source))];
+        var visible = settings.TrackedAccounts.Where(a => !settings.HiddenAccountIds.Contains(a.AccountId));
+        return await Task.WhenAll(visible.Select(a => GetOneAsync(a, settings, ct)));
     }
 
-    /// <summary>api_key sources only (subscription sources have nothing to store — see constitution R2).</summary>
+    /// <summary>
+    /// All known provider types for the "＋ 新增來源" picker. Subscription types (one login at a time)
+    /// disappear once tracked; api_key types never do — a second/third DeepSeek account doesn't
+    /// conflict with the first, so there's nothing to hide (constitution R5).
+    /// </summary>
+    public SourceCatalogEntry[] GetCatalog()
+    {
+        var settings = SettingsStore.Load();
+        return [.. _providersBySourceId.Values.Select(p =>
+        {
+            var alreadyHasAccount = settings.TrackedAccounts.Any(a => a.SourceId == p.SourceId);
+            var isTracked = p.SourceType == "subscription" && alreadyHasAccount;
+            return new SourceCatalogEntry(p.SourceId, p.DisplayName, p.SourceType, isTracked);
+        })];
+    }
+
+    /// <summary>
+    /// Adds a new account and does one immediate probe — for api_key sources that's validating the
+    /// key against the real endpoint; for subscription sources it's "try to detect the local CLI/
+    /// session right now" (constitution R2: nothing to type, just something to find).
+    /// </summary>
     public async Task<UsageSummary> AddSourceAsync(string sourceId, string? apiKey, CancellationToken ct = default)
     {
         var provider = FindProvider(sourceId);
-        if (provider.SourceType == "api_key")
+        var settings = SettingsStore.Load();
+
+        TrackedAccount account;
+        if (provider.SourceType == "subscription")
+        {
+            // Singleton — reuse the existing entry if this is a retry, don't spawn a second "claude".
+            account = settings.TrackedAccounts.FirstOrDefault(a => a.SourceId == sourceId)
+                ?? new TrackedAccount(sourceId, sourceId, Label: null);
+        }
+        else
         {
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentException($"{provider.DisplayName} 需要提供 API key");
-            _secretStore.Set(sourceId, apiKey.Trim());
+
+            // Auto-numbered placeholder label — real per-account naming (with rename support, constitution
+            // R5) is bigger multi-account UI work, not in this slice (user explicitly deferred it).
+            var existingCount = settings.TrackedAccounts.Count(a => a.SourceId == sourceId);
+            var label = existingCount == 0 ? provider.DisplayName : $"{provider.DisplayName} #{existingCount + 1}";
+            account = new TrackedAccount($"{sourceId}-{Guid.NewGuid():N}", sourceId, label);
+            _secretStore.Set(account.AccountId, apiKey.Trim());
         }
 
-        var settings = SettingsStore.Load();
-        if (settings.HiddenSources.Remove(sourceId))
-            SettingsStore.Save(settings);
-
-        // Call it once immediately so the caller finds out right away whether the key actually works,
-        // rather than waiting for the next refresh cycle.
-        return await GetOneAsync(provider, settings, ct);
-    }
-
-    /// <summary>取消追蹤（constitution §8）— full deletion, not just hiding: deletes the stored key too.</summary>
-    public void RemoveSource(string sourceId)
-    {
-        _secretStore.Delete(sourceId);
-
-        var settings = SettingsStore.Load();
-        if (!settings.HiddenSources.Contains(sourceId))
+        var changed = false;
+        if (!settings.TrackedAccounts.Any(a => a.AccountId == account.AccountId))
         {
-            settings.HiddenSources.Add(sourceId);
-            SettingsStore.Save(settings);
+            settings.TrackedAccounts.Add(account);
+            changed = true;
         }
+        changed |= settings.HiddenAccountIds.Remove(account.AccountId);
+        if (changed) SettingsStore.Save(settings);
+
+        // Call it once immediately so the caller finds out right away whether it actually worked,
+        // rather than waiting for the next refresh cycle.
+        return await GetOneAsync(account, settings, ct);
     }
 
-    /// <summary>關閉顯示 / reopen（constitution §8）— data and keys are untouched either way.</summary>
-    public void SetVisibility(string sourceId, bool visible)
+    /// <summary>取消追蹤（constitution §8）— full deletion of this one account, siblings of the same source untouched (R5).</summary>
+    public void RemoveSource(string accountId)
     {
+        _secretStore.Delete(accountId);
+
         var settings = SettingsStore.Load();
-        var changed = visible ? settings.HiddenSources.Remove(sourceId) : EnsureHidden(settings, sourceId);
+        var changed = settings.TrackedAccounts.RemoveAll(a => a.AccountId == accountId) > 0;
+        changed |= settings.HiddenAccountIds.Remove(accountId);
         if (changed) SettingsStore.Save(settings);
     }
 
-    private static bool EnsureHidden(AppSettings settings, string sourceId)
+    /// <summary>關閉顯示 / reopen（constitution §8）— data and keys are untouched either way.</summary>
+    public void SetVisibility(string accountId, bool visible)
     {
-        if (settings.HiddenSources.Contains(sourceId)) return false;
-        settings.HiddenSources.Add(sourceId);
+        var settings = SettingsStore.Load();
+        var changed = visible ? settings.HiddenAccountIds.Remove(accountId) : EnsureHidden(settings, accountId);
+        if (changed) SettingsStore.Save(settings);
+    }
+
+    private static bool EnsureHidden(AppSettings settings, string accountId)
+    {
+        if (settings.HiddenAccountIds.Contains(accountId)) return false;
+        settings.HiddenAccountIds.Add(accountId);
         return true;
     }
 
     private IUsageProvider FindProvider(string sourceId) =>
-        _providers.FirstOrDefault(p => p.SourceId == sourceId)
-        ?? throw new ArgumentException($"未知的來源: {sourceId}");
+        _providersBySourceId.TryGetValue(sourceId, out var provider)
+            ? provider
+            : throw new ArgumentException($"未知的來源: {sourceId}");
 
-    private static async Task<UsageSummary> GetOneAsync(IUsageProvider provider, AppSettings settings, CancellationToken ct)
+    private async Task<UsageSummary> GetOneAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
         try
         {
-            return await provider.GetUsageAsync(settings, ct);
+            var provider = FindProvider(account.SourceId);
+            return await provider.GetUsageAsync(account, settings, ct);
         }
         catch (Exception ex)
         {
             // A provider must never take the whole refresh down with it.
             return new UsageSummary(
-                Source: provider.SourceId,
-                DisplayName: provider.DisplayName,
-                SourceType: provider.SourceType,
+                Source: account.AccountId,
+                DisplayName: account.Label ?? account.SourceId,
+                SourceType: "unknown",
                 PercentUsed: null,
                 UsageState: "unknown",
                 ConnectionState: "invalid",
                 IsEstimated: true,
                 AsOf: DateTime.Now.ToString("HH:mm:ss"),
-                Detail: $"未預期的錯誤：{ex.Message}");
+                Detail: $"未預期的錯誤：{ex.Message}",
+                AccountLabel: account.Label);
         }
     }
 }

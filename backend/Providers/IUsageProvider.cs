@@ -3,8 +3,9 @@ using UsageMonitor.Desktop.Models;
 namespace UsageMonitor.Desktop.Providers;
 
 /// <summary>
-/// One source = one implementation (constitution R1: Claude / Codex / DeepSeek / Kimi).
-/// Adding a fifth source later should only mean adding a new class here, per PRD §9 risk mitigation.
+/// One implementation per AI type (constitution R1: Claude / Codex / DeepSeek / Kimi). A single
+/// provider instance can serve multiple <see cref="TrackedAccount"/>s of that type (e.g. two DeepSeek
+/// accounts each call GetUsageAsync with their own account, same provider).
 /// </summary>
 public interface IUsageProvider
 {
@@ -12,5 +13,5 @@ public interface IUsageProvider
     string DisplayName { get; }
     string SourceType { get; }      // "subscription" | "api_key"
 
-    Task<UsageSummary> GetUsageAsync(AppSettings settings, CancellationToken ct);
+    Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct);
 }

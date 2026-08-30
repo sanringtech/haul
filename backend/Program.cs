@@ -64,8 +64,17 @@ async void OnWebMessageReceived(object? sender, string message)
                 await RespondWithSummaries();
                 break;
 
+            case "get-catalog":
+                var catalog = usageService.GetCatalog();
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("catalog", null, null, catalog), jsonOptions));
+                break;
+
             case "add-source" when request.Source is not null:
-                await usageService.AddSourceAsync(request.Source, request.Credential?.ApiKey);
+                // Sent as its own message (not just folded into the full-list refresh below) because
+                // the new account's id is generated server-side (api_key sources get a fresh GUID) —
+                // the frontend has no way to pick "the one it just added" back out of a plain list.
+                var added = await usageService.AddSourceAsync(request.Source, request.Credential?.ApiKey);
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("account-added", [added], null), jsonOptions));
                 await RespondWithSummaries();
                 break;
 
@@ -100,4 +109,4 @@ file sealed record HostRequest(string Type, string? Source = null, HostCredentia
 
 file sealed record HostCredential(string? ApiKey);
 
-file sealed record HostResponse(string? Type, UsageSummary[]? Data, string? Error);
+file sealed record HostResponse(string? Type, UsageSummary[]? Data, string? Error, SourceCatalogEntry[]? Catalog = null);
