@@ -2,3 +2,15 @@
 @import './sanring-theme.css';
 
 /* You can add global styles to this file, and also import other style files */
+
+/* Angular CDK ships its own `@layer cdk-resets { .cdk-drag-preview { background: none; border: none; } }`
+   so consumers can restyle the floating drag preview from scratch — without this override, the card
+   being dragged (the clone that follows the cursor) has no background/border at all and looks
+   transparent. This rule is deliberately NOT inside an @layer: unlayered CSS always wins over any
+   @layer'd rule regardless of layer declaration order, so it reliably beats cdk-resets. */
+.cdk-drag-preview {
+  background: var(--sanring-surface);
+  border: 1px solid var(--sanring-border);
+  border-radius: var(--sanring-radius-lg);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.2);
+}
