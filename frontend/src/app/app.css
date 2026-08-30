@@ -1,0 +1,9 @@
+/*
+ * Styling now comes from Tailwind utility classes in app.html plus the
+ * @sanring/ui component library (see src/app/components/ui/). This file is
+ * intentionally near-empty — keep component-specific overrides here only
+ * when a Tailwind class genuinely can't express something.
+ */
+:host {
+  display: block;
+}

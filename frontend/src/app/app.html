@@ -1,0 +1,122 @@
+<main class="flex flex-col gap-4 p-6 bg-[var(--sanring-background)] text-[var(--sanring-foreground)] min-h-screen">
+  <header class="flex items-center gap-2">
+    <h1 class="text-base font-semibold flex-1">{{ title() }}</h1>
+    <span
+      sanringBadge
+      variant="outline"
+      [class]="isDesktopHost() ? 'border-transparent bg-[var(--sanring-success-50)] text-white' : ''"
+    >
+      {{ isDesktopHost() ? '已連接桌面殼層' : '瀏覽器模式' }}
+    </span>
+  </header>
+
+  <div class="flex items-center gap-2">
+    <button sanringBtn type="button" size="sm" [disabled]="isLoading()" (click)="refresh()" class="inline-flex items-center gap-2">
+      @if (isLoading()) {
+        <sanring-spinner size="sm" />
+      }
+      {{ isLoading() ? '重新整理中…' : '重新整理用量' }}
+    </button>
+    @if (lastRefreshedAt()) {
+      <!-- 每張卡片的 asOf 幾乎同一時刻，拿掉逐卡重複顯示，這裡放一次就好 -->
+      <span class="text-[10px] text-[var(--sanring-muted)]">上次更新 {{ lastRefreshedAt() }}</span>
+    }
+  </div>
+
+  @if (lastError()) {
+    <sanring-alert variant="destructive" class="text-sm">
+      <p sanringAlertDescription>{{ lastError() }}</p>
+    </sanring-alert>
+  }
+
+  <div class="flex flex-col gap-3">
+    @if (isLoading() && summaries().length === 0) {
+      <!-- 第一次載入還沒有任何資料時的骨架屏，避免空白卡片閃一下 -->
+      @for (i of [1, 2, 3]; track i) {
+        <div class="rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] p-3 flex flex-col gap-2">
+          <div sanringSkeleton class="h-4 w-24 rounded"></div>
+          <div sanringSkeleton class="h-2 w-full rounded-full"></div>
+        </div>
+      }
+    }
+    @for (item of summaries(); track item.source) {
+      <sanring-card>
+        <sanring-card-header class="p-3 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="h-2.5 w-2.5 rounded-full shrink-0" [class]="connectionDotClass(item.connectionState)"></span>
+            <!-- 主標題＝AI 類型，副標題＝帳號；帳號欄位要等多帳號重構（accountId/label）才有實際資料，先把版位空著 -->
+            <span sanringCardTitle class="flex-1 text-sm">{{ item.displayName }}</span>
+            @if (item.isEstimated) {
+              <sanring-tooltip>
+                <span sanringTooltipTrigger sanringBadge variant="outline" class="text-[10px] px-1.5 py-0">估算</span>
+                <sanring-tooltip-content>本機推算值，非官方即時精確數字</sanring-tooltip-content>
+              </sanring-tooltip>
+            }
+          </div>
+        </sanring-card-header>
+        <sanring-card-content class="p-3 pt-0 flex flex-col gap-3">
+          <!-- 卡片內容機械地依 windows(item) 的長度顯示：1 個視窗的來源一行，2 個視窗（Claude 5h+7d）自然兩行 -->
+          @for (w of windows(item); track w.label ?? '') {
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2">
+                @if (w.label) {
+                  <span class="text-[10px] text-[var(--sanring-muted)] w-9 shrink-0">{{ w.label }}</span>
+                }
+                <sanring-progress class="flex-1" [value]="w.percent ?? 0" [barClass]="usageBarClass(w.state)" />
+                <sanring-tooltip>
+                  <span sanringTooltipTrigger sanringBadge [class]="usageBadgeClass(w.state) + ' text-xs shrink-0'">
+                    {{ w.percent !== null ? w.percent.toFixed(0) + '%' : '—' }}
+                  </span>
+                  <sanring-tooltip-content>{{ w.label ? w.label + ' 視窗內已用掉的比例' : '目前用量狀態' }}</sanring-tooltip-content>
+                </sanring-tooltip>
+              </div>
+              @if (w.detail) {
+                <!-- 標籤（5 小時/7 天）已經在上面 badge 顯示過了，這裡不重複，減法 -->
+                <p sanringCardDescription class="text-[10px]">{{ w.detail }}</p>
+              }
+            </div>
+          }
+
+          @if (item.sourceType === 'api_key') {
+            @if (item.connectionState === 'not_configured') {
+              <!-- 新增追蹤：憲法 R2 — 使用者自行提供 API key，只存本機 Keychain -->
+              <div class="flex gap-2 pt-1">
+                <input
+                  sanringInput
+                  type="password"
+                  class="h-8 text-xs flex-1"
+                  placeholder="貼上 {{ item.displayName }} API key"
+                  [value]="draftApiKeys()[item.source] ?? ''"
+                  (input)="onApiKeyInput(item.source, $event)"
+                />
+                <button sanringBtn type="button" size="sm" (click)="addSource(item.source)">新增</button>
+              </div>
+            } @else if (pendingRemoval() === item.source) {
+              <!-- 取消追蹤二次確認：憲法 §8 — 會整個刪除本機的 key/歷史資料，不可逆 -->
+              <div class="flex items-center gap-2 pt-1 text-xs">
+                <span class="text-[var(--sanring-error-50)] flex-1">確定要取消追蹤？本機的 key 跟歷史資料會被刪除，無法復原</span>
+                <button sanringBtn type="button" size="sm" variant="destructive" (click)="requestRemove(item.source)">確定刪除</button>
+                <button sanringBtn type="button" size="sm" variant="ghost" (click)="cancelRemove()">取消</button>
+              </div>
+            } @else {
+              <button
+                sanringBtn
+                type="button"
+                size="sm"
+                variant="ghost"
+                class="self-start text-xs text-[var(--sanring-error-50)]"
+                (click)="requestRemove(item.source)"
+              >
+                取消追蹤
+              </button>
+            }
+          }
+        </sanring-card-content>
+      </sanring-card>
+    } @empty {
+      <sanring-card class="p-6 text-center text-sm text-[var(--sanring-muted)]">
+        尚無資料，按上面的按鈕重新整理
+      </sanring-card>
+    }
+  </div>
+</main>

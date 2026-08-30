@@ -1,0 +1,153 @@
+/*
+ * Sanring UI — design tokens
+ *
+ * 所有 @sanring/ui 元件都是靠這組 CSS custom properties 決定顏色/圓角，不會
+ * 內建寫死的顏色。把這個檔案 @import 進你專案的全域樣式（通常是 styles.css）
+ * 之後，元件裝好就能直接看，不用另外設定。
+ *
+ * 想換品牌色：改下面的 --sanring-primary-* 色階，或直接覆寫語意層的
+ * --sanring-background/--sanring-foreground 等變數即可，不用改元件原始碼。
+ *
+ * 深/淺色模式：預設（:root，沒有 data-theme 屬性）是深色；在 <html> 或
+ * <body> 上加 data-theme="light" 屬性即可切換淺色，例如：
+ *   document.documentElement.dataset['theme'] = 'light';
+ */
+
+:root {
+  /* 圓角：xs 給 checkbox/選單項目，sm 給圖示按鈕/提示框，base 給一般控制項，lg 給卡片/對話框 */
+  --sanring-radius-xs: 3px;
+  --sanring-radius-sm: 6px;
+  --sanring-radius: 8px;
+  --sanring-radius-lg: 12px;
+
+  /* 字型 */
+  --sanring-font-sans: Ubuntu, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --sanring-font-mono: ui-monospace, 'Cascadia Code', 'Cascadia Mono', 'Fira Code', monospace;
+
+  /* 品牌色階：7 個色相 x 9 階（10 最淺 ~ 90 最深），語意層變數都是從這裡映射出去 */
+  --sanring-primary-10: #e8f6f8;
+  --sanring-primary-20: #d0edf1;
+  --sanring-primary-30: #b9e4ea;
+  --sanring-primary-40: #a2dbe3;
+  --sanring-primary-50: #8bd3dd;
+  --sanring-primary-60: #6fa9b1;
+  --sanring-primary-70: #537f85;
+  --sanring-primary-80: #385458;
+  --sanring-primary-90: #1c2a2c;
+
+  --sanring-coral-10: #fff0ee;
+  --sanring-coral-20: #ffe0dc;
+  --sanring-coral-30: #ffd0ca;
+  --sanring-coral-40: #ffc0b8;
+  --sanring-coral-50: #ffafa3;
+  --sanring-coral-60: #cc8c82;
+  --sanring-coral-70: #996962;
+  --sanring-coral-80: #664641;
+  --sanring-coral-90: #332321;
+
+  --sanring-sun-10: #fef9e9;
+  --sanring-sun-20: #fdf2d2;
+  --sanring-sun-30: #fcecbc;
+  --sanring-sun-40: #fce6a5;
+  --sanring-sun-50: #fce08f;
+  --sanring-sun-60: #c9b372;
+  --sanring-sun-70: #978656;
+  --sanring-sun-80: #655a39;
+  --sanring-sun-90: #322d1d;
+
+  --sanring-neutral-10: #edf1f2;
+  --sanring-neutral-20: #dce3e5;
+  --sanring-neutral-30: #c8d4d6;
+  --sanring-neutral-40: #b4c3c6;
+  --sanring-neutral-50: #a1b2b5;
+  --sanring-neutral-60: #818e91;
+  --sanring-neutral-70: #606b6d;
+  --sanring-neutral-80: #404748;
+  --sanring-neutral-90: #202424;
+
+  --sanring-info-10: #e0f0fe;
+  --sanring-info-20: #c2e2fd;
+  --sanring-info-30: #a3d3fb;
+  --sanring-info-40: #83c4fa;
+  --sanring-info-50: #64b5f6;
+  --sanring-info-60: #5091c5;
+  --sanring-info-70: #3c6d94;
+  --sanring-info-80: #284862;
+  --sanring-info-90: #142431;
+
+  --sanring-success-10: #e6f4e7;
+  --sanring-success-20: #cde9cf;
+  --sanring-success-30: #b3deb6;
+  --sanring-success-40: #9ad39e;
+  --sanring-success-50: #81c784;
+  --sanring-success-60: #679f6a;
+  --sanring-success-70: #4d7750;
+  --sanring-success-80: #345035;
+  --sanring-success-90: #1a281a;
+
+  --sanring-warn-10: #fff7dc;
+  --sanring-warn-20: #ffefb9;
+  --sanring-warn-30: #ffe796;
+  --sanring-warn-40: #ffde72;
+  --sanring-warn-50: #ffd54f;
+  --sanring-warn-60: #cca133;
+  --sanring-warn-70: #997526;
+  --sanring-warn-80: #664e19;
+  --sanring-warn-90: #33270c;
+
+  --sanring-error-10: #fae3e3;
+  --sanring-error-20: #f5c6c6;
+  --sanring-error-30: #f0a9a9;
+  --sanring-error-40: #eb8c8c;
+  --sanring-error-50: #e57373;
+  --sanring-error-60: #b75c5c;
+  --sanring-error-70: #894545;
+  --sanring-error-80: #5c2e2e;
+  --sanring-error-90: #2e1717;
+
+  /* 單一主色別名：給 Tailwind @theme inline 橋接 bg-primary/text-primary/border-primary
+     用（見 Theming 文件），primary-50 本身不分深淺色模式，這兩個變數也不用 */
+  --sanring-primary: var(--sanring-primary-50);
+  --sanring-primary-fg: var(--sanring-neutral-90);
+
+  /* 語意層（深色，預設）：元件實際引用的都是這一組，不是上面的色階本身 */
+  --sanring-background: var(--sanring-neutral-90);
+  --sanring-foreground: var(--sanring-neutral-10);
+  --sanring-muted: var(--sanring-neutral-40);
+  --sanring-border: #354042;
+  --sanring-border-strong: var(--sanring-neutral-60);
+  --sanring-surface: #232a2b;
+  --sanring-surface-strong: var(--sanring-neutral-80);
+  --sanring-elevated: #2b3334;
+  --sanring-control: var(--sanring-neutral-10);
+  --sanring-control-foreground: var(--sanring-neutral-90);
+  --sanring-active: var(--sanring-primary-80);
+
+  /* Progress：覆寫這三個可以換掉整個 progress bar 的配色 */
+  --sanring-progress-track: var(--sanring-surface-strong);
+  --sanring-progress-bar: var(--sanring-control);
+  --sanring-progress-shimmer: rgba(0, 0, 0, 0.18);
+
+  /* Avatar 狀態徽章：覆寫這幾個可以換掉線上/離線/離開/忙碌的顏色 */
+  --sanring-badge-online: var(--sanring-success-50);
+  --sanring-badge-offline: var(--sanring-neutral-50);
+  --sanring-badge-away: var(--sanring-warn-50);
+  --sanring-badge-busy: var(--sanring-error-50);
+  --sanring-badge-default: var(--sanring-muted);
+}
+
+:root[data-theme='light'] {
+  --sanring-background: #f6f8f8;
+  --sanring-foreground: var(--sanring-neutral-90);
+  --sanring-muted: var(--sanring-neutral-70);
+  --sanring-border: #d9e1e2;
+  --sanring-border-strong: #aebdc0;
+  --sanring-surface: #ffffff;
+  --sanring-surface-strong: #eef4f5;
+  --sanring-elevated: #ffffff;
+  --sanring-control: var(--sanring-neutral-90);
+  --sanring-control-foreground: #ffffff;
+  --sanring-active: #d8eef1;
+
+  --sanring-progress-shimmer: rgba(255, 255, 255, 0.45);
+}
