@@ -72,6 +72,11 @@
                   >{{ item.accountLabel ?? item.displayName }}</button>
                 }
               </div>
+              <!-- 存取類型 badge：純顯示、不可點擊改字，跟上面可改名的標題分開——同一個 AI 類型
+                   可能同時有訂閱制+API key 制兩張卡（例如兩個都叫 "Kimi"），靠這個分辨是哪一種 -->
+              <span sanringBadge variant="outline" class="text-[10px] px-1.5 py-0 shrink-0">
+                {{ sourceTypeLabel(item.sourceType) }}
+              </span>
               @if (item.isEstimated) {
                 <sanring-tooltip>
                   <span sanringTooltipTrigger sanringBadge variant="outline" class="text-[10px] px-1.5 py-0">估算</span>

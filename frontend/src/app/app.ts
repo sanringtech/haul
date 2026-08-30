@@ -260,6 +260,11 @@ export class App {
     )[state];
   }
 
+  /** 卡片標題旁的唯讀 badge——標題可以改名蓋掉 AI 類型文字，這個分辨「訂閱制 / API key 制」不受影響。 */
+  protected sourceTypeLabel(type: SourceType): string {
+    return type === 'subscription' ? '訂閱制' : 'API key 制';
+  }
+
   /** 沒有百分比概念的來源（DeepSeek/Kimi 的絕對餘額）不畫假進度條，狀態改用文字 badge。 */
   protected usageStateLabel(state: UsageState): string {
     return (
