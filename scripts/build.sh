@@ -21,9 +21,33 @@ cp -R frontend/dist/frontend/browser backend/wwwroot/browser
 
 echo "==> Publishing backend"
 if [ -n "$RID" ]; then
-  dotnet publish backend -c Release -r "$RID" --self-contained true -o publish/"$RID"
+  PUBLISH_DIR="publish/$RID"
+  dotnet publish backend -c Release -r "$RID" --self-contained true -o "$PUBLISH_DIR"
+  IS_MACOS_TARGET=false
+  [[ "$RID" == osx-* ]] && IS_MACOS_TARGET=true
 else
-  dotnet publish backend -c Release -o publish/current
+  PUBLISH_DIR="publish/current"
+  dotnet publish backend -c Release -o "$PUBLISH_DIR"
+  IS_MACOS_TARGET=false
+  [[ "$(uname -s)" == "Darwin" ]] && IS_MACOS_TARGET=true
+fi
+
+if [ "$IS_MACOS_TARGET" = true ]; then
+  # A bare `dotnet publish` output has no Dock/Finder icon on macOS — Photino's SetIconFile()
+  # is documented as Windows/Linux-only, so the app icon has to come from a real .app bundle's
+  # Info.plist + .icns instead (see backend/Program.cs's SetIconFile comment for the full story).
+  echo "==> Assembling SanringMonitor.app"
+  APP_DIR="$PUBLISH_DIR/SanringMonitor.app"
+  rm -rf "$APP_DIR"
+  mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
+  # Everything dotnet published (executable, dlls, wwwroot) moves under Contents/MacOS/ as one
+  # unit — Photino resolves its relative Load()/asset paths against the executable's own
+  # directory (AppContext.BaseDirectory), not the process's cwd, so this keeps that intact.
+  find "$PUBLISH_DIR" -mindepth 1 -maxdepth 1 ! -name "SanringMonitor.app" -exec mv {} "$APP_DIR/Contents/MacOS/" \;
+  cp backend/packaging/macos/Info.plist "$APP_DIR/Contents/Info.plist"
+  cp backend/packaging/macos/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+  chmod +x "$APP_DIR/Contents/MacOS/SanringMonitor"
+  echo "==> Wrote $APP_DIR"
 fi
 
 echo "Done."
