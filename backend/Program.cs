@@ -26,13 +26,6 @@ if (args.Contains("--print-usage"))
     return;
 }
 
-var window = new PhotinoWindow()
-    .SetTitle("SanRing Usage Monitor")
-    .SetUseOsDefaultSize(false)
-    .SetSize(new Size(420, 640))
-    .SetResizable(true)
-    .Center();
-
 var widgetWindow = new PhotinoWindow()
     .SetTitle("SanRing Widget")
     .SetChromeless(true)
@@ -42,20 +35,14 @@ var widgetWindow = new PhotinoWindow()
     .SetContextMenuEnabled(false) // 沒有 OS chrome，右鍵的預設瀏覽器選單在這裡沒意義，前端自己做退出用的 UI
     .SetUseOsDefaultLocation(false);
 
-// 兩個視窗都設好、變數都指派完才能註冊會互相引用彼此的 handler（closure 在宣告當下就用自己
-// 或用還沒宣告的另一個變數會編譯不過，見 CS0841/CS0165）。
+var window = CreateMainWindow();
+
+// window/widgetWindow 都指派完才能註冊會互相引用彼此、也引用 OnWebMessageReceived 的 handler
+// （closure 在宣告當下就用還沒宣告的變數會編譯不過，見 CS0841/CS0165——這也是為什麼 handler
+// 註冊沒有直接寫進 CreateMainWindow()/上面的建構鏈裡，得拆成分開的敘述）。
 window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
 widgetWindow.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
-
-// 主視窗的關閉鈕不是真的關掉——小工具視窗才是決定整個 app 存續的那個（見底部改叫
-// widgetWindow.WaitForClose()）。攔下來改成最小化，這樣小工具點「詳細」要叫回主視窗時只是
-// 取消最小化，不用整個重新建視窗、重新載入頁面。
-// NetClosingDelegate 回傳 true＝取消這次關閉（Photino 的慣例，跟 WinForms FormClosing.Cancel 同精神）。
-window.RegisterWindowClosingHandler((_, _) =>
-{
-    window.SetMinimized(true);
-    return true;
-});
+AttachMainWindowClosingHandler(window);
 
 const int WidgetMargin = 16;
 var widgetCollapsedSize = new Size(80, 80);
@@ -68,12 +55,10 @@ widgetWindow.RegisterWindowCreatedHandler((_, _) => PositionWidgetBottomRight(wi
 
 if (!string.IsNullOrEmpty(devServerUrl))
 {
-    window.Load(new Uri(devServerUrl));
     widgetWindow.Load(new Uri(devServerUrl + "?mode=widget"));
 }
 else
 {
-    window.Load("wwwroot/browser/index.html");
     // Load(string) 是純檔案路徑解析，"?mode=widget" 會被當成檔名的一部分去找檔案（真的發生過，
     // 檔案當然不存在）。要帶 query string 得先組出 file:// Uri 再用 Load(Uri) 那個 overload。
     // 用 AppContext.BaseDirectory（執行檔所在目錄）當基準，不是 Environment.CurrentDirectory——
@@ -97,6 +82,41 @@ void PositionWidgetBottomRight(Size size)
         .SetLocation(new Point(
             workArea.Right - size.Width - WidgetMargin,
             workArea.Bottom - size.Height - WidgetMargin));
+}
+
+// 只負責建立+載入，不在裡面註冊 handler——handler 會引用 window/widgetWindow/
+// OnWebMessageReceived，在這個函式裡註冊會在呼叫端（`var window = CreateMainWindow()`）撞見
+// CS0841/CS0165（對還沒指派完的變數做自我引用）。呼叫端負責另外註冊，見上面 + open-main-window
+// 的 catch fallback。
+PhotinoWindow CreateMainWindow()
+{
+    var w = new PhotinoWindow()
+        .SetTitle("SanRing Usage Monitor")
+        .SetUseOsDefaultSize(false)
+        .SetSize(new Size(420, 640))
+        .SetResizable(true)
+        .Center();
+
+    if (!string.IsNullOrEmpty(devServerUrl))
+        w.Load(new Uri(devServerUrl));
+    else
+        w.Load("wwwroot/browser/index.html");
+
+    return w;
+}
+
+// 攔下關閉鈕改成最小化，這樣一般情況下（handler 有正常觸發的平台）小工具點「詳細」只是取消
+// 最小化，不用整個重新載入頁面、遺失畫面狀態。NetClosingDelegate 回傳 true＝取消這次關閉（跟
+// WinForms FormClosing.Cancel 同精神）——但這個 handler 在 macOS arm64 上有已知 bug
+// （tryphotino/photino.Native#127）可能根本不會被呼叫，這也是為什麼 open-main-window 那邊還
+// 另外包了 try/catch 的 fallback，不能只依賴這裡攔截成功。
+void AttachMainWindowClosingHandler(PhotinoWindow w)
+{
+    w.RegisterWindowClosingHandler((_, _) =>
+    {
+        w.SetMinimized(true);
+        return true;
+    });
 }
 
 // `async void`, not `async Task`: Photino's handler delegate is a plain EventHandler<string>.
@@ -162,7 +182,24 @@ async void OnWebMessageReceived(object? sender, string message)
                 break;
 
             case "open-main-window":
-                window.SetMinimized(false);
+                try
+                {
+                    window.SetMinimized(false);
+                    // SetMinimized(false) 不保證真的把焦點搶回來、蓋到最上面——TopMost 開關一下
+                    // 是常見的「強制拉到前景」trick，用完立刻關掉，不是真的要它一直置頂。
+                    window.SetTopMost(true);
+                    window.SetTopMost(false);
+                }
+                catch
+                {
+                    // window 物件已經不能用了（最可能是 AttachMainWindowClosingHandler 註解提到
+                    // 的 macOS arm64 已知 bug：關閉鈕的攔截根本沒觸發，主視窗被真的釋放掉）。與其
+                    // 讓使用者點「詳細」完全沒反應，重開一個新的頂上去，記得重新掛 handler——新
+                    // 視窗物件是全新的，不會自動帶著舊的註冊。
+                    window = CreateMainWindow();
+                    window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+                    AttachMainWindowClosingHandler(window);
+                }
                 break;
 
             case "quit-app":
