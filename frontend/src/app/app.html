@@ -22,7 +22,12 @@
       [title]="theme() === 'dark' ? t('switchToLight') : t('switchToDark')"
       (click)="toggleTheme()"
     >
-      {{ theme() === 'dark' ? '☀️' : '🌙' }}
+      <!-- 圖示是「切過去會變成的樣子」，跟 title 的文字是同一個意思：深色模式下顯示太陽（按下去變淺色） -->
+      @if (theme() === 'dark') {
+        <svg lucideSun class="size-4"></svg>
+      } @else {
+        <svg lucideMoon class="size-4"></svg>
+      }
     </button>
     <span
       sanringBadge
@@ -49,6 +54,7 @@
 
     @if (lastError()) {
       <sanring-alert variant="destructive" class="text-sm">
+        <svg lucideCircleAlert class="size-4"></svg>
         <p sanringAlertDescription>{{ lastError() }}</p>
       </sanring-alert>
     }
@@ -68,7 +74,9 @@
           <sanring-card-header class="p-3 pb-2">
             <div class="flex items-center gap-2">
               <!-- 拖曳排序用的把手，跟改名點擊區分開，才不會兩個手勢互搶 -->
-              <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" [title]="t('dragHandleTitle')">⠿</span>
+              <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" [title]="t('dragHandleTitle')">
+                <svg lucideGripVertical class="size-4"></svg>
+              </span>
               <span class="h-2.5 w-2.5 rounded-full shrink-0" [class]="connectionDotClass(item.connectionState)"></span>
               <!-- 標題本身可點擊改名：預設顯示 AI 類型（如 "Codex"），改過名字後顯示自訂標籤蓋過去。
                    底層存的還是 accountLabel，displayName 沒被動到——只是畫面上不再分兩行顯示。 -->
@@ -170,7 +178,10 @@
       } @empty {
         <sanring-card class="p-6 text-center text-sm text-[var(--sanring-muted)] flex flex-col gap-2">
           <span>{{ t('noSourcesTracked') }}</span>
-          <button sanringBtn type="button" size="sm" class="self-center" (click)="openAddView()">{{ t('addSource') }}</button>
+          <button sanringBtn type="button" size="sm" class="self-center inline-flex items-center gap-1.5" (click)="openAddView()">
+            <svg lucidePlus class="size-4"></svg>
+            {{ t('addSource') }}
+          </button>
         </sanring-card>
       }
     </div>
@@ -181,16 +192,19 @@
         sanringBtn
         type="button"
         (click)="openAddView()"
-        class="fixed bottom-4 right-4 h-11 w-11 rounded-full p-0 text-xl shadow-lg"
+        class="fixed bottom-4 right-4 h-11 w-11 rounded-full p-0 shadow-lg inline-flex items-center justify-center"
         [attr.aria-label]="t('addSourceAria')"
       >
-        ＋
+        <svg lucidePlus class="size-5"></svg>
       </button>
     }
   } @else {
     <!-- ── 新增來源畫面 ─────────────────────────────────────────── -->
     <div class="flex flex-col gap-1">
-      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start" (click)="closeAddView()">{{ t('back') }}</button>
+      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeAddView()">
+        <svg lucideArrowLeft class="size-4"></svg>
+        {{ t('back') }}
+      </button>
       <h2 class="text-lg font-semibold">{{ t('addSourceTitle') }}</h2>
     </div>
 
@@ -287,12 +301,16 @@
       }
 
       @if (addStatus() === 'success') {
+        <!-- sanring-alert 本來就有 [&>svg] 的定位樣式（左上角絕對定位 + 內文自動留白），
+             svg 要放第一個子元素，不是靠 emoji 湊出來的 -->
         <sanring-alert class="text-sm">
-          <p sanringAlertDescription>✅ {{ addResultMessage() }}</p>
+          <svg lucideCircleCheck class="size-4"></svg>
+          <p sanringAlertDescription>{{ addResultMessage() }}</p>
         </sanring-alert>
         <button sanringBtn type="button" size="sm" (click)="closeAddView()">{{ t('done') }}</button>
       } @else if (addStatus() === 'error') {
         <sanring-alert variant="destructive" class="text-sm">
+          <svg lucideCircleAlert class="size-4"></svg>
           <p sanringAlertDescription>{{ addResultMessage() }}</p>
         </sanring-alert>
       }

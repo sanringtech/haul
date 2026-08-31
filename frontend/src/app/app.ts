@@ -1,5 +1,14 @@
 import { Component, computed, effect, signal } from '@angular/core';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+  LucideArrowLeft,
+  LucideCircleAlert,
+  LucideCircleCheck,
+  LucideGripVertical,
+  LucideMoon,
+  LucidePlus,
+  LucideSun,
+} from '@lucide/angular';
 import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
 import { ProgressComponent } from './components/ui/progress';
@@ -82,6 +91,13 @@ interface CatalogEntry {
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
+    LucideArrowLeft,
+    LucideCircleAlert,
+    LucideCircleCheck,
+    LucideGripVertical,
+    LucideMoon,
+    LucidePlus,
+    LucideSun,
     ...SANRING_CARD_IMPORTS,
     ...SANRING_ALERT_IMPORTS,
     ...SANRING_TOOLTIP_IMPORTS,
