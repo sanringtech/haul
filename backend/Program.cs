@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Drawing;
 using System.Text.Json;
 using Photino.NET;
@@ -27,6 +26,13 @@ if (args.Contains("--print-usage"))
     return;
 }
 
+var window = new PhotinoWindow()
+    .SetTitle("SanRing Usage Monitor")
+    .SetUseOsDefaultSize(false)
+    .SetSize(new Size(420, 640))
+    .SetResizable(true)
+    .Center();
+
 var widgetWindow = new PhotinoWindow()
     .SetTitle("SanRing Widget")
     .SetChromeless(true)
@@ -36,13 +42,20 @@ var widgetWindow = new PhotinoWindow()
     .SetContextMenuEnabled(false) // 沒有 OS chrome，右鍵的預設瀏覽器選單在這裡沒意義，前端自己做退出用的 UI
     .SetUseOsDefaultLocation(false);
 
-var window = CreateMainWindow();
-
-// window/widgetWindow 都指派完才能註冊會互相引用彼此、也引用 OnWebMessageReceived 的 handler
-// （closure 在宣告當下就用還沒宣告的變數會編譯不過，見 CS0841/CS0165——這也是為什麼 handler
-// 註冊沒有直接寫進 CreateMainWindow()/上面的建構鏈裡，得拆成分開的敘述）。
+// 兩個視窗都設好、變數都指派完才能註冊會互相引用彼此的 handler（closure 在宣告當下就用自己
+// 或用還沒宣告的另一個變數會編譯不過，見 CS0841/CS0165）。
 window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
 widgetWindow.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+
+// 主視窗的關閉鈕不是真的關掉——小工具視窗才是決定整個 app 存續的那個（見底部改叫
+// widgetWindow.WaitForClose()）。攔下來改成最小化，這樣小工具點「詳細」要叫回主視窗時只是
+// 取消最小化，不用整個重新建視窗、重新載入頁面。
+// NetClosingDelegate 回傳 true＝取消這次關閉（Photino 的慣例，跟 WinForms FormClosing.Cancel 同精神）。
+window.RegisterWindowClosingHandler((_, _) =>
+{
+    window.SetMinimized(true);
+    return true;
+});
 
 const int WidgetMargin = 16;
 var widgetCollapsedSize = new Size(80, 80);
@@ -55,10 +68,12 @@ widgetWindow.RegisterWindowCreatedHandler((_, _) => PositionWidgetBottomRight(wi
 
 if (!string.IsNullOrEmpty(devServerUrl))
 {
+    window.Load(new Uri(devServerUrl));
     widgetWindow.Load(new Uri(devServerUrl + "?mode=widget"));
 }
 else
 {
+    window.Load("wwwroot/browser/index.html");
     // Load(string) 是純檔案路徑解析，"?mode=widget" 會被當成檔名的一部分去找檔案（真的發生過，
     // 檔案當然不存在）。要帶 query string 得先組出 file:// Uri 再用 Load(Uri) 那個 overload。
     // 用 AppContext.BaseDirectory（執行檔所在目錄）當基準，不是 Environment.CurrentDirectory——
@@ -68,9 +83,8 @@ else
     widgetWindow.Load(widgetUri);
 }
 
-// 刻意 block 在小工具視窗，不是主視窗——主視窗現在是真的可以被關掉的（見 open-main-window
-// 那段註解，攔截關閉鈕在 macOS arm64 上不可靠），只有小工具真的「關閉」（目前唯一的路徑是
-// 前端送 quit-app，見下）才代表使用者要結束整個 app。
+// 刻意 block 在小工具視窗，不是主視窗——主視窗關閉鈕已經被攔下來變成最小化，只有小工具真的
+// 「關閉」（目前唯一的路徑是前端送 quit-app，見下）才代表使用者要結束整個 app。
 widgetWindow.WaitForClose();
 return;
 
@@ -83,61 +97,6 @@ void PositionWidgetBottomRight(Size size)
         .SetLocation(new Point(
             workArea.Right - size.Width - WidgetMargin,
             workArea.Bottom - size.Height - WidgetMargin));
-}
-
-// 只負責建立+載入，不在裡面註冊 handler——handler 會引用 window/widgetWindow/
-// OnWebMessageReceived，在這個函式裡註冊會在呼叫端（`var window = CreateMainWindow()`）撞見
-// CS0841/CS0165（對還沒指派完的變數做自我引用）。呼叫端負責另外註冊，見上面 + open-main-window
-// 的 catch fallback。
-PhotinoWindow CreateMainWindow()
-{
-    var w = new PhotinoWindow()
-        .SetTitle("SanRing Usage Monitor")
-        .SetUseOsDefaultSize(false)
-        .SetSize(new Size(420, 640))
-        .SetResizable(true)
-        .Center();
-
-    if (!string.IsNullOrEmpty(devServerUrl))
-        w.Load(new Uri(devServerUrl));
-    else
-        w.Load("wwwroot/browser/index.html");
-
-    return w;
-}
-
-// 跨 app 搶焦點——實測證實 SetMinimized(false)/SetTopMost 開關只在自己 app 內有效，使用者
-// 焦點在別的 app（瀏覽器、終端機……）時完全叫不回主視窗。macOS 上唯一可靠的做法是透過
-// System Events 明確要求把這個 process 設成最前景，Photino 沒有對應的跨 app activate API，
-// 借 osascript（macOS 內建，不用額外裝）達成。用 unix id（本 process 的 PID）鎖定，不用
-// process 名稱，避免同名 process 或名稱裡有特殊字元需要轉義的問題。只在 macOS 上跑，
-// Windows/Linux 呼叫 osascript 一定失敗，直接跳過（fire-and-forget，失敗也不影響其他邏輯）。
-void ActivateThisApp()
-{
-    if (!OperatingSystem.IsMacOS()) return;
-    try
-    {
-        var psi = new ProcessStartInfo("osascript")
-        {
-            UseShellExecute = false,
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-        };
-        psi.ArgumentList.Add("-e");
-        psi.ArgumentList.Add($"tell application \"System Events\" to set frontmost of the first process whose unix id is {Environment.ProcessId} to true");
-        using var proc = Process.Start(psi)!;
-        // 暫時性診斷 log——這支 app 是裸執行檔（不是簽過名的 .app bundle），第一次呼叫
-        // System Events 自動化 macOS 可能會跳權限對話框，沒被同意就會靜默失敗。等這輪查完會拿掉。
-        var stderr = proc.StandardError.ReadToEnd();
-        proc.WaitForExit();
-        Console.WriteLine(proc.ExitCode == 0
-            ? "[diag] osascript activate: exit 0, ok"
-            : $"[diag] osascript activate: exit {proc.ExitCode}, stderr: {stderr}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[diag] osascript activate threw: {ex.GetType().Name}: {ex.Message}");
-    }
 }
 
 // `async void`, not `async Task`: Photino's handler delegate is a plain EventHandler<string>.
@@ -203,21 +162,7 @@ async void OnWebMessageReceived(object? sender, string message)
                 break;
 
             case "open-main-window":
-                // 實測過三層防護（SetMinimized(false)、SetTopMost 開關、osascript 跨 app 搶焦點）
-                // 全部「執行成功、不丟例外」，視窗還是完全沒出現——結論是 window 物件當下已經是
-                // 死的（原生視窗被釋放掉了，最可能是 macOS arm64 上 RegisterWindowClosingHandler
-                // 不會觸發的已知 bug：關閉鈕按下去就是真的關掉，不是被我們攔截成最小化），只是
-                // 對一個死掉的原生控制代碼呼叫這些方法不會丟 .NET 例外、只是靜默不做事——原本想靠
-                // try/catch 偵測「壞掉了要重開」完全偵測不到，這就是先前一直沒反應的真正原因。
-                //
-                // 不再嘗試攔截關閉鈕、重複利用同一個視窗物件（這條路在這個平台上不可靠）。改成
-                // open-main-window 每次都直接開一個新的頂上去——代價是如果主視窗其實還開著（使用者
-                // 沒關過、只是切去別的 app），會多開一個重複視窗疊在一起，但至少保證按下去有反應。
-                window = CreateMainWindow();
-                window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
-                window.SetTopMost(true);
-                window.SetTopMost(false);
-                ActivateThisApp();
+                window.SetMinimized(false);
                 break;
 
             case "quit-app":
