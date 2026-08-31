@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SanRing Usage Monitor</title>
+<meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Grok 的用量與重置時間。桌面版打包中。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -2 25 25' shape-rendering='crispEdges'%3E%3Crect x='12' y='0' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='1' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='4' y='2' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='2' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='4' y='3' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='5' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='20' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='4' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='19' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='20' y='4' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='21' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='5' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='12' y='5' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='13' y='5' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='20' y='5' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='6' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='11' y='6' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='12' y='6' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='9' y='7' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='10' y='7' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='11' y='7' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='12' y='7' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='7' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='8' y='8' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='9' y='8' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='10' y='8' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='11' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='0' y='9' width='25' height='1' fill='%239ec7f0'/%3E%3Crect x='8' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='9' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='15' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='16' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='9' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='15' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='13' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='14' width='1' height='1' fill='%239ec7f0'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Ubuntu:wght@400;500;700&display=swap">
+<style>
+  :root {
+    /* dark-first — this palette IS SanRing's own token set (frontend/sanring-theme.css), reused
+       verbatim rather than invented, so the landing page reads as the same product as the app. */
+    --bg: #1b2021;
+    --bg-deep: #161a1b;
+    --fg: #edf1f2;
+    --muted: #93a4a7;
+    --border: #354042;
+    --surface: #232a2b;
+    --surface-strong: #2b3334;
+    --accent: #8bd3dd;
+    --accent-dim: #6fa9b1;
+    --accent-deep: #385458;
+    --success: #81c784;
+    --sun: #fce08f;
+
+    --font-display: 'Space Mono', 'Cascadia Code', ui-monospace, 'SF Mono', monospace;
+    --font-body: Ubuntu, ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f3f6f6;
+      --bg-deep: #e7edee;
+      --fg: #1c2223;
+      --muted: #5c6c6f;
+      --border: #d7e0e1;
+      --surface: #ffffff;
+      --surface-strong: #eaf1f1;
+      --accent: #3f8a94;
+      --accent-dim: #2f6b73;
+      --accent-deep: #cfe9ec;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f6f6;
+    --bg-deep: #e7edee;
+    --fg: #1c2223;
+    --muted: #5c6c6f;
+    --border: #d7e0e1;
+    --surface: #ffffff;
+    --surface-strong: #eaf1f1;
+    --accent: #3f8a94;
+    --accent-dim: #2f6b73;
+    --accent-deep: #cfe9ec;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #stars {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: block;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6rem 1.5rem 3rem;
+  }
+
+  .kicker {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+  }
+  .kicker .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--success);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent);
+  }
+
+  .mark {
+    width: 44px;
+    height: 44px;
+    margin: 1.75rem 0 1.25rem;
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent) 55%, transparent));
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mark { animation: breathe 4.5s ease-in-out infinite; }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 45%, transparent)); }
+    50% { transform: scale(1.08); filter: drop-shadow(0 0 24px color-mix(in srgb, var(--accent) 65%, transparent)); }
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.6rem, 4.4vw, 2.6rem);
+    line-height: 1.28;
+    text-align: center;
+    max-width: 17ch;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 .accent { color: var(--accent); }
+
+  .sub {
+    margin: 1.1rem 0 0;
+    max-width: 46ch;
+    text-align: center;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .status-pill {
+    margin-top: 2.25rem;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--fg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.5rem 1.1rem;
+  }
+
+  /* ── 用量卡片預覽：直接拿 app 本體的視覺語言（進度條/badge/百分比）當這頁唯一的「產品截圖」，
+       不是憑空畫一張示意圖——沒有真的東西可以連結下載時，這張卡最誠實地說明「這東西長怎樣」。 ── */
+  .preview {
+    margin-top: 3rem;
+    width: 100%;
+    max-width: 340px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.1rem 1.15rem;
+  }
+  .preview-head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .preview-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+  .preview-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    flex: 1;
+  }
+  .preview-badge {
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+  }
+  .preview-rows { margin-top: 0.85rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .preview-row { display: flex; align-items: center; gap: 0.6rem; }
+  .preview-label { font-family: var(--font-display); font-size: 0.68rem; color: var(--muted); width: 2.6rem; flex-shrink: 0; }
+  .preview-track { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-strong); overflow: hidden; }
+  .preview-bar { height: 100%; border-radius: 999px; background: var(--accent); }
+  .preview-pct {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--accent);
+    border-radius: 999px;
+    padding: 0.12rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .fleet {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-family: var(--font-display);
+    font-size: 0.66rem;
+    color: var(--muted);
+  }
+  .fleet span {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.22rem 0.5rem;
+  }
+
+  .platforms {
+    margin-top: 3.25rem;
+    display: flex;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .platform {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.95rem;
+    color: var(--muted);
+  }
+  .platform svg { width: 17px; height: 17px; fill: var(--muted); flex-shrink: 0; }
+  .platform-name { font-size: 0.84rem; color: var(--fg); font-weight: 500; }
+  .platform-status { font-family: var(--font-display); font-size: 0.64rem; color: var(--accent); margin-left: 0.15rem; }
+
+  footer {
+    margin-top: auto;
+    padding-top: 3.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.9;
+  }
+  footer a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+  footer a:hover, footer a:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
+  a:focus-visible, .platform:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="stars" aria-hidden="true"></canvas>
+
+<main>
+  <p class="kicker"><span class="dot"></span>SANRING · 開發中</p>
+
+  <svg class="mark" viewBox="0 -2 25 25" shape-rendering="crispEdges" aria-hidden="true">
+    <rect x="12" y="0" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="1" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="4" y="2" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="2" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="3" y="3" width="1" height="1" fill="#9ec7f0"/><rect x="4" y="3" width="1" height="1" fill="#fff3b8"/><rect x="5" y="3" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="3" width="1" height="1" fill="#9ec7f0"/><rect x="20" y="3" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="4" y="4" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="4" width="1" height="1" fill="#9ec7f0"/><rect x="19" y="4" width="1" height="1" fill="#9ec7f0"/><rect x="20" y="4" width="1" height="1" fill="#fff3b8"/><rect x="21" y="4" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="11" y="5" width="1" height="1" fill="#6f9fd0"/><rect x="12" y="5" width="1" height="1" fill="#fff3b8"/><rect x="13" y="5" width="1" height="1" fill="#9ec7f0"/><rect x="20" y="5" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="10" y="6" width="1" height="1" fill="#6f9fd0"/><rect x="11" y="6" width="1" height="1" fill="#fff3b8"/><rect x="12" y="6" width="1" height="1" fill="#fff3b8"/><rect x="13" y="6" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="9" y="7" width="1" height="1" fill="#6f9fd0"/><rect x="10" y="7" width="1" height="1" fill="#fff3b8"/><rect x="11" y="7" width="1" height="1" fill="#fff3b8"/><rect x="12" y="7" width="1" height="1" fill="#9ec7f0"/><rect x="13" y="7" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="8" y="8" width="1" height="1" fill="#6f9fd0"/><rect x="9" y="8" width="1" height="1" fill="#fff3b8"/><rect x="10" y="8" width="1" height="1" fill="#fff3b8"/><rect x="11" y="8" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="8" width="1" height="1" fill="#9ec7f0"/><rect x="13" y="8" width="1" height="1" fill="#9ec7f0"/><rect x="14" y="8" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="0" y="9" width="25" height="1" fill="#9ec7f0"/>
+    <rect x="8" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="9" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="10" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="11" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="13" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="14" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="15" y="10" width="1" height="1" fill="#9ec7f0"/><rect x="16" y="10" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="9" y="11" width="1" height="1" fill="#9ec7f0"/><rect x="10" y="11" width="1" height="1" fill="#9ec7f0"/><rect x="11" y="11" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="11" width="1" height="1" fill="#9ec7f0"/><rect x="13" y="11" width="1" height="1" fill="#9ec7f0"/><rect x="14" y="11" width="1" height="1" fill="#9ec7f0"/><rect x="15" y="11" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="10" y="12" width="1" height="1" fill="#9ec7f0"/><rect x="11" y="12" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="12" width="1" height="1" fill="#9ec7f0"/><rect x="13" y="12" width="1" height="1" fill="#9ec7f0"/><rect x="14" y="12" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="12" y="13" width="1" height="1" fill="#9ec7f0"/>
+    <rect x="12" y="14" width="1" height="1" fill="#9ec7f0"/>
+  </svg>
+
+  <h1>Claude、Codex、DeepSeek、Kimi、Grok 用量<br><span class="accent">一次看完</span>，不用切五個分頁</h1>
+  <p class="sub">SanRing Usage Monitor 是一支常駐在你電腦上的小工具，把好幾個帳號的剩餘額度、重置時間放進同一個畫面——桌面版還在整理打包，這裡先佔個位置。</p>
+
+  <p class="status-pill">桌面版打包中 · v0.1</p>
+
+  <div class="preview" role="img" aria-label="用量卡片預覽：Claude Code，5 小時已用 62%，7 天已用 40%">
+    <div class="preview-head">
+      <span class="preview-dot"></span>
+      <span class="preview-name">Claude Code</span>
+      <span class="preview-badge">訂閱制</span>
+    </div>
+    <div class="preview-rows">
+      <div class="preview-row">
+        <span class="preview-label">5 小時</span>
+        <span class="preview-track"><span class="preview-bar" style="width:62%"></span></span>
+        <span class="preview-pct">62%</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">7 天</span>
+        <span class="preview-track"><span class="preview-bar" style="width:40%"></span></span>
+        <span class="preview-pct">40%</span>
+      </div>
+    </div>
+    <div class="fleet"><span>Codex</span><span>DeepSeek</span><span>Kimi</span><span>Grok</span></div>
+  </div>
+
+  <div class="platforms">
+    <div class="platform">
+      <svg viewBox="0 0 24 24"><path d="M16.365 1.43c0 1.14-.468 2.06-1.14 2.75-.73.75-1.94 1.33-2.94 1.33-.11-1.13.44-2.29 1.13-3.02.75-.8 2.05-1.4 2.95-1.44 0 .13.01.25 0 .38zm4.14 15.66c-.55 1.27-1.22 2.53-2.2 3.62-.94 1.05-1.98 2.1-3.4 2.12-1.4.02-1.85-.83-3.45-.83-1.6 0-2.1.81-3.42.85-1.36.05-2.4-1.13-3.36-2.17-1.86-2.03-3.31-5.74-1.4-8.87.95-1.55 2.64-2.53 4.47-2.56 1.34-.02 2.6.9 3.42.9.81 0 2.35-1.11 3.96-.95.67.03 2.56.27 3.77 2.03-.1.06-2.25 1.32-2.22 3.94.03 3.13 2.75 4.17 2.79 4.19-.03.09-.44 1.5-1.46 2.73z"/></svg>
+      <span class="platform-name">macOS</span>
+      <span class="platform-status">陸續推出</span>
+    </div>
+    <div class="platform">
+      <svg viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4V11.5H3V5.5ZM11.4 4.27 21 3v8.5H11.4V4.27ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.4 12.5H21V21L11.4 19.73V12.5Z"/></svg>
+      <span class="platform-name">Windows</span>
+      <span class="platform-status">陸續推出</span>
+    </div>
+  </div>
+
+  <footer>
+    個人開發中的小工具，不是商業產品，目前尚無公開下載連結。<br>
+    sanring.dev
+  </footer>
+</main>
+
+<script>
+  (function () {
+    var canvas = document.getElementById('stars');
+    var ctx = canvas.getContext('2d');
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var stars = [];
+    var w, h, dpr;
+
+    function isLight() {
+      var explicit = document.documentElement.getAttribute('data-theme');
+      if (explicit === 'light') return true;
+      if (explicit === 'dark') return false;
+      return window.matchMedia('(prefers-color-scheme: light)').matches;
+    }
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      var count = Math.round((w * h) / 9000);
+      stars = [];
+      for (var i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.3 + 0.4,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.015 + 0.006,
+        });
+      }
+    }
+
+    function draw(t) {
+      ctx.clearRect(0, 0, w, h);
+      var light = isLight();
+      var base = light ? '155,180,183' : '200,220,225';
+      var maxAlpha = light ? 0.35 : 0.85;
+      for (var i = 0; i < stars.length; i++) {
+        var s = stars[i];
+        var tw = reduceMotion ? 0.6 : (Math.sin(t * s.speed + s.phase) + 1) / 2;
+        var alpha = 0.15 + tw * maxAlpha;
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(' + base + ',' + alpha.toFixed(3) + ')';
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (!reduceMotion) requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(draw);
+    if (reduceMotion) draw(1000);
+  })();
+</script>
+</body>
+</html>
