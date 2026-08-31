@@ -2,17 +2,21 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   LucideArrowLeft,
+  LucideCheck,
   LucideCircleAlert,
   LucideCircleCheck,
   LucideGripVertical,
   LucideMoon,
   LucidePlus,
+  LucideSave,
+  LucideSettings,
   LucideSun,
 } from '@lucide/angular';
 import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
 import { ProgressComponent } from './components/ui/progress';
 import { InputDirective } from './components/ui/input';
+import { SliderComponent } from './components/ui/slider';
 import { SANRING_CARD_IMPORTS } from './components/ui/card';
 import { SANRING_ALERT_IMPORTS } from './components/ui/alert';
 import { SpinnerComponent } from './components/ui/spinner';
@@ -24,8 +28,16 @@ import { ConnectionState, LocalizedMessage, SourceType, UsageState, UsageSummary
 type Theme = 'dark' | 'light';
 const THEME_STORAGE_KEY = 'sanring-usage-monitor:theme';
 
-type View = 'list' | 'add';
+type View = 'list' | 'add' | 'settings';
 type AddStatus = 'idle' | 'pending' | 'success' | 'error';
+type SaveStatus = 'idle' | 'saving' | 'saved';
+
+/** Mirrors backend's UsageService.UserSettings (camelCase on the wire). */
+interface UserSettingsWire {
+  refreshIntervalMinutes: number | null;
+  retentionDays: number | null;
+  nearLimitThresholdPercent: number;
+}
 
 /** One progress row's worth of data, built from either the primary or secondary window fields. */
 interface UsageWindow {
@@ -51,17 +63,21 @@ interface CatalogEntry {
     BadgeDirective,
     ProgressComponent,
     InputDirective,
+    SliderComponent,
     SpinnerComponent,
     SkeletonDirective,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
     LucideArrowLeft,
+    LucideCheck,
     LucideCircleAlert,
     LucideCircleCheck,
     LucideGripVertical,
     LucideMoon,
     LucidePlus,
+    LucideSave,
+    LucideSettings,
     LucideSun,
     ...SANRING_CARD_IMPORTS,
     ...SANRING_ALERT_IMPORTS,
@@ -102,6 +118,18 @@ export class App {
   protected readonly catalogBySubscription = computed(() => this.catalog().filter((c) => c.sourceType === 'subscription'));
   protected readonly catalogByApiKey = computed(() => this.catalog().filter((c) => c.sourceType === 'api_key'));
 
+  // ── 設定頁（PRD M3）state ──────────────────────────────────────────
+  // Active＝已儲存、實際生效的值；refreshIntervalMinutes 直接驅動下面建構子裡的自動刷新 timer。
+  // Draft＝設定頁表單編輯中的值，按「儲存」才覆蓋 active（跟 add-source 畫面同一種「先在草稿改，
+  // 送出才生效」模式，不是像主題/語言那種點一下就立即生效——這裡有滑桿，逐 pixel 就送出會洗版）。
+  protected readonly refreshIntervalMinutes = signal<number | null>(60);
+  protected readonly retentionDays = signal<number | null>(3);
+  protected readonly nearLimitThresholdPercent = signal<number>(80);
+  protected readonly draftRefreshInterval = signal<number | null>(60);
+  protected readonly draftRetentionDays = signal<number | null>(3);
+  protected readonly draftNearLimitThreshold = signal<number>(80);
+  protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
+
   // ── 主題 / 語言：跟 sanring-theme.css 的 data-theme 屬性同一套模式，signal 一改當場生效，
   //    不用重載視窗。兩者都存 localStorage，預設值刻意跟改功能前的既有行為一致（深色 + 繁中），
   //    沒設過偏好的舊使用者升級後畫面不會變。──────────────────────────────────────────
@@ -124,6 +152,20 @@ export class App {
     });
 
     effect(() => saveToStorage(LANG_STORAGE_KEY, this.lang()));
+
+    // 自動刷新 timer——只依賴 refreshIntervalMinutes 這個 active 值，不是設定頁還在編輯中的
+    // draft，所以在設定頁裡調整下拉選項不會提早生效，要按「儲存」才會真的改變刷新頻率。
+    // null＝純手動（PRD/憲法 §9），不開 timer。
+    effect((onCleanup) => {
+      const minutes = this.refreshIntervalMinutes();
+      if (minutes === null) return;
+      const id = setInterval(() => this.refresh(), minutes * 60_000);
+      onCleanup(() => clearInterval(id));
+    });
+
+    // 啟動時就要抓一次設定，不是只有打開設定頁才抓——不然自動刷新 timer 永遠只會用預設的
+    // 60 分鐘，使用者上次存的值要等他自己點進設定頁才會套用，不合理。
+    this.send({ type: 'get-settings' });
   }
 
   protected toggleTheme(): void {
@@ -171,6 +213,43 @@ export class App {
 
   protected closeAddView(): void {
     this.view.set('list');
+  }
+
+  /** 草稿預填目前 active 的值——不用另外打一次 get-settings，啟動時已經抓過了（見建構子）。 */
+  protected openSettingsView(): void {
+    this.view.set('settings');
+    this.settingsSaveStatus.set('idle');
+    this.draftRefreshInterval.set(this.refreshIntervalMinutes());
+    this.draftRetentionDays.set(this.retentionDays());
+    this.draftNearLimitThreshold.set(this.nearLimitThresholdPercent());
+  }
+
+  protected closeSettingsView(): void {
+    this.view.set('list');
+  }
+
+  protected selectRefreshInterval(minutes: number | null): void {
+    this.draftRefreshInterval.set(minutes);
+  }
+
+  protected selectRetentionDays(days: number | null): void {
+    this.draftRetentionDays.set(days);
+  }
+
+  protected onNearLimitThresholdChange(value: number): void {
+    this.draftNearLimitThreshold.set(value);
+  }
+
+  /** 存檔回應（'settings' 訊息）到達時才真的覆蓋 active 值，見 onHostMessage——不是這裡樂觀更新，
+   * 因為閾值變動會連動一次完整刷新（見 Program.cs），active 值要跟後端回傳的卡片資料同步生效。 */
+  protected saveSettings(): void {
+    this.settingsSaveStatus.set('saving');
+    this.send({
+      type: 'update-settings',
+      refreshIntervalMinutes: this.draftRefreshInterval(),
+      retentionDays: this.draftRetentionDays(),
+      nearLimitThresholdPercent: this.draftNearLimitThreshold(),
+    });
   }
 
   protected selectAddSource(sourceId: string): void {
@@ -378,11 +457,25 @@ export class App {
         type: string;
         data?: UsageSummary[];
         catalog?: CatalogEntry[];
+        settings?: UserSettingsWire;
         error?: string;
       };
 
       if (payload.type === 'catalog' && payload.catalog) {
         this.catalog.set(payload.catalog);
+        return;
+      }
+
+      // get-settings（啟動時）跟 update-settings（存檔後）的回應是同一種訊息——後者多了「存檔中」
+      // 的短暫確認提示，前者純粹是把 active 值填進來。
+      if (payload.type === 'settings' && payload.settings) {
+        this.refreshIntervalMinutes.set(payload.settings.refreshIntervalMinutes);
+        this.retentionDays.set(payload.settings.retentionDays);
+        this.nearLimitThresholdPercent.set(payload.settings.nearLimitThresholdPercent);
+        if (this.settingsSaveStatus() === 'saving') {
+          this.settingsSaveStatus.set('saved');
+          setTimeout(() => this.settingsSaveStatus.set('idle'), 1500);
+        }
         return;
       }
 

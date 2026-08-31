@@ -32,6 +32,13 @@ var window = new PhotinoWindow()
     .SetSize(new Size(420, 640))
     .SetResizable(true)
     .Center()
+    // 官方文件寫明 SetIconFile 只在 Windows/Linux 有效，macOS 完全不會套用（那邊的 app/dock 圖示要
+    // 靠 .app bundle 的 .icns，不是這支 API 的範圍，這次沒做）。這台開發機是 macOS，沒辦法親眼驗證
+    // Windows/Linux 上實際顯示效果，純粹照文件接上去。
+    // 用相對路徑會直接讓整支 app 啟動時丟 ArgumentException("cannot be found")——實測過，SetIconFile
+    // 的路徑驗證基準跟 Load(string) 不一樣，得用絕對路徑，以 AppContext.BaseDirectory（執行檔所在
+    // 目錄）為準，不是 Environment.CurrentDirectory（使用者從哪裡打指令會不一樣）。
+    .SetIconFile(Path.Combine(AppContext.BaseDirectory, "wwwroot", "browser", "logo.svg"))
     .RegisterWebMessageReceivedHandler(OnWebMessageReceived);
 
 if (!string.IsNullOrEmpty(devServerUrl))
@@ -102,6 +109,19 @@ async void OnWebMessageReceived(object? sender, string message)
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("ack", null, null), jsonOptions));
                 break;
 
+            case "get-settings":
+                var currentSettings = usageService.GetSettings();
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("settings", null, null, Settings: currentSettings), jsonOptions));
+                break;
+
+            case "update-settings" when request.NearLimitThresholdPercent is not null:
+                var updated = usageService.UpdateSettings(request.RefreshIntervalMinutes, request.RetentionDays, request.NearLimitThresholdPercent.Value);
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("settings", null, null, Settings: updated), jsonOptions));
+                // 閾值一變，現有卡片的 usageState（正常/接近上限/已用盡）馬上就不準了——PRD 說設定要
+                // 「即時儲存即時生效」，補一次完整刷新才會反映在畫面上，不是只存進設定檔就算了。
+                await RespondWithSummaries();
+                break;
+
             default:
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(null, null, $"未知或缺少必要欄位的訊息: {message}"), jsonOptions));
                 break;
@@ -125,8 +145,16 @@ file sealed record HostRequest(
     HostCredential? Credential = null,
     bool? Visible = null,
     string? Label = null,
-    string[]? Order = null);
+    string[]? Order = null,
+    int? RefreshIntervalMinutes = null,
+    int? RetentionDays = null,
+    int? NearLimitThresholdPercent = null);
 
 file sealed record HostCredential(string? ApiKey);
 
-file sealed record HostResponse(string? Type, UsageSummary[]? Data, string? Error, SourceCatalogEntry[]? Catalog = null);
+file sealed record HostResponse(
+    string? Type,
+    UsageSummary[]? Data,
+    string? Error,
+    SourceCatalogEntry[]? Catalog = null,
+    UserSettings? Settings = null);

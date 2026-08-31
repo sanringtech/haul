@@ -99,6 +99,23 @@ export interface Translations {
   widgetDetails: string;
   widgetCollapse: string;
   widgetQuit: string;
+
+  // ── 設定頁（PRD M3）──
+  settingsTitle: string;
+  settingsAria: string;
+  refreshIntervalLabel: string;
+  retentionLabel: string;
+  retentionNote: string;
+  nearLimitLabel: string;
+  manualOnly: string;
+  interval5m: string;
+  interval1h: string;
+  interval2h: string;
+  retention3d: string;
+  retention5d: string;
+  retention7d: string;
+  saveSettings: string;
+  settingsSaved: string;
 }
 
 export const translations: Record<Lang, Translations> = {
@@ -183,6 +200,22 @@ export const translations: Record<Lang, Translations> = {
     widgetDetails: '詳細',
     widgetCollapse: '收合',
     widgetQuit: '結束',
+
+    settingsTitle: '設定',
+    settingsAria: '設定',
+    refreshIntervalLabel: '自動刷新頻率',
+    retentionLabel: '歷史資料保留期',
+    retentionNote: '目前只會儲存這個值——這個 app 還沒有實際的歷史用量清除功能，設定了也不會有任何效果',
+    nearLimitLabel: '接近上限閾值',
+    manualOnly: '純手動',
+    interval5m: '5 分鐘',
+    interval1h: '1 小時',
+    interval2h: '2 小時',
+    retention3d: '3 天',
+    retention5d: '5 天',
+    retention7d: '7 天',
+    saveSettings: '儲存',
+    settingsSaved: '設定已儲存',
   },
   en: {
     connectedDesktop: 'Connected to desktop shell',
@@ -265,5 +298,21 @@ export const translations: Record<Lang, Translations> = {
     widgetDetails: 'Details',
     widgetCollapse: 'Collapse',
     widgetQuit: 'Quit',
+
+    settingsTitle: 'Settings',
+    settingsAria: 'Settings',
+    refreshIntervalLabel: 'Auto-refresh interval',
+    retentionLabel: 'History retention',
+    retentionNote: "This is currently just stored — this app doesn't have an actual history-pruning feature yet, so setting it has no effect",
+    nearLimitLabel: 'Near-limit threshold',
+    manualOnly: 'Manual only',
+    interval5m: '5 min',
+    interval1h: '1 hour',
+    interval2h: '2 hours',
+    retention3d: '3 days',
+    retention5d: '5 days',
+    retention7d: '7 days',
+    saveSettings: 'Save',
+    settingsSaved: 'Settings saved',
   },
 };

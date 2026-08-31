@@ -9,6 +9,14 @@ namespace UsageMonitor.Desktop;
 public sealed record SourceCatalogEntry(string SourceId, string DisplayName, string SourceType, bool IsTracked);
 
 /// <summary>
+/// 設定頁（PRD M3）看得到、改得到的子集——AppSettings 裡跟帳號無關的全域設定。RetentionDays
+/// 目前只會被存起來，不會有任何實際效果：這個 app 從來沒有「歷史用量序列」這種資料可以清除，
+/// 每次刷新都是即時查詢、不落地存歷史（PRD Story 6 假設的清除對象目前不存在）。前端 UI 上會誠實
+/// 標註這件事，不要假裝這個欄位有在運作。
+/// </summary>
+public sealed record UserSettings(int? RefreshIntervalMinutes, int? RetentionDays, int NearLimitThresholdPercent);
+
+/// <summary>
 /// Orchestrates all <see cref="IUsageProvider"/>s (constitution R1: Claude/Codex/DeepSeek/Kimi) across
 /// however many <see cref="TrackedAccount"/>s the user has added (constitution R5: multi-account —
 /// api_key-type sources like DeepSeek/Kimi can have several accounts; subscription-type sources
@@ -132,6 +140,23 @@ public sealed class UsageService
 
         settings.TrackedAccounts[index] = settings.TrackedAccounts[index] with { Label = trimmed };
         SettingsStore.Save(settings);
+    }
+
+    public UserSettings GetSettings()
+    {
+        var settings = SettingsStore.Load();
+        return new UserSettings(settings.RefreshIntervalMinutes, settings.RetentionDays, settings.NearLimitThresholdPercent);
+    }
+
+    /// <summary>設定頁儲存（PRD：即時儲存即時生效）。閾值 clamp 在 50-95（憲法 §4 三態顏色的定義範圍）。</summary>
+    public UserSettings UpdateSettings(int? refreshIntervalMinutes, int? retentionDays, int nearLimitThresholdPercent)
+    {
+        var settings = SettingsStore.Load();
+        settings.RefreshIntervalMinutes = refreshIntervalMinutes;
+        settings.RetentionDays = retentionDays;
+        settings.NearLimitThresholdPercent = Math.Clamp(nearLimitThresholdPercent, 50, 95);
+        SettingsStore.Save(settings);
+        return GetSettings();
     }
 
     /// <summary>拖曳排序（前端送整批新順序的 accountId）。列表順序即顯示順序，沒有另外的 SortOrder 欄位。</summary>

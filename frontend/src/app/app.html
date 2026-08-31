@@ -1,6 +1,20 @@
 <main class="flex flex-col gap-4 p-6 pb-20 bg-[var(--sanring-background)] text-[var(--sanring-foreground)] min-h-screen relative">
   <header class="flex items-center gap-2">
+    <!-- logo.svg 是 public/ 底下的真實檔案（build 時複製到 wwwroot/browser/logo.svg），不是內嵌
+         一堆 <rect>——跟 index.html 的 favicon 用同一份圖，同一套相對路徑解析，不用另外處理。 -->
+    <img src="logo.svg" alt="" class="h-5 w-auto shrink-0" />
     <h1 class="text-base font-semibold flex-1">{{ title() }}</h1>
+    <button
+      sanringBtn
+      type="button"
+      variant="ghost"
+      size="sm"
+      class="px-2"
+      [title]="t('settingsAria')"
+      (click)="openSettingsView()"
+    >
+      <svg lucideSettings class="size-4"></svg>
+    </button>
     <!-- 語言/主題都是 signal 一按當場切換，不重載視窗——跟卡片的排序/改名同一種「本地即時生效」模式 -->
     <button
       sanringBtn
@@ -200,7 +214,7 @@
         <svg lucidePlus class="size-5"></svg>
       </button>
     }
-  } @else {
+  } @else if (view() === 'add') {
     <!-- ── 新增來源畫面 ─────────────────────────────────────────── -->
     <div class="flex flex-col gap-1">
       <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeAddView()">
@@ -317,5 +331,61 @@
         </sanring-alert>
       }
     }
+  } @else {
+    <!-- ── 設定頁（PRD M3）─────────────────────────────────────────── -->
+    <div class="flex flex-col gap-1">
+      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeSettingsView()">
+        <svg lucideArrowLeft class="size-4"></svg>
+        {{ t('back') }}
+      </button>
+      <h2 class="text-lg font-semibold">{{ t('settingsTitle') }}</h2>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-sm font-semibold">{{ t('refreshIntervalLabel') }}</label>
+      <div class="flex flex-wrap gap-2">
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 5 ? 'default' : 'outline'" (click)="selectRefreshInterval(5)">{{ t('interval5m') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 60 ? 'default' : 'outline'" (click)="selectRefreshInterval(60)">{{ t('interval1h') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 120 ? 'default' : 'outline'" (click)="selectRefreshInterval(120)">{{ t('interval2h') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === null ? 'default' : 'outline'" (click)="selectRefreshInterval(null)">{{ t('manualOnly') }}</button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label class="text-sm font-semibold">{{ t('retentionLabel') }}</label>
+      <div class="flex flex-wrap gap-2">
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 3 ? 'default' : 'outline'" (click)="selectRetentionDays(3)">{{ t('retention3d') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 5 ? 'default' : 'outline'" (click)="selectRetentionDays(5)">{{ t('retention5d') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 7 ? 'default' : 'outline'" (click)="selectRetentionDays(7)">{{ t('retention7d') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === null ? 'default' : 'outline'" (click)="selectRetentionDays(null)">{{ t('manualOnly') }}</button>
+      </div>
+      <!-- 誠實揭露：這個 app 目前沒有歷史用量序列可以清除，這個設定存了但沒有任何實際效果 -->
+      <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('retentionNote') }}</p>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <label class="text-sm font-semibold">{{ t('nearLimitLabel') }}</label>
+        <span sanringBadge variant="outline" class="text-xs">{{ draftNearLimitThreshold() }}%</span>
+      </div>
+      <sanring-slider
+        [min]="50"
+        [max]="95"
+        [step]="5"
+        [value]="draftNearLimitThreshold()"
+        (valueChange)="onNearLimitThresholdChange($event)"
+      />
+    </div>
+
+    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="inline-flex items-center justify-center gap-2" (click)="saveSettings()">
+      @if (settingsSaveStatus() === 'saving') {
+        <sanring-spinner size="sm" />
+      } @else if (settingsSaveStatus() === 'saved') {
+        <svg lucideCheck class="size-4"></svg>
+      } @else {
+        <svg lucideSave class="size-4"></svg>
+      }
+      {{ settingsSaveStatus() === 'saved' ? t('settingsSaved') : t('saveSettings') }}
+    </button>
   }
 </main>
