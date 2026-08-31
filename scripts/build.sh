@@ -22,7 +22,14 @@ cp -R frontend/dist/frontend/browser backend/wwwroot/browser
 echo "==> Publishing backend"
 if [ -n "$RID" ]; then
   PUBLISH_DIR="publish/$RID"
-  dotnet publish backend -c Release -r "$RID" --self-contained true -o "$PUBLISH_DIR"
+  PUBLISH_ARGS=(-c Release -r "$RID" --self-contained true -o "$PUBLISH_DIR")
+  # Windows has no bundle-folder convention like macOS's .app — a single .exe *is* the cleanest
+  # distributable there, so fold the whole self-contained runtime into one file (2026-08-31,
+  # first real cross-compile: also caught that plain <OutputType>Exe> builds a console-subsystem
+  # .exe on Windows — a black terminal window would pop up alongside the GUI on double-click —
+  # fixed in SanringMonitor.csproj by switching to WinExe for win-* RIDs, not here).
+  [[ "$RID" == win-* ]] && PUBLISH_ARGS+=(-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true)
+  dotnet publish backend "${PUBLISH_ARGS[@]}"
   IS_MACOS_TARGET=false
   [[ "$RID" == osx-* ]] && IS_MACOS_TARGET=true
 else

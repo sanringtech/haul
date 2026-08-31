@@ -7,6 +7,16 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- 純 <OutputType>Exe</OutputType> 在 Windows 上會編成 console 子系統，雙擊打開時一個黑底
+       終端機視窗會跟 Photino 的 GUI 視窗一起跳出來，不是乾淨的桌面 app 體驗（2026-08-31 第一次
+       跨平台編 Windows 版才實測到，file 指令確認過 .exe 是 "console" 子系統）。WinExe 才是 Windows
+       上正常桌面 app 用的子系統；只在編 Windows 目標時覆寫，macOS/Linux 不受影響（那兩個平台不分
+       這兩種子系統）。也不用擔心 print usage 這個 console debug 旗標會壞掉：WinExe 子系統的
+       app 從既有終端機執行時 Console.WriteLine 一樣正常輸出，只是雙擊不會多開黑視窗。 -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
+    <OutputType>WinExe</OutputType>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Photino.NET" Version="4.0.16" />
   </ItemGroup>
