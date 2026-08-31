@@ -43,7 +43,6 @@ var window = CreateMainWindow();
 // 註冊沒有直接寫進 CreateMainWindow()/上面的建構鏈裡，得拆成分開的敘述）。
 window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
 widgetWindow.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
-AttachMainWindowClosingHandler(window);
 
 const int WidgetMargin = 16;
 var widgetCollapsedSize = new Size(80, 80);
@@ -69,8 +68,9 @@ else
     widgetWindow.Load(widgetUri);
 }
 
-// 刻意 block 在小工具視窗，不是主視窗——主視窗關閉鈕已經被攔下來變成最小化，只有小工具真的
-// 「關閉」（目前唯一的路徑是前端送 quit-app，見下）才代表使用者要結束整個 app。
+// 刻意 block 在小工具視窗，不是主視窗——主視窗現在是真的可以被關掉的（見 open-main-window
+// 那段註解，攔截關閉鈕在 macOS arm64 上不可靠），只有小工具真的「關閉」（目前唯一的路徑是
+// 前端送 quit-app，見下）才代表使用者要結束整個 app。
 widgetWindow.WaitForClose();
 return;
 
@@ -106,20 +106,6 @@ PhotinoWindow CreateMainWindow()
     return w;
 }
 
-// 攔下關閉鈕改成最小化，這樣一般情況下（handler 有正常觸發的平台）小工具點「詳細」只是取消
-// 最小化，不用整個重新載入頁面、遺失畫面狀態。NetClosingDelegate 回傳 true＝取消這次關閉（跟
-// WinForms FormClosing.Cancel 同精神）——但這個 handler 在 macOS arm64 上有已知 bug
-// （tryphotino/photino.Native#127）可能根本不會被呼叫，這也是為什麼 open-main-window 那邊還
-// 另外包了 try/catch 的 fallback，不能只依賴這裡攔截成功。
-void AttachMainWindowClosingHandler(PhotinoWindow w)
-{
-    w.RegisterWindowClosingHandler((_, _) =>
-    {
-        w.SetMinimized(true);
-        return true;
-    });
-}
-
 // 跨 app 搶焦點——實測證實 SetMinimized(false)/SetTopMost 開關只在自己 app 內有效，使用者
 // 焦點在別的 app（瀏覽器、終端機……）時完全叫不回主視窗。macOS 上唯一可靠的做法是透過
 // System Events 明確要求把這個 process 設成最前景，Photino 沒有對應的跨 app activate API，
@@ -131,14 +117,26 @@ void ActivateThisApp()
     if (!OperatingSystem.IsMacOS()) return;
     try
     {
-        var psi = new ProcessStartInfo("osascript") { UseShellExecute = false };
+        var psi = new ProcessStartInfo("osascript")
+        {
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+        };
         psi.ArgumentList.Add("-e");
         psi.ArgumentList.Add($"tell application \"System Events\" to set frontmost of the first process whose unix id is {Environment.ProcessId} to true");
-        Process.Start(psi);
+        using var proc = Process.Start(psi)!;
+        // 暫時性診斷 log——這支 app 是裸執行檔（不是簽過名的 .app bundle），第一次呼叫
+        // System Events 自動化 macOS 可能會跳權限對話框，沒被同意就會靜默失敗。等這輪查完會拿掉。
+        var stderr = proc.StandardError.ReadToEnd();
+        proc.WaitForExit();
+        Console.WriteLine(proc.ExitCode == 0
+            ? "[diag] osascript activate: exit 0, ok"
+            : $"[diag] osascript activate: exit {proc.ExitCode}, stderr: {stderr}");
     }
-    catch
+    catch (Exception ex)
     {
-        // 拿不到 osascript（理論上 macOS 上一定有）就算了，不影響 SetMinimized/SetTopMost 那兩步已經做的事。
+        Console.WriteLine($"[diag] osascript activate threw: {ex.GetType().Name}: {ex.Message}");
     }
 }
 
@@ -205,26 +203,21 @@ async void OnWebMessageReceived(object? sender, string message)
                 break;
 
             case "open-main-window":
-                try
-                {
-                    window.SetMinimized(false);
-                    // 實測過：SetMinimized(false) + SetTopMost 開關只能在「自己 app 內」調整視窗
-                    // 層級，沒辦法把整個 app 從別的 app 手上搶到最前面——那是跨 app 焦點，macOS
-                    // 上要透過 System Events 明確要求才行，Photino 沒有對應 API。
-                    window.SetTopMost(true);
-                    window.SetTopMost(false);
-                    ActivateThisApp();
-                }
-                catch
-                {
-                    // window 物件已經不能用了（最可能是 AttachMainWindowClosingHandler 註解提到
-                    // 的 macOS arm64 已知 bug：關閉鈕的攔截根本沒觸發，主視窗被真的釋放掉）。與其
-                    // 讓使用者點「詳細」完全沒反應，重開一個新的頂上去，記得重新掛 handler——新
-                    // 視窗物件是全新的，不會自動帶著舊的註冊。
-                    window = CreateMainWindow();
-                    window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
-                    AttachMainWindowClosingHandler(window);
-                }
+                // 實測過三層防護（SetMinimized(false)、SetTopMost 開關、osascript 跨 app 搶焦點）
+                // 全部「執行成功、不丟例外」，視窗還是完全沒出現——結論是 window 物件當下已經是
+                // 死的（原生視窗被釋放掉了，最可能是 macOS arm64 上 RegisterWindowClosingHandler
+                // 不會觸發的已知 bug：關閉鈕按下去就是真的關掉，不是被我們攔截成最小化），只是
+                // 對一個死掉的原生控制代碼呼叫這些方法不會丟 .NET 例外、只是靜默不做事——原本想靠
+                // try/catch 偵測「壞掉了要重開」完全偵測不到，這就是先前一直沒反應的真正原因。
+                //
+                // 不再嘗試攔截關閉鈕、重複利用同一個視窗物件（這條路在這個平台上不可靠）。改成
+                // open-main-window 每次都直接開一個新的頂上去——代價是如果主視窗其實還開著（使用者
+                // 沒關過、只是切去別的 app），會多開一個重複視窗疊在一起，但至少保證按下去有反應。
+                window = CreateMainWindow();
+                window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+                window.SetTopMost(true);
+                window.SetTopMost(false);
+                ActivateThisApp();
                 break;
 
             case "quit-app":
