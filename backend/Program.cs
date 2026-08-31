@@ -31,20 +31,73 @@ var window = new PhotinoWindow()
     .SetUseOsDefaultSize(false)
     .SetSize(new Size(420, 640))
     .SetResizable(true)
-    .Center()
-    .RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+    .Center();
+
+var widgetWindow = new PhotinoWindow()
+    .SetTitle("SanRing Widget")
+    .SetChromeless(true)
+    .SetTransparent(true)
+    .SetTopMost(true)
+    .SetResizable(false)
+    .SetContextMenuEnabled(false) // 沒有 OS chrome，右鍵的預設瀏覽器選單在這裡沒意義，前端自己做退出用的 UI
+    .SetUseOsDefaultLocation(false);
+
+// 兩個視窗都設好、變數都指派完才能註冊會互相引用彼此的 handler（closure 在宣告當下就用自己
+// 或用還沒宣告的另一個變數會編譯不過，見 CS0841/CS0165）。
+window.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+widgetWindow.RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+
+// 主視窗的關閉鈕不是真的關掉——小工具視窗才是決定整個 app 存續的那個（見底部改叫
+// widgetWindow.WaitForClose()）。攔下來改成最小化，這樣小工具點「詳細」要叫回主視窗時只是
+// 取消最小化，不用整個重新建視窗、重新載入頁面。
+// NetClosingDelegate 回傳 true＝取消這次關閉（Photino 的慣例，跟 WinForms FormClosing.Cancel 同精神）。
+window.RegisterWindowClosingHandler((_, _) =>
+{
+    window.SetMinimized(true);
+    return true;
+});
+
+const int WidgetMargin = 16;
+var widgetCollapsedSize = new Size(80, 80);
+widgetWindow.SetSize(widgetCollapsedSize); // 先給個初始尺寸避免用預設大小閃一下，正確定位要等原生視窗真的建立完才查得到
+
+// MainMonitor 要等原生視窗真的建立完成才能查（單純呼叫完 Load() 還不夠——實測 Load() 之後立刻查
+// 一樣會丟 ApplicationException("hasn't been initialized yet.")），掛在 WindowCreated 事件上才是
+// 保證時機正確的做法。
+widgetWindow.RegisterWindowCreatedHandler((_, _) => PositionWidgetBottomRight(widgetCollapsedSize));
 
 if (!string.IsNullOrEmpty(devServerUrl))
 {
     window.Load(new Uri(devServerUrl));
+    widgetWindow.Load(new Uri(devServerUrl + "?mode=widget"));
 }
 else
 {
     window.Load("wwwroot/browser/index.html");
+    // Load(string) 是純檔案路徑解析，"?mode=widget" 會被當成檔名的一部分去找檔案（真的發生過，
+    // 檔案當然不存在）。要帶 query string 得先組出 file:// Uri 再用 Load(Uri) 那個 overload。
+    // 用 AppContext.BaseDirectory（執行檔所在目錄）當基準，不是 Environment.CurrentDirectory——
+    // 後者是「執行這支程式當下的工作目錄」，使用者從哪裡打 ./UsageMonitor.Desktop 就會不一樣，
+    // wwwroot 是相對執行檔位置放的，跟主視窗 Load(string) 內部的相對路徑解析基準要一致。
+    var widgetUri = new UriBuilder(new Uri(Path.Combine(AppContext.BaseDirectory, "wwwroot/browser/index.html"))) { Query = "mode=widget" }.Uri;
+    widgetWindow.Load(widgetUri);
 }
 
-window.WaitForClose();
+// 刻意 block 在小工具視窗，不是主視窗——主視窗關閉鈕已經被攔下來變成最小化，只有小工具真的
+// 「關閉」（目前唯一的路徑是前端送 quit-app，見下）才代表使用者要結束整個 app。
+widgetWindow.WaitForClose();
 return;
+
+// 收合/展開都錨在螢幕右下角——展開時窗變大是往左上長，不是往右下（螢幕右下角本來就到邊界了）。
+void PositionWidgetBottomRight(Size size)
+{
+    var workArea = widgetWindow.MainMonitor.WorkArea;
+    widgetWindow
+        .SetSize(size)
+        .SetLocation(new Point(
+            workArea.Right - size.Width - WidgetMargin,
+            workArea.Bottom - size.Height - WidgetMargin));
+}
 
 // `async void`, not `async Task`: Photino's handler delegate is a plain EventHandler<string>.
 // A ccusage-backed refresh can take a couple of seconds (npx cold start), so this must not
@@ -102,6 +155,20 @@ async void OnWebMessageReceived(object? sender, string message)
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("ack", null, null), jsonOptions));
                 break;
 
+            // 下面三個只有小工具視窗會送，但掛在同一個 handler 上（兩個視窗共用 OnWebMessageReceived）
+            // 不需要另外分流——host 是哪個視窗由 sender 決定，SendWebMessage 自然送回對的那扇窗。
+            case "widget-resize" when request.Width is not null && request.Height is not null:
+                PositionWidgetBottomRight(new Size(request.Width.Value, request.Height.Value));
+                break;
+
+            case "open-main-window":
+                window.SetMinimized(false);
+                break;
+
+            case "quit-app":
+                Environment.Exit(0);
+                break;
+
             default:
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(null, null, $"未知或缺少必要欄位的訊息: {message}"), jsonOptions));
                 break;
@@ -125,7 +192,9 @@ file sealed record HostRequest(
     HostCredential? Credential = null,
     bool? Visible = null,
     string? Label = null,
-    string[]? Order = null);
+    string[]? Order = null,
+    int? Width = null,
+    int? Height = null);
 
 file sealed record HostCredential(string? ApiKey);
 

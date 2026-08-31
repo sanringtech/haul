@@ -94,6 +94,11 @@ export interface Translations {
   kimiSubCredentialsRejected: string;
   kimiSubHttpErrorWithBody: string;
   kimiSubParseErrorUnverified: string;
+
+  // ── 浮動小工具（widget-app.ts）專用 ──
+  widgetDetails: string;
+  widgetCollapse: string;
+  widgetQuit: string;
 }
 
 export const translations: Record<Lang, Translations> = {
@@ -174,6 +179,10 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`',
     kimiSubHttpErrorWithBody: '用量端點回應錯誤：HTTP {status}　{body}',
     kimiSubParseErrorUnverified: '用量端點回應內容無法解析（未驗證過的端點，第一次遇到請把這段回傳貼給開發者）：{body}',
+
+    widgetDetails: '詳細',
+    widgetCollapse: '收合',
+    widgetQuit: '結束',
   },
   en: {
     connectedDesktop: 'Connected to desktop shell',
@@ -252,5 +261,9 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code rejected the current login credentials — run `/login` again',
     kimiSubHttpErrorWithBody: 'Usage endpoint returned an error: HTTP {status}　{body}',
     kimiSubParseErrorUnverified: "Could not parse the usage endpoint's response (this endpoint is unverified — if you're the first to hit this, please paste this response for the developer): {body}",
+
+    widgetDetails: 'Details',
+    widgetCollapse: 'Collapse',
+    widgetQuit: 'Quit',
   },
 };

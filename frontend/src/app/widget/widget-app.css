@@ -1,0 +1,4 @@
+/* pixel-art 圖示要銳利邊緣，不要瀏覽器預設的抗鋸齒模糊——這是唯一沒辦法用 Tailwind utility 表達的部分。 */
+.pixel-icon rect {
+  shape-rendering: crispEdges;
+}

@@ -1,0 +1,84 @@
+@if (collapsed()) {
+  <!-- 收合：一顆像素風小圖示，點一下展開。半透明底圓是刻意加的——純透明背景在雜亂桌布上會看不清楚圖示邊界。 -->
+  <button
+    type="button"
+    class="w-screen h-screen flex items-center justify-center bg-transparent cursor-pointer"
+    (click)="expand()"
+  >
+    <span class="rounded-full flex items-center justify-center shadow-lg" style="width: 64px; height: 64px; background: color-mix(in srgb, var(--sanring-surface) 85%, transparent);">
+      <svg class="pixel-icon" width="40" height="40" viewBox="0 0 64 64" fill="var(--sanring-primary-50)">
+        <rect x="40" y="16" width="8" height="8" />
+        <rect x="40" y="24" width="8" height="8" />
+        <rect x="24" y="32" width="8" height="8" />
+        <rect x="40" y="32" width="8" height="8" />
+        <rect x="24" y="40" width="8" height="8" />
+        <rect x="40" y="40" width="8" height="8" />
+        <rect x="8" y="48" width="8" height="8" />
+        <rect x="24" y="48" width="8" height="8" />
+        <rect x="40" y="48" width="8" height="8" />
+        <rect x="8" y="56" width="8" height="8" />
+        <rect x="24" y="56" width="8" height="8" />
+        <rect x="40" y="56" width="8" height="8" />
+      </svg>
+    </span>
+  </button>
+} @else {
+  <!-- 展開：卡片堆疊，滑鼠拖曳左右切換（見 widget-app.ts 的 onPointer*），不是滾輪。 -->
+  <div class="relative w-screen h-screen bg-transparent p-2" style="font-family: var(--sanring-font-sans);">
+    @if (summaries().length === 0) {
+      <div class="w-full h-full rounded-[var(--sanring-radius-lg)] bg-[var(--sanring-surface)] shadow-lg flex flex-col items-center justify-center gap-2 p-3 text-center">
+        <span class="text-xs text-[var(--sanring-muted)]">{{ t('noSourcesTracked') }}</span>
+        <button sanringBtn type="button" size="sm" (click)="openMainWindow()">{{ t('widgetDetails') }}</button>
+      </div>
+    } @else {
+      <!-- 疊在後面的兩張，純視覺層次，不接互動（見 stackPeek()），營造「牌堆」的感覺 -->
+      @if (stackPeek(2); as peek2) {
+        <div class="absolute inset-2 rounded-[var(--sanring-radius-lg)] bg-[var(--sanring-surface)] opacity-40 shadow" style="transform: translateY(12px) scale(0.92);"></div>
+      }
+      @if (stackPeek(1); as peek1) {
+        <div class="absolute inset-2 rounded-[var(--sanring-radius-lg)] bg-[var(--sanring-surface)] opacity-70 shadow" style="transform: translateY(6px) scale(0.96);"></div>
+      }
+
+      @if (activeSummary(); as item) {
+        <div
+          class="absolute inset-2 rounded-[var(--sanring-radius-lg)] bg-[var(--sanring-surface)] border border-[var(--sanring-border)] shadow-lg p-3 flex flex-col gap-2 cursor-grab active:cursor-grabbing touch-none"
+          [style.transform]="'translateX(' + dragOffsetX() + 'px)'"
+          (pointerdown)="onPointerDown($event)"
+          (pointermove)="onPointerMove($event)"
+          (pointerup)="onPointerUp()"
+          (pointercancel)="onPointerUp()"
+        >
+          <div class="flex items-center gap-1.5">
+            <span class="text-sm font-semibold flex-1 truncate">{{ item.accountLabel ?? item.displayName }}</span>
+            <span sanringBadge variant="outline" class="text-[9px] px-1 py-0 shrink-0">
+              {{ item.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}
+            </span>
+            <button type="button" class="shrink-0 text-[var(--sanring-muted)] hover:text-[var(--sanring-foreground)]" [title]="t('widgetQuit')" (click)="quit()">
+              <svg lucideX class="size-3.5"></svg>
+            </button>
+          </div>
+
+          @if (item.percentUsed !== null) {
+            <div class="flex items-center gap-2">
+              <sanring-progress class="flex-1" [value]="item.percentUsed" [barClass]="usageBarClass(item.usageState)" />
+              <span class="text-xs shrink-0">{{ item.percentUsed.toFixed(0) }}%</span>
+            </div>
+          } @else {
+            <span sanringBadge [class]="usageBadgeClass(item.usageState) + ' text-[10px] self-start'">
+              {{ item.usageState }}
+            </span>
+          }
+
+          <div class="mt-auto flex items-center gap-2">
+            <!-- n/N 純數字，跟語言無關，不用進翻譯表 -->
+            <span class="text-[10px] text-[var(--sanring-muted)]">{{ activeIndex() + 1 }} / {{ summaries().length }}</span>
+            <button type="button" class="ml-auto text-[var(--sanring-muted)]" [title]="t('widgetCollapse')" (click)="collapse()">
+              <svg lucideArrowLeft class="size-3.5"></svg>
+            </button>
+            <button sanringBtn type="button" size="sm" class="h-6 text-[10px] px-2" (click)="openMainWindow()">{{ t('widgetDetails') }}</button>
+          </div>
+        </div>
+      }
+    }
+  </div>
+}
