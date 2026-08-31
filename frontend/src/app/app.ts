@@ -3,6 +3,8 @@ import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } fro
 import {
   LucideArrowLeft,
   LucideCheck,
+  LucideChevronDown,
+  LucideChevronUp,
   LucideCircleAlert,
   LucideCircleCheck,
   LucideEye,
@@ -74,6 +76,8 @@ interface CatalogEntry {
     CdkDragHandle,
     LucideArrowLeft,
     LucideCheck,
+    LucideChevronDown,
+    LucideChevronUp,
     LucideCircleAlert,
     LucideCircleCheck,
     LucideEye,
@@ -136,8 +140,9 @@ export class App {
   protected readonly draftNearLimitThreshold = signal<number>(80);
   protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
 
-  /** 「已隱藏的來源」清單，設定頁打開時才有意義——見 openSettingsView()。 */
+  /** 「已隱藏的來源」清單——放在主畫面清單底部（跟卡片同一個畫面，不是設定頁），預設收合。 */
   protected readonly hiddenAccounts = signal<HiddenAccountEntry[]>([]);
+  protected readonly hiddenListExpanded = signal(false);
 
   // ── 主題 / 語言：跟 sanring-theme.css 的 data-theme 屬性同一套模式，signal 一改當場生效，
   //    不用重載視窗。兩者都存 localStorage，預設值刻意跟改功能前的既有行為一致（深色 + 繁中），
@@ -175,6 +180,9 @@ export class App {
     // 啟動時就要抓一次設定，不是只有打開設定頁才抓——不然自動刷新 timer 永遠只會用預設的
     // 60 分鐘，使用者上次存的值要等他自己點進設定頁才會套用，不合理。
     this.send({ type: 'get-settings' });
+    // 「已隱藏的來源」現在是主畫面清單底部的一塊（不是設定頁），啟動時就要抓，不然清單一開始
+    // 是空的，使用者不會知道有幾個帳號被隱藏、要去哪裡展開。
+    this.send({ type: 'get-hidden-accounts' });
   }
 
   protected toggleTheme(): void {
@@ -224,15 +232,17 @@ export class App {
     this.view.set('list');
   }
 
-  /** 草稿預填目前 active 的值——不用另外打一次 get-settings，啟動時已經抓過了（見建構子）。
-   * 「已隱藏的來源」清單則每次打開都重抓，因為主畫面拖曳/改名等操作期間可能已經有變動。 */
+  /** 草稿預填目前 active 的值——不用另外打一次 get-settings，啟動時已經抓過了（見建構子）。 */
   protected openSettingsView(): void {
     this.view.set('settings');
     this.settingsSaveStatus.set('idle');
     this.draftRefreshInterval.set(this.refreshIntervalMinutes());
     this.draftRetentionDays.set(this.retentionDays());
     this.draftNearLimitThreshold.set(this.nearLimitThresholdPercent());
-    this.send({ type: 'get-hidden-accounts' });
+  }
+
+  protected toggleHiddenList(): void {
+    this.hiddenListExpanded.update((v) => !v);
   }
 
   protected closeSettingsView(): void {

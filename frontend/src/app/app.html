@@ -229,6 +229,42 @@
       }
     </div>
 
+    <!-- 已隱藏的來源：跟被隱藏的卡片同一個畫面，不用跑去設定頁——藏在哪裡就該在哪裡找回來。
+         預設收合，點標題列展開；只在真的有隱藏帳號時才出現，不然平白佔一行版面。 -->
+    @if (hiddenAccounts().length > 0) {
+      <div class="rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] overflow-hidden">
+        <button
+          type="button"
+          class="w-full flex items-center gap-2 p-3 text-xs text-[var(--sanring-muted)]"
+          (click)="toggleHiddenList()"
+        >
+          <svg lucideEyeOff class="size-3.5 shrink-0"></svg>
+          <span class="flex-1 text-left">{{ t('hiddenSourcesTitle') }}（{{ hiddenAccounts().length }}）</span>
+          @if (hiddenListExpanded()) {
+            <svg lucideChevronUp class="size-3.5 shrink-0"></svg>
+          } @else {
+            <svg lucideChevronDown class="size-3.5 shrink-0"></svg>
+          }
+        </button>
+        @if (hiddenListExpanded()) {
+          <div class="flex flex-col gap-2 p-3 pt-0">
+            @for (item of hiddenAccounts(); track item.accountId) {
+              <div class="flex items-center gap-2 rounded-[var(--sanring-radius)] border border-[var(--sanring-border)] p-2">
+                <span class="text-sm flex-1 truncate">{{ item.accountLabel ?? item.displayName }}</span>
+                <span sanringBadge variant="outline" class="text-[10px] px-1.5 py-0 shrink-0">
+                  {{ item.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}
+                </span>
+                <button sanringBtn type="button" size="sm" variant="ghost" class="text-xs inline-flex items-center gap-1" (click)="unhideSource(item.accountId)">
+                  <svg lucideEye class="size-3.5"></svg>
+                  {{ t('unhideSource') }}
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
     <!-- 右下角固定的新增按鈕，清單不為空時才需要——empty state 已經有自己的大按鈕了 -->
     @if (summaries().length > 0) {
       <button
@@ -414,26 +450,5 @@
       }
       {{ settingsSaveStatus() === 'saved' ? t('settingsSaved') : t('saveSettings') }}
     </button>
-
-    <!-- 只有真的有隱藏帳號才顯示這個區塊——空的話不用另外講「目前沒有隱藏的來源」湊版面 -->
-    @if (hiddenAccounts().length > 0) {
-      <div class="flex flex-col gap-2 pt-2 border-t border-[var(--sanring-border)]">
-        <label class="text-sm font-semibold">{{ t('hiddenSourcesTitle') }}</label>
-        <div class="flex flex-col gap-2">
-          @for (item of hiddenAccounts(); track item.accountId) {
-            <div class="flex items-center gap-2 rounded-[var(--sanring-radius)] border border-[var(--sanring-border)] p-2">
-              <span class="text-sm flex-1 truncate">{{ item.accountLabel ?? item.displayName }}</span>
-              <span sanringBadge variant="outline" class="text-[10px] px-1.5 py-0 shrink-0">
-                {{ item.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}
-              </span>
-              <button sanringBtn type="button" size="sm" variant="ghost" class="text-xs inline-flex items-center gap-1" (click)="unhideSource(item.accountId)">
-                <svg lucideEye class="size-3.5"></svg>
-                {{ t('unhideSource') }}
-              </button>
-            </div>
-          }
-        </div>
-      </div>
-    }
   }
 </main>
