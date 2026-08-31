@@ -108,6 +108,7 @@ export interface Translations {
   // ── 設定頁（PRD M3）──
   settingsTitle: string;
   settingsAria: string;
+  displayLabel: string;
   refreshIntervalLabel: string;
   retentionLabel: string;
   retentionNote: string;
@@ -128,7 +129,6 @@ export interface Translations {
   hiddenSourcesTitle: string;
 
   // ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況）──
-  infoAria: string;
   infoTitle: string;
   infoClaudeTitle: string;
   infoClaudeBody: string;
@@ -234,6 +234,7 @@ export const translations: Record<Lang, Translations> = {
 
     settingsTitle: '設定',
     settingsAria: '設定',
+    displayLabel: '語言與主題',
     refreshIntervalLabel: '自動刷新頻率',
     retentionLabel: '歷史資料保留期',
     retentionNote: '目前只會儲存這個值——這個 app 還沒有實際的歷史用量清除功能，設定了也不會有任何效果',
@@ -252,7 +253,6 @@ export const translations: Record<Lang, Translations> = {
     unhideSource: '顯示',
     hiddenSourcesTitle: '已隱藏的來源',
 
-    infoAria: '用量來源說明',
     infoTitle: '用量來源說明',
     infoClaudeTitle: 'Claude',
     infoClaudeBody: '支援多帳號。有安裝選用工具 cswap（claude-swap）時，會自動偵測並同時追蹤所有登入的帳號；沒有安裝則只能看到目前登入中的那一個。',
@@ -356,6 +356,7 @@ export const translations: Record<Lang, Translations> = {
 
     settingsTitle: 'Settings',
     settingsAria: 'Settings',
+    displayLabel: 'Language & Theme',
     refreshIntervalLabel: 'Auto-refresh interval',
     retentionLabel: 'History retention',
     retentionNote: "This is currently just stored — this app doesn't have an actual history-pruning feature yet, so setting it has no effect",
@@ -374,7 +375,6 @@ export const translations: Record<Lang, Translations> = {
     unhideSource: 'Show',
     hiddenSourcesTitle: 'Hidden sources',
 
-    infoAria: 'Usage sources info',
     infoTitle: 'Usage sources',
     infoClaudeTitle: 'Claude',
     infoClaudeBody: 'Supports multiple accounts. If the optional cswap (claude-swap) tool is installed, all logged-in accounts are detected and tracked automatically; otherwise only the currently logged-in one is shown.',

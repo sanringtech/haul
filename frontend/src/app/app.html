@@ -3,18 +3,9 @@
     <!-- logo.svg 是 public/ 底下的真實檔案（build 時複製到 wwwroot/browser/logo.svg），不是內嵌
          一堆 <rect>——跟 index.html 的 favicon 用同一份圖，同一套相對路徑解析，不用另外處理。 -->
     <img src="logo.svg" alt="" class="h-5 w-auto shrink-0" />
-    <h1 class="text-base font-semibold flex-1">{{ title() }}</h1>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2"
-      [title]="t('infoAria')"
-      (click)="openInfoView()"
-    >
-      <svg lucideInfo class="size-4"></svg>
-    </button>
+    <!-- 標題單獨一行是硬需求——info/語言/主題三顆按鈕全部移進設定頁（見下方 settings view），
+         header 只留「非它不可」的兩顆：設定入口本身，跟一眼要看到、不用多點一層的連線狀態燈號。 -->
+    <h1 class="text-base font-semibold flex-1 truncate">{{ title() }}</h1>
     <button
       sanringBtn
       type="button"
@@ -25,34 +16,6 @@
       (click)="openSettingsView()"
     >
       <svg lucideSettings class="size-4"></svg>
-    </button>
-    <!-- 語言/主題都是 signal 一按當場切換，不重載視窗——跟卡片的排序/改名同一種「本地即時生效」模式 -->
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2 text-xs"
-      [title]="lang() === 'zh-TW' ? t('switchToEnglish') : t('switchToChinese')"
-      (click)="toggleLang()"
-    >
-      {{ lang() === 'zh-TW' ? 'EN' : '中' }}
-    </button>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2"
-      [title]="theme() === 'dark' ? t('switchToLight') : t('switchToDark')"
-      (click)="toggleTheme()"
-    >
-      <!-- 圖示是「切過去會變成的樣子」，跟 title 的文字是同一個意思：深色模式下顯示太陽（按下去變淺色） -->
-      @if (theme() === 'dark') {
-        <svg lucideSun class="size-4"></svg>
-      } @else {
-        <svg lucideMoon class="size-4"></svg>
-      }
     </button>
     <!-- 原本是常駐文字 badge，改成一顆點——跟卡片的連線狀態點同一套視覺語言，字只在 hover 時透過 tooltip 顯示 -->
     <sanring-tooltip>
@@ -415,7 +378,28 @@
       <h2 class="text-lg font-semibold">{{ t('settingsTitle') }}</h2>
     </div>
 
+    <!-- 語言/主題：signal 一按當場切換，不用等按「儲存」——刻意放在最上面、跟下面三組
+         「草稿改完要按儲存才生效」的設定分開，才不會讓人以為這裡也要按儲存才有效果。 -->
     <div class="flex flex-col gap-2">
+      <label class="text-sm font-semibold">{{ t('displayLabel') }}</label>
+      <div class="flex flex-wrap gap-2">
+        <button sanringBtn type="button" variant="outline" size="sm" (click)="toggleLang()">
+          {{ lang() === 'zh-TW' ? t('switchToEnglish') : t('switchToChinese') }}
+        </button>
+        <button sanringBtn type="button" variant="outline" size="sm" class="inline-flex items-center gap-1.5" (click)="toggleTheme()">
+          <!-- 圖示是「切過去會變成的樣子」：深色模式下顯示太陽（按下去變淺色） -->
+          @if (theme() === 'dark') {
+            <svg lucideSun class="size-4"></svg>
+            {{ t('switchToLight') }}
+          } @else {
+            <svg lucideMoon class="size-4"></svg>
+            {{ t('switchToDark') }}
+          }
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2 pt-4 border-t border-[var(--sanring-border)]">
       <label class="text-sm font-semibold">{{ t('refreshIntervalLabel') }}</label>
       <div class="flex flex-wrap gap-2">
         <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 5 ? 'default' : 'outline'" (click)="selectRefreshInterval(5)">{{ t('interval5m') }}</button>
@@ -462,6 +446,20 @@
         <svg lucideSave class="size-4"></svg>
       }
       {{ settingsSaveStatus() === 'saved' ? t('settingsSaved') : t('saveSettings') }}
+    </button>
+
+    <!-- 用量來源說明頁原本在 header 上獨立一顆按鈕，現在跟語言/主題一起收進設定頁——
+         放在最下面、用 border-t 隔開，讀起來像「更多資訊」而不是這頁設定的一部分。 -->
+    <button
+      sanringBtn
+      type="button"
+      variant="ghost"
+      size="sm"
+      class="justify-start inline-flex items-center gap-1.5 pt-3 border-t border-[var(--sanring-border)] rounded-none"
+      (click)="openInfoView()"
+    >
+      <svg lucideInfo class="size-4"></svg>
+      {{ t('infoTitle') }}
     </button>
   } @else {
     <!-- ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況，純靜態內容） ──────────── -->

@@ -256,8 +256,9 @@ export class App {
     this.view.set('info');
   }
 
+  /** 說明頁現在只能從設定頁進去（header 上原本的獨立入口收掉了），「返回」也該回設定頁，不是主畫面。 */
   protected closeInfoView(): void {
-    this.view.set('list');
+    this.view.set('settings');
   }
 
   protected selectRefreshInterval(minutes: number | null): void {

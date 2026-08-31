@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Dock 的 tooltip 實測認 CFBundleName，不是 CFBundleDisplayName（跟一般認知的優先順序相反）——
+	     兩個 key 都設成同一個全名，不管 macOS 這個版本讀哪一個都會顯示正確的文字。 -->
 	<key>CFBundleName</key>
-	<string>SanringMonitor</string>
+	<string>SanRing Usage Monitor</string>
 	<key>CFBundleDisplayName</key>
 	<string>SanRing Usage Monitor</string>
 	<key>CFBundleExecutable</key>
