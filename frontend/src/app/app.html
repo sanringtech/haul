@@ -425,7 +425,9 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-2">
+    <!-- pt-4 + border-t：三組設定分屬不同關注點，光靠外層 gap-4 擠在一起分不太出來是三組，
+         加一條分隔線讓「組跟組之間」明顯比「組內標籤跟按鈕之間」寬，看起來才不會太擁擠 -->
+    <div class="flex flex-col gap-2 pt-4 border-t border-[var(--sanring-border)]">
       <label class="text-sm font-semibold">{{ t('retentionLabel') }}</label>
       <div class="flex flex-wrap gap-2">
         <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 3 ? 'default' : 'outline'" (click)="selectRetentionDays(3)">{{ t('retention3d') }}</button>
@@ -437,7 +439,7 @@
       <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('retentionNote') }}</p>
     </div>
 
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2 pt-4 border-t border-[var(--sanring-border)]">
       <div class="flex items-center justify-between">
         <label class="text-sm font-semibold">{{ t('nearLimitLabel') }}</label>
         <span sanringBadge variant="outline" class="text-xs">{{ draftNearLimitThreshold() }}%</span>
@@ -451,7 +453,7 @@
       />
     </div>
 
-    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="inline-flex items-center justify-center gap-2" (click)="saveSettings()">
+    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="mt-2 inline-flex items-center justify-center gap-2" (click)="saveSettings()">
       @if (settingsSaveStatus() === 'saving') {
         <sanring-spinner size="sm" />
       } @else if (settingsSaveStatus() === 'saved') {
