@@ -78,7 +78,9 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         // Each window's caption stays with that window's own row in the UI — no more merging
         // "5h resets at X ・ 7d resets at Y" into one line the user has to parse apart themselves.
         LocalizedText? fiveHourDetail = usage.FiveHour?.ResetsAt is { } h5Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(h5Reset))) : null;
-        LocalizedText? sevenDayDetail = usage.SevenDay?.ResetsAt is { } d7Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(d7Reset))) : null;
+        // 7 天的視窗只顯示 HH:mm 會讓人搞不清楚是哪一天重置（跟 5 小時那個不一樣，5 小時幾乎一定
+        // 當天就到期，7 天不會）——補上日期，見 FormatResetLocalWithDate。
+        LocalizedText? sevenDayDetail = usage.SevenDay?.ResetsAt is { } d7Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocalWithDate(d7Reset))) : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -111,6 +113,18 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         try
         {
             return DateTimeOffset.Parse(isoUtc).ToLocalTime().ToString("HH:mm");
+        }
+        catch (FormatException)
+        {
+            return isoUtc;
+        }
+    }
+
+    private static string FormatResetLocalWithDate(string isoUtc)
+    {
+        try
+        {
+            return DateTimeOffset.Parse(isoUtc).ToLocalTime().ToString("M/d HH:mm");
         }
         catch (FormatException)
         {

@@ -70,7 +70,9 @@ public sealed class CodexUsageProvider : IUsageProvider
         double? secondaryPct = usage.RateLimit.SecondaryWindow?.UsedPercent;
 
         LocalizedText? primaryDetail = usage.RateLimit.PrimaryWindow?.ResetAt is { } r1 ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(r1))) : null;
-        LocalizedText? secondaryDetail = usage.RateLimit.SecondaryWindow?.ResetAt is { } r2 ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(r2))) : null;
+        // 7 天的視窗只顯示 HH:mm 會讓人搞不清楚是哪一天重置（5 小時那個幾乎一定當天到期，7 天不會）
+        // ——補上日期，見 FormatResetLocalWithDate。
+        LocalizedText? secondaryDetail = usage.RateLimit.SecondaryWindow?.ResetAt is { } r2 ? L(MessageKeys.WindowReset, ("time", FormatResetLocalWithDate(r2))) : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -103,6 +105,18 @@ public sealed class CodexUsageProvider : IUsageProvider
         try
         {
             return DateTimeOffset.FromUnixTimeSeconds(unixSeconds).ToLocalTime().ToString("HH:mm");
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return "—";
+        }
+    }
+
+    private static string FormatResetLocalWithDate(long unixSeconds)
+    {
+        try
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(unixSeconds).ToLocalTime().ToString("M/d HH:mm");
         }
         catch (ArgumentOutOfRangeException)
         {
