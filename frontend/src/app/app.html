@@ -56,11 +56,23 @@
 
   @if (view() === 'list') {
     <div class="flex items-center gap-2">
-      <button sanringBtn type="button" size="sm" [disabled]="isLoading()" (click)="refresh()" class="inline-flex items-center gap-2">
+      <!-- 文字換成 icon——跟主題/語言切換那幾顆同樣走「hover 才看到文字」的模式，title 屬性補上文字。 -->
+      <button
+        sanringBtn
+        type="button"
+        variant="ghost"
+        size="sm"
+        class="px-2"
+        [disabled]="isLoading()"
+        [title]="isLoading() ? t('refreshing') : t('refresh')"
+        [attr.aria-label]="isLoading() ? t('refreshing') : t('refresh')"
+        (click)="refresh()"
+      >
         @if (isLoading()) {
           <sanring-spinner size="sm" />
+        } @else {
+          <svg lucideRefreshCw class="size-4"></svg>
         }
-        {{ isLoading() ? t('refreshing') : t('refresh') }}
       </button>
       @if (lastRefreshedAt()) {
         <!-- 每張卡片的 asOf 幾乎同一時刻，拿掉逐卡重複顯示，這裡放一次就好 -->
