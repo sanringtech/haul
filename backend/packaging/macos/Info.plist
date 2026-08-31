@@ -16,8 +16,8 @@
 	<string>dev.sanring.usagemonitor</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<!-- Placeholder until the project adopts real SemVer versioning (see README staged
-	     release plan) — bump by hand alongside that decision, not meant to be load-bearing yet. -->
+	<!-- SSOT 是 repo 根目錄的 VERSION 檔（backend/SanringMonitor.csproj 會自動讀進 <Version>）——
+	     這裡是手動對齊，改版時記得跟著改，還沒到值得建自動同步的規模（見 RELEASE-PLAN.md）。 -->
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.0</string>
 	<key>CFBundleVersion</key>

@@ -7,6 +7,15 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- 版本號 SSOT 是 repo 根目錄的 VERSION 檔（純文字，一行 SemVer），這裡讀進來自動變成組件的
+       AssemblyVersion/FileVersion/InformationalVersion，不用每次改版手動同步這裡。frontend/
+       package.json 的 version 跟 backend/packaging/macos/Info.plist 的 CFBundleVersion 目前還是
+       手動對齊（2026-08-31 起，還不到值得建自動同步 pipeline 的規模，只有三個地方要對）。 -->
+  <PropertyGroup>
+    <VersionFilePath>$(MSBuildThisFileDirectory)../VERSION</VersionFilePath>
+    <Version Condition="Exists('$(VersionFilePath)')">$([System.IO.File]::ReadAllText('$(VersionFilePath)').Trim())</Version>
+  </PropertyGroup>
+
   <!-- 純 <OutputType>Exe</OutputType> 在 Windows 上會編成 console 子系統，雙擊打開時一個黑底
        終端機視窗會跟 Photino 的 GUI 視窗一起跳出來，不是乾淨的桌面 app 體驗（2026-08-31 第一次
        跨平台編 Windows 版才實測到，file 指令確認過 .exe 是 "console" 子系統）。WinExe 才是 Windows

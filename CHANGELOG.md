@@ -48,3 +48,4 @@
 - repo 轉 public，加入 `docs/index.html` Coming Soon 佔位頁（GitHub Pages，`usage-monitor.sanring.dev`）
 - macOS `.dmg` 打包：`scripts/make-dmg.sh`，獨立於 `build.sh` 之外手動執行（詳見 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 1）
 - Windows 單一 `.exe`（⚠️ 只做過建置驗證）：`build.sh win-x64` 加上 `PublishSingleFile`，跨平台編出 71MB 單一執行檔；順手修掉 `OutputType` 在 Windows 上編成 console 子系統的 bug（改成 `WinExe`），沒有這個修正雙擊會多跳一個黑視窗（詳見 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 1）
+- 版本號機制：根目錄 `VERSION` 檔當 SSOT（`0.1.0`），`SanringMonitor.csproj` 自動讀檔變成 `<Version>`，`package.json`/`Info.plist` 手動對齊
