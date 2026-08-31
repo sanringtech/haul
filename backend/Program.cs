@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.Text.Json;
 using Photino.NET;
@@ -119,6 +120,28 @@ void AttachMainWindowClosingHandler(PhotinoWindow w)
     });
 }
 
+// 跨 app 搶焦點——實測證實 SetMinimized(false)/SetTopMost 開關只在自己 app 內有效，使用者
+// 焦點在別的 app（瀏覽器、終端機……）時完全叫不回主視窗。macOS 上唯一可靠的做法是透過
+// System Events 明確要求把這個 process 設成最前景，Photino 沒有對應的跨 app activate API，
+// 借 osascript（macOS 內建，不用額外裝）達成。用 unix id（本 process 的 PID）鎖定，不用
+// process 名稱，避免同名 process 或名稱裡有特殊字元需要轉義的問題。只在 macOS 上跑，
+// Windows/Linux 呼叫 osascript 一定失敗，直接跳過（fire-and-forget，失敗也不影響其他邏輯）。
+void ActivateThisApp()
+{
+    if (!OperatingSystem.IsMacOS()) return;
+    try
+    {
+        var psi = new ProcessStartInfo("osascript") { UseShellExecute = false };
+        psi.ArgumentList.Add("-e");
+        psi.ArgumentList.Add($"tell application \"System Events\" to set frontmost of the first process whose unix id is {Environment.ProcessId} to true");
+        Process.Start(psi);
+    }
+    catch
+    {
+        // 拿不到 osascript（理論上 macOS 上一定有）就算了，不影響 SetMinimized/SetTopMost 那兩步已經做的事。
+    }
+}
+
 // `async void`, not `async Task`: Photino's handler delegate is a plain EventHandler<string>.
 // A ccusage-backed refresh can take a couple of seconds (npx cold start), so this must not
 // block the caller — but every path below must catch its own errors since nothing awaits this.
@@ -185,10 +208,12 @@ async void OnWebMessageReceived(object? sender, string message)
                 try
                 {
                     window.SetMinimized(false);
-                    // SetMinimized(false) 不保證真的把焦點搶回來、蓋到最上面——TopMost 開關一下
-                    // 是常見的「強制拉到前景」trick，用完立刻關掉，不是真的要它一直置頂。
+                    // 實測過：SetMinimized(false) + SetTopMost 開關只能在「自己 app 內」調整視窗
+                    // 層級，沒辦法把整個 app 從別的 app 手上搶到最前面——那是跨 app 焦點，macOS
+                    // 上要透過 System Events 明確要求才行，Photino 沒有對應 API。
                     window.SetTopMost(true);
                     window.SetTopMost(false);
+                    ActivateThisApp();
                 }
                 catch
                 {
