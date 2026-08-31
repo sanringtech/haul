@@ -1,29 +1,119 @@
 @if (collapsed()) {
-  <!-- 收合：一顆像素風小圖示，點一下展開。半透明底圓是刻意加的——純透明背景在雜亂桌布上會看不清楚圖示邊界。 -->
+  <!-- 收合：使用者提供的像素風小圖示（pixel-star.svg），點一下展開。drop-shadow 讓它在雜亂桌布上還看得清楚邊界。 -->
   <button
     type="button"
     class="w-screen h-screen flex items-center justify-center bg-transparent cursor-pointer"
     (click)="expand()"
   >
-    <span class="rounded-full flex items-center justify-center shadow-lg" style="width: 64px; height: 64px; background: color-mix(in srgb, var(--sanring-surface) 85%, transparent);">
-      <svg class="pixel-icon" width="40" height="40" viewBox="0 0 64 64" fill="var(--sanring-primary-50)">
-        <rect x="40" y="16" width="8" height="8" />
-        <rect x="40" y="24" width="8" height="8" />
-        <rect x="24" y="32" width="8" height="8" />
-        <rect x="40" y="32" width="8" height="8" />
-        <rect x="24" y="40" width="8" height="8" />
-        <rect x="40" y="40" width="8" height="8" />
-        <rect x="8" y="48" width="8" height="8" />
-        <rect x="24" y="48" width="8" height="8" />
-        <rect x="40" y="48" width="8" height="8" />
-        <rect x="8" y="56" width="8" height="8" />
-        <rect x="24" y="56" width="8" height="8" />
-        <rect x="40" y="56" width="8" height="8" />
-      </svg>
-    </span>
+    <svg class="pixel-icon" width="56" height="47" viewBox="0 0 25 21" shape-rendering="crispEdges" style="filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.4));">
+      <rect x="12" y="0" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="1" width="1" height="1" fill="#ffd25a"/>
+      <rect x="4" y="2" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="2" width="1" height="1" fill="#ffd25a"/>
+      <rect x="3" y="3" width="1" height="1" fill="#ffd25a"/>
+      <rect x="4" y="3" width="1" height="1" fill="#fff3b8"/>
+      <rect x="5" y="3" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="3" width="1" height="1" fill="#ffd25a"/>
+      <rect x="20" y="3" width="1" height="1" fill="#ffd25a"/>
+      <rect x="4" y="4" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="4" width="1" height="1" fill="#ffd25a"/>
+      <rect x="19" y="4" width="1" height="1" fill="#ffd25a"/>
+      <rect x="20" y="4" width="1" height="1" fill="#fff3b8"/>
+      <rect x="21" y="4" width="1" height="1" fill="#ffd25a"/>
+      <rect x="11" y="5" width="1" height="1" fill="#e8a63a"/>
+      <rect x="12" y="5" width="1" height="1" fill="#fff3b8"/>
+      <rect x="13" y="5" width="1" height="1" fill="#e8a63a"/>
+      <rect x="20" y="5" width="1" height="1" fill="#ffd25a"/>
+      <rect x="11" y="6" width="1" height="1" fill="#e8a63a"/>
+      <rect x="12" y="6" width="1" height="1" fill="#fff3b8"/>
+      <rect x="13" y="6" width="1" height="1" fill="#e8a63a"/>
+      <rect x="10" y="7" width="1" height="1" fill="#e8a63a"/>
+      <rect x="11" y="7" width="1" height="1" fill="#fff3b8"/>
+      <rect x="12" y="7" width="1" height="1" fill="#fff3b8"/>
+      <rect x="13" y="7" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="7" width="1" height="1" fill="#e8a63a"/>
+      <rect x="9" y="8" width="1" height="1" fill="#e8a63a"/>
+      <rect x="10" y="8" width="1" height="1" fill="#fff3b8"/>
+      <rect x="11" y="8" width="1" height="1" fill="#fff3b8"/>
+      <rect x="12" y="8" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="8" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="8" width="1" height="1" fill="#ffd25a"/>
+      <rect x="15" y="8" width="1" height="1" fill="#e8a63a"/>
+      <rect x="7" y="9" width="1" height="1" fill="#e8a63a"/>
+      <rect x="8" y="9" width="1" height="1" fill="#e8a63a"/>
+      <rect x="9" y="9" width="1" height="1" fill="#fff3b8"/>
+      <rect x="10" y="9" width="1" height="1" fill="#fff3b8"/>
+      <rect x="11" y="9" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="9" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="9" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="9" width="1" height="1" fill="#ffd25a"/>
+      <rect x="15" y="9" width="1" height="1" fill="#ffd25a"/>
+      <rect x="16" y="9" width="1" height="1" fill="#e8a63a"/>
+      <rect x="17" y="9" width="1" height="1" fill="#e8a63a"/>
+      <rect x="2" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="3" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="4" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="5" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="6" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="7" y="10" width="1" height="1" fill="#fff3b8"/>
+      <rect x="8" y="10" width="1" height="1" fill="#fff3b8"/>
+      <rect x="9" y="10" width="1" height="1" fill="#fff3b8"/>
+      <rect x="10" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="11" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="15" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="16" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="17" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="18" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="19" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="20" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="21" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="22" y="10" width="1" height="1" fill="#ffd25a"/>
+      <rect x="7" y="11" width="1" height="1" fill="#e8a63a"/>
+      <rect x="8" y="11" width="1" height="1" fill="#e8a63a"/>
+      <rect x="9" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="10" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="11" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="15" y="11" width="1" height="1" fill="#ffd25a"/>
+      <rect x="16" y="11" width="1" height="1" fill="#e8a63a"/>
+      <rect x="17" y="11" width="1" height="1" fill="#e8a63a"/>
+      <rect x="9" y="12" width="1" height="1" fill="#e8a63a"/>
+      <rect x="10" y="12" width="1" height="1" fill="#ffd25a"/>
+      <rect x="11" y="12" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="12" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="12" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="12" width="1" height="1" fill="#ffd25a"/>
+      <rect x="15" y="12" width="1" height="1" fill="#e8a63a"/>
+      <rect x="10" y="13" width="1" height="1" fill="#e8a63a"/>
+      <rect x="11" y="13" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="13" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="13" width="1" height="1" fill="#ffd25a"/>
+      <rect x="14" y="13" width="1" height="1" fill="#e8a63a"/>
+      <rect x="11" y="14" width="1" height="1" fill="#e8a63a"/>
+      <rect x="12" y="14" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="14" width="1" height="1" fill="#e8a63a"/>
+      <rect x="11" y="15" width="1" height="1" fill="#e8a63a"/>
+      <rect x="12" y="15" width="1" height="1" fill="#ffd25a"/>
+      <rect x="13" y="15" width="1" height="1" fill="#e8a63a"/>
+      <rect x="6" y="16" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="16" width="1" height="1" fill="#ffd25a"/>
+      <rect x="5" y="17" width="1" height="1" fill="#ffd25a"/>
+      <rect x="6" y="17" width="1" height="1" fill="#fff3b8"/>
+      <rect x="7" y="17" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="17" width="1" height="1" fill="#ffd25a"/>
+      <rect x="6" y="18" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="18" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="19" width="1" height="1" fill="#ffd25a"/>
+      <rect x="12" y="20" width="1" height="1" fill="#ffd25a"/>
+    </svg>
   </button>
 } @else {
-  <!-- 展開：卡片堆疊，滑鼠拖曳左右切換（見 widget-app.ts 的 onPointer*），不是滾輪。 -->
+  <!-- 展開：卡片堆疊，滑鼠拖曳上下切換（見 widget-app.ts 的 onPointer*），不是滾輪，也不是左右。 -->
   <div class="relative w-screen h-screen bg-transparent p-2" style="font-family: var(--sanring-font-sans);">
     @if (summaries().length === 0) {
       <div class="w-full h-full rounded-[var(--sanring-radius-lg)] bg-[var(--sanring-surface)] shadow-lg flex flex-col items-center justify-center gap-2 p-3 text-center">
@@ -42,7 +132,7 @@
       @if (activeSummary(); as item) {
         <div
           class="absolute inset-2 rounded-[var(--sanring-radius-lg)] bg-[var(--sanring-surface)] border border-[var(--sanring-border)] shadow-lg p-3 flex flex-col gap-2 cursor-grab active:cursor-grabbing touch-none"
-          [style.transform]="'translateX(' + dragOffsetX() + 'px)'"
+          [style.transform]="'translateY(' + dragOffsetY() + 'px)'"
           (pointerdown)="onPointerDown($event)"
           (pointermove)="onPointerMove($event)"
           (pointerup)="onPointerUp()"

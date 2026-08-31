@@ -38,11 +38,11 @@ export class WidgetApp {
   protected readonly collapsed = signal(true);
   protected readonly activeIndex = signal(0);
 
-  /** 拖曳中的即時位移（px），純視覺用，放開後歸零、由 activeIndex 決定實際換到哪張卡。 */
-  private readonly dragState = signal<{ startX: number; currentX: number } | null>(null);
-  protected readonly dragOffsetX = computed(() => {
+  /** 拖曳中的即時位移（px，上下），純視覺用，放開後歸零、由 activeIndex 決定實際換到哪張卡。 */
+  private readonly dragState = signal<{ startY: number; currentY: number } | null>(null);
+  protected readonly dragOffsetY = computed(() => {
     const s = this.dragState();
-    return s ? s.currentX - s.startX : 0;
+    return s ? s.currentY - s.startY : 0;
   });
 
   protected readonly theme = signal<Theme>(loadFromStorage(THEME_STORAGE_KEY, 'dark', ['dark', 'light']));
@@ -85,22 +85,28 @@ export class WidgetApp {
     this.sendSilent({ type: 'quit-app' });
   }
 
+  /**
+   * 按在按鈕上（詳細/收合/結束）就直接放行，不進入拖曳狀態、也不 setPointerCapture——
+   * 之前的 bug 就是這裡沒擋，卡片整個 capture 住指標，按鈕收不到自己的 click，點了沒反應。
+   */
   protected onPointerDown(event: PointerEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    this.dragState.set({ startX: event.clientX, currentX: event.clientX });
+    this.dragState.set({ startY: event.clientY, currentY: event.clientY });
   }
 
   protected onPointerMove(event: PointerEvent): void {
     const s = this.dragState();
     if (!s) return;
-    this.dragState.set({ ...s, currentX: event.clientX });
+    this.dragState.set({ ...s, currentY: event.clientY });
   }
 
+  /** 往上拖＝下一張，往下拖＝上一張——跟把最上面那張卡片撥開看下一張的直覺一致。 */
   protected onPointerUp(): void {
     const s = this.dragState();
     this.dragState.set(null);
     if (!s) return;
-    const delta = s.currentX - s.startX;
+    const delta = s.currentY - s.startY;
     if (delta <= -SWIPE_THRESHOLD_PX) this.next();
     else if (delta >= SWIPE_THRESHOLD_PX) this.previous();
   }
