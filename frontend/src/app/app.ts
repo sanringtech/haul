@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, signal } from '@angular/core';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
@@ -9,6 +9,10 @@ import { SANRING_ALERT_IMPORTS } from './components/ui/alert';
 import { SpinnerComponent } from './components/ui/spinner';
 import { SkeletonDirective } from './components/ui/skeleton';
 import { SANRING_TOOLTIP_IMPORTS } from './components/ui/tooltip';
+import { Lang, LANG_STORAGE_KEY, Translations, translations } from './i18n';
+
+type Theme = 'dark' | 'light';
+const THEME_STORAGE_KEY = 'sanring-usage-monitor:theme';
 
 declare global {
   // lib.dom.d.ts already declares `Window.external: External`. Photino.NET
@@ -117,8 +121,47 @@ export class App {
   protected readonly catalogBySubscription = computed(() => this.catalog().filter((c) => c.sourceType === 'subscription'));
   protected readonly catalogByApiKey = computed(() => this.catalog().filter((c) => c.sourceType === 'api_key'));
 
+  // ── 主題 / 語言：跟 sanring-theme.css 的 data-theme 屬性同一套模式，signal 一改當場生效，
+  //    不用重載視窗。兩者都存 localStorage，預設值刻意跟改功能前的既有行為一致（深色 + 繁中），
+  //    沒設過偏好的舊使用者升級後畫面不會變。──────────────────────────────────────────
+  protected readonly theme = signal<Theme>(loadFromStorage(THEME_STORAGE_KEY, 'dark', ['dark', 'light']));
+  protected readonly lang = signal<Lang>(loadFromStorage(LANG_STORAGE_KEY, 'zh-TW', ['zh-TW', 'en']));
+
   constructor() {
     window.external?.receiveMessage?.((message) => this.onHostMessage(message));
+
+    // :root 沒有 data-theme 屬性＝深色（見 sanring-theme.css 開頭註解），所以切回 dark 是移除屬性，
+    // 不是設成 "dark" 字面值——跟 CSS 那邊的預設假設保持一致，不用另外在 CSS 補一份 [data-theme="dark"]。
+    effect(() => {
+      const value = this.theme();
+      if (value === 'dark') {
+        delete document.documentElement.dataset['theme'];
+      } else {
+        document.documentElement.dataset['theme'] = value;
+      }
+      saveToStorage(THEME_STORAGE_KEY, value);
+    });
+
+    effect(() => saveToStorage(LANG_STORAGE_KEY, this.lang()));
+  }
+
+  protected toggleTheme(): void {
+    this.theme.set(this.theme() === 'dark' ? 'light' : 'dark');
+  }
+
+  protected toggleLang(): void {
+    this.lang.set(this.lang() === 'zh-TW' ? 'en' : 'zh-TW');
+  }
+
+  /** 查目前語言的翻譯表，{key} 形式的 placeholder 用 params 替換——跟 usageStateLabel() 那類「依狀態查表」寫法同一套模式。 */
+  protected t(key: keyof Translations, params?: Record<string, string>): string {
+    let text = translations[this.lang()][key];
+    if (params) {
+      for (const [name, value] of Object.entries(params)) {
+        text = text.replaceAll(`{${name}}`, value);
+      }
+    }
+    return text;
   }
 
   protected refresh(): void {
@@ -162,7 +205,7 @@ export class App {
 
     if (entry.sourceType === 'api_key' && !this.addApiKey().trim()) {
       this.addStatus.set('error');
-      this.addResultMessage.set('請先輸入 API key');
+      this.addResultMessage.set(this.t('pleaseEnterApiKey'));
       return;
     }
 
@@ -268,17 +311,17 @@ export class App {
 
   /** 卡片標題旁的唯讀 badge——標題可以改名蓋掉 AI 類型文字，這個分辨「訂閱制 / API key 制」不受影響。 */
   protected sourceTypeLabel(type: SourceType): string {
-    return type === 'subscription' ? '訂閱制' : 'API key 制';
+    return this.t(type === 'subscription' ? 'subscriptionType' : 'apiKeyType');
   }
 
   /** 沒有百分比概念的來源（DeepSeek/Kimi 的絕對餘額）不畫假進度條，狀態改用文字 badge。 */
   protected usageStateLabel(state: UsageState): string {
     return (
       {
-        normal: '正常',
-        near_limit: '偏低',
-        exceeded: '已用盡',
-        unknown: '—',
+        normal: this.t('stateNormal'),
+        near_limit: this.t('stateNearLimit'),
+        exceeded: this.t('stateExceeded'),
+        unknown: this.t('stateUnknown'),
       } satisfies Record<UsageState, string>
     )[state];
   }
@@ -322,7 +365,7 @@ export class App {
 
   private send(message: Record<string, unknown>): void {
     if (!this.isDesktopHost()) {
-      this.lastError.set('未連接到桌面殼層（用 ng serve 純前端開發時無法呼叫 C# 後端）');
+      this.lastError.set(this.t('hostNotConnected'));
       return;
     }
     this.isLoading.set(true);
@@ -357,12 +400,14 @@ export class App {
         const added = payload.data[0];
         if (added.connectionState === 'valid') {
           this.addStatus.set('success');
-          this.addResultMessage.set(`已新增 ${added.accountLabel ?? added.displayName}`);
+          this.addResultMessage.set(this.t('addedSuccess', { name: added.accountLabel ?? added.displayName }));
           // 讓使用者瞄到一眼「成功了」再切回去，不是完全無感跳轉，但也不用再多按一次確認。
           setTimeout(() => this.closeAddView(), 900);
         } else {
           this.addStatus.set('error');
-          this.addResultMessage.set(added.detail ?? '新增失敗，原因不明');
+          // added.detail 是後端組的訊息（已經是中文，見 i18n.ts 開頭的已知限制），只有「完全沒有
+          // detail」這個 fallback 案例是前端自己的字串，才需要走翻譯表。
+          this.addResultMessage.set(added.detail ?? this.t('unknownAddFailure'));
         }
         return;
       }
@@ -378,7 +423,26 @@ export class App {
         this.lastError.set(payload.error);
       }
     } catch {
-      this.lastError.set(`收到無法解析的訊息: ${raw}`);
+      this.lastError.set(this.t('parseError', { raw }));
     }
+  }
+}
+
+/** localStorage 讀取只在使用者身上生效（見 artifact/browser-storage 的一般提醒：私密視窗、清過站台
+ * 資料的情況下可能整組拿不到）——包一層 try/catch，拿不到就乖乖用預設值，不讓整個 app 掛掉。 */
+function loadFromStorage<T extends string>(key: string, fallback: T, allowed: readonly T[]): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw && (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // 存不進去（私密視窗等）就算了，下次開啟退回預設值，不影響當下這次的使用
   }
 }

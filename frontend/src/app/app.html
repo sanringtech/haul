@@ -1,12 +1,35 @@
 <main class="flex flex-col gap-4 p-6 pb-20 bg-[var(--sanring-background)] text-[var(--sanring-foreground)] min-h-screen relative">
   <header class="flex items-center gap-2">
     <h1 class="text-base font-semibold flex-1">{{ title() }}</h1>
+    <!-- 語言/主題都是 signal 一按當場切換，不重載視窗——跟卡片的排序/改名同一種「本地即時生效」模式 -->
+    <button
+      sanringBtn
+      type="button"
+      variant="ghost"
+      size="sm"
+      class="px-2 text-xs"
+      [title]="lang() === 'zh-TW' ? t('switchToEnglish') : t('switchToChinese')"
+      (click)="toggleLang()"
+    >
+      {{ lang() === 'zh-TW' ? 'EN' : '中' }}
+    </button>
+    <button
+      sanringBtn
+      type="button"
+      variant="ghost"
+      size="sm"
+      class="px-2"
+      [title]="theme() === 'dark' ? t('switchToLight') : t('switchToDark')"
+      (click)="toggleTheme()"
+    >
+      {{ theme() === 'dark' ? '☀️' : '🌙' }}
+    </button>
     <span
       sanringBadge
       variant="outline"
       [class]="isDesktopHost() ? 'border-transparent bg-[var(--sanring-success-50)] text-white' : ''"
     >
-      {{ isDesktopHost() ? '已連接桌面殼層' : '瀏覽器模式' }}
+      {{ isDesktopHost() ? t('connectedDesktop') : t('browserMode') }}
     </span>
   </header>
 
@@ -16,11 +39,11 @@
         @if (isLoading()) {
           <sanring-spinner size="sm" />
         }
-        {{ isLoading() ? '重新整理中…' : '重新整理用量' }}
+        {{ isLoading() ? t('refreshing') : t('refresh') }}
       </button>
       @if (lastRefreshedAt()) {
         <!-- 每張卡片的 asOf 幾乎同一時刻，拿掉逐卡重複顯示，這裡放一次就好 -->
-        <span class="text-[10px] text-[var(--sanring-muted)]">上次更新 {{ lastRefreshedAt() }}</span>
+        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('lastUpdated', { time: lastRefreshedAt()! }) }}</span>
       }
     </div>
 
@@ -45,7 +68,7 @@
           <sanring-card-header class="p-3 pb-2">
             <div class="flex items-center gap-2">
               <!-- 拖曳排序用的把手，跟改名點擊區分開，才不會兩個手勢互搶 -->
-              <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" title="拖曳調整順序">⠿</span>
+              <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" [title]="t('dragHandleTitle')">⠿</span>
               <span class="h-2.5 w-2.5 rounded-full shrink-0" [class]="connectionDotClass(item.connectionState)"></span>
               <!-- 標題本身可點擊改名：預設顯示 AI 類型（如 "Codex"），改過名字後顯示自訂標籤蓋過去。
                    底層存的還是 accountLabel，displayName 沒被動到——只是畫面上不再分兩行顯示。 -->
@@ -67,7 +90,7 @@
                   <button
                     type="button"
                     class="text-sm font-semibold block truncate text-left hover:underline w-full"
-                    title="點一下改名"
+                    [title]="t('renameTitle')"
                     (click)="startRename(item)"
                   >{{ item.accountLabel ?? item.displayName }}</button>
                 }
@@ -79,8 +102,8 @@
               </span>
               @if (item.isEstimated) {
                 <sanring-tooltip>
-                  <span sanringTooltipTrigger sanringBadge variant="outline" class="text-[10px] px-1.5 py-0">估算</span>
-                  <sanring-tooltip-content>本機推算值，非官方即時精確數字</sanring-tooltip-content>
+                  <span sanringTooltipTrigger sanringBadge variant="outline" class="text-[10px] px-1.5 py-0">{{ t('estimated') }}</span>
+                  <sanring-tooltip-content>{{ t('estimatedTooltip') }}</sanring-tooltip-content>
                 </sanring-tooltip>
               }
             </div>
@@ -101,7 +124,7 @@
                       <span sanringTooltipTrigger sanringBadge [class]="usageBadgeClass(w.state) + ' text-xs shrink-0'">
                         {{ w.percent.toFixed(0) }}%
                       </span>
-                      <sanring-tooltip-content>{{ w.label ? w.label + ' 視窗內已用掉的比例' : '目前用量狀態' }}</sanring-tooltip-content>
+                      <sanring-tooltip-content>{{ w.label ? t('windowUsageTooltip', { label: w.label }) : t('currentUsageTooltip') }}</sanring-tooltip-content>
                     </sanring-tooltip>
                   </div>
                   @if (w.detail) {
@@ -114,7 +137,7 @@
                     @if (w.label) {
                       <span class="text-[10px] text-[var(--sanring-muted)] w-9 shrink-0">{{ w.label }}</span>
                     }
-                    <span class="flex-1 text-sm">{{ w.detail ?? '尚無資料' }}</span>
+                    <span class="flex-1 text-sm">{{ w.detail ?? t('noDataYet') }}</span>
                     <span sanringBadge [class]="usageBadgeClass(w.state) + ' text-xs shrink-0'">
                       {{ usageStateLabel(w.state) }}
                     </span>
@@ -126,9 +149,9 @@
             @if (pendingRemoval() === item.source) {
               <!-- 取消追蹤二次確認：憲法 §8 — 會整個刪除本機的 key/歷史資料，不可逆 -->
               <div class="flex items-center gap-2 pt-1 text-xs">
-                <span class="text-[var(--sanring-error-50)] flex-1">確定要取消追蹤？本機的資料會被刪除，無法復原</span>
-                <button sanringBtn type="button" size="sm" variant="destructive" (click)="requestRemove(item.source)">確定刪除</button>
-                <button sanringBtn type="button" size="sm" variant="ghost" (click)="cancelRemove()">取消</button>
+                <span class="text-[var(--sanring-error-50)] flex-1">{{ t('confirmRemoveText') }}</span>
+                <button sanringBtn type="button" size="sm" variant="destructive" (click)="requestRemove(item.source)">{{ t('confirmDelete') }}</button>
+                <button sanringBtn type="button" size="sm" variant="ghost" (click)="cancelRemove()">{{ t('cancel') }}</button>
               </div>
             } @else {
               <button
@@ -139,15 +162,15 @@
                 class="self-start text-xs text-[var(--sanring-error-50)]"
                 (click)="requestRemove(item.source)"
               >
-                取消追蹤
+                {{ t('removeSource') }}
               </button>
             }
           </sanring-card-content>
         </sanring-card>
       } @empty {
         <sanring-card class="p-6 text-center text-sm text-[var(--sanring-muted)] flex flex-col gap-2">
-          <span>還沒有追蹤任何來源</span>
-          <button sanringBtn type="button" size="sm" class="self-center" (click)="openAddView()">＋ 新增來源</button>
+          <span>{{ t('noSourcesTracked') }}</span>
+          <button sanringBtn type="button" size="sm" class="self-center" (click)="openAddView()">{{ t('addSource') }}</button>
         </sanring-card>
       }
     </div>
@@ -159,7 +182,7 @@
         type="button"
         (click)="openAddView()"
         class="fixed bottom-4 right-4 h-11 w-11 rounded-full p-0 text-xl shadow-lg"
-        aria-label="新增來源"
+        [attr.aria-label]="t('addSourceAria')"
       >
         ＋
       </button>
@@ -167,22 +190,22 @@
   } @else {
     <!-- ── 新增來源畫面 ─────────────────────────────────────────── -->
     <div class="flex flex-col gap-1">
-      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start" (click)="closeAddView()">← 返回</button>
-      <h2 class="text-lg font-semibold">新增來源</h2>
+      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start" (click)="closeAddView()">{{ t('back') }}</button>
+      <h2 class="text-lg font-semibold">{{ t('addSourceTitle') }}</h2>
     </div>
 
     @if (!addSelectedSourceId()) {
       <!-- 第一層：選 AI 類型，依存取類型分兩區——同一個 AI 之後如果同時有訂閱制+API key 制
            （例如 Claude），會分別出現在兩區裡，不是同一顆按鈕。每區用邊框卡起來加強分區感。 -->
       @if (catalog().length === 0) {
-        <p class="text-xs text-[var(--sanring-muted)]">載入中…</p>
+        <p class="text-xs text-[var(--sanring-muted)]">{{ t('loadingEllipsis') }}</p>
       } @else {
         <div class="flex flex-col gap-4">
           @if (catalogBySubscription().length > 0) {
             <div class="rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] p-3 flex flex-col gap-2">
               <div>
-                <h3 class="text-base font-semibold">訂閱制</h3>
-                <p class="text-[10px] text-[var(--sanring-muted)]">讀本機已登入的 CLI，一個帳號只能對到一個 slot，已追蹤的會變灰</p>
+                <h3 class="text-base font-semibold">{{ t('subscriptionType') }}</h3>
+                <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('subscriptionSectionDesc') }}</p>
               </div>
               @for (c of catalogBySubscription(); track c.sourceId) {
                 <button
@@ -195,7 +218,7 @@
                   (click)="selectAddSource(c.sourceId)"
                 >
                   <span>{{ c.displayName }}</span>
-                  <span class="text-[10px] text-[var(--sanring-muted)]">{{ c.isTracked ? '已追蹤' : '訂閱制' }}</span>
+                  <span class="text-[10px] text-[var(--sanring-muted)]">{{ c.isTracked ? t('tracked') : t('subscriptionType') }}</span>
                 </button>
               }
             </div>
@@ -204,13 +227,13 @@
           @if (catalogByApiKey().length > 0) {
             <div class="rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] p-3 flex flex-col gap-2">
               <div>
-                <h3 class="text-base font-semibold">API key 制</h3>
-                <p class="text-[10px] text-[var(--sanring-muted)]">可以新增多個帳號，各自獨立，不會互相覆蓋</p>
+                <h3 class="text-base font-semibold">{{ t('apiKeyType') }}</h3>
+                <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('apiKeySectionDesc') }}</p>
               </div>
               @for (c of catalogByApiKey(); track c.sourceId) {
                 <button sanringBtn type="button" variant="outline" class="justify-between" (click)="selectAddSource(c.sourceId)">
                   <span>{{ c.displayName }}</span>
-                  <span class="text-[10px] text-[var(--sanring-muted)]">API key 制</span>
+                  <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('apiKeyType') }}</span>
                 </button>
               }
             </div>
@@ -223,9 +246,9 @@
       <div class="flex items-center gap-2 text-xs text-[var(--sanring-muted)]">
         <span>{{ addSelectedEntry()?.displayName }}</span>
         <span>·</span>
-        <span>{{ addSelectedEntry()?.sourceType === 'subscription' ? '訂閱制' : 'API key 制' }}</span>
+        <span>{{ addSelectedEntry()?.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}</span>
         <button sanringBtn type="button" size="sm" variant="ghost" class="ml-auto text-[10px]" (click)="resetAddSelection()">
-          換一個
+          {{ t('changeOne') }}
         </button>
       </div>
 
@@ -236,7 +259,7 @@
             sanringInput
             type="password"
             class="h-9 text-sm"
-            placeholder="貼上 {{ addSelectedEntry()?.displayName }} API key"
+            [placeholder]="t('pasteApiKey', { name: addSelectedEntry()?.displayName ?? '' })"
             [value]="addApiKey()"
             (input)="onAddApiKeyInput($event)"
             [disabled]="addStatus() === 'pending'"
@@ -245,20 +268,20 @@
             @if (addStatus() === 'pending') {
               <sanring-spinner size="sm" />
             }
-            新增
+            {{ t('addBtn') }}
           </button>
         </div>
       } @else {
         <!-- 訂閱制：沒有東西好打，只能請後端去偵測本機有沒有登入過 -->
         <div class="flex flex-col gap-2">
           <p class="text-xs text-[var(--sanring-muted)]">
-            不需要輸入任何東西——按下面的按鈕，讓工具去讀本機的登入資訊。
+            {{ t('noInputNeeded') }}
           </p>
           <button sanringBtn type="button" [disabled]="addStatus() === 'pending'" class="inline-flex items-center justify-center gap-2" (click)="submitAdd()">
             @if (addStatus() === 'pending') {
               <sanring-spinner size="sm" />
             }
-            {{ addStatus() === 'pending' ? '偵測中…' : '開始偵測' }}
+            {{ addStatus() === 'pending' ? t('detecting') : t('startDetect') }}
           </button>
         </div>
       }
@@ -267,7 +290,7 @@
         <sanring-alert class="text-sm">
           <p sanringAlertDescription>✅ {{ addResultMessage() }}</p>
         </sanring-alert>
-        <button sanringBtn type="button" size="sm" (click)="closeAddView()">完成，返回列表</button>
+        <button sanringBtn type="button" size="sm" (click)="closeAddView()">{{ t('done') }}</button>
       } @else if (addStatus() === 'error') {
         <sanring-alert variant="destructive" class="text-sm">
           <p sanringAlertDescription>{{ addResultMessage() }}</p>
