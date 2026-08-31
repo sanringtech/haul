@@ -2,22 +2,14 @@
 
 跨平台（Windows + macOS）桌面小工具：監控 Claude / Codex / DeepSeek / Kimi / Grok 底下每一個帳號的用量。
 
-- **前端**：Angular (`frontend/`) — UI，透過 `window.external` 跟後端溝通；元件用 [`@sanring/ui`](https://ui.sanring.dev/)（`frontend/src/app/components/ui/`，`npx @sanring/cli add <component>` 增加新元件）+ Tailwind CSS v4
+- **前端**：Angular (`frontend/`) — UI，透過 `window.external` 跟後端溝通；元件用 [`@sanring/ui`](https://ui.sanring.dev/)（`npx @sanring/cli add <component>` 增加新元件）+ Tailwind CSS v4
 - **後端**：C# + [Photino.NET](https://www.tryphotino.io/)（原生 WebView 殼）(`backend/`) — 讀取本機用量資料
 - **業務規則 SSOT**：[`.claude/constitutions/usage-monitor.md`](.claude/constitutions/usage-monitor.md)
 - **實作意圖 / 技術選型**：[`.claude/prds/usage-monitor.md`](.claude/prds/usage-monitor.md)
 
-## ⚠️ 已知風險與揭露（發布給其他人用之前請先讀）
+## ⚠️ 發布給別人用之前先讀這個
 
-本工具的部分功能依賴**非官方、非文件化的介面**，不是 Claude/DeepSeek/Kimi 官方保證會一直支援的公開合約：
-
-- **Claude 用量（`ClaudeUsageProvider`）**：直接呼叫 Anthropic 內部/beta 用量端點 `GET /api/oauth/usage`（帶 `anthropic-beta` header），用的是 Claude Code 自己在本機的 OAuth session。這不是文件化的公開 API，Anthropic 可能無預告改版或停用。
-- **Codex 用量（`CodexUsageProvider`）**：同樣直接呼叫 OpenAI/ChatGPT 內部端點 `GET https://chatgpt.com/backend-api/wham/usage`，用的是 Codex CLI 自己在本機的 ChatGPT 登入 session。一樣不是文件化的公開 API，OpenAI 可能無預告改版或停用。
-- **Kimi 訂閱制（`KimiSubscriptionUsageProvider`，2026-08-31 新增，⚠️ 未實測）**：同一類做法，打 `GET https://api.kimi.com/coding/v1/usages`，用 Kimi Code CLI 本機的 OAuth session。這次是從**開源的 `MoonshotAI/kimi-code` repo 原始碼**直接讀出來的，不是猜的，但專案裡沒有人有真實 Kimi Code 帳號可以實測——第一次真的有人用時才會知道對不對，失敗時會把原始回應內容顯示出來方便除錯。
-- **Claude/Codex 官方「API key 制」用量查詢已查證不可行**（2026-08-31）：兩家的官方 Admin 用量/成本 API 都排除個人帳號、workspace/一般 key 打不進去；「查詢剩餘額度」這個功能本身 Anthropic 目前甚至都還沒實作（見 [`anthropics/claude-code` issue #47574](https://github.com/anthropics/claude-code/issues/47574)）。詳見 PRD §5/§9/§12。
-- **Claude 多帳號（2026-08-31 實作完成）**：依賴選用的外部工具 [`claude-swap`](https://pypi.org/project/claude-swap/)（`cswap`）——沒裝 `cswap` 只能看到「目前登入中」的那一個 Claude 帳號；有裝的話「＋ 新增來源」點 Claude 會一次偵測、加入 `cswap list --json` 回報的所有帳號（用 email 識別，不是 cswap 的 account number），已經追蹤過的自動跳過。用使用者自己真實的帳號+既有設定檔實測過，含一個關鍵邊界情況：升級前留下的舊版單帳號紀錄會原地升級成新的 email 格式（保留使用者改過的名稱），不會變成兩張卡片重複顯示同一個帳號。
-- **ccusage / cswap 都是 MIT 授權的開源工具**，本工具只是在執行期呼叫使用者自行安裝的獨立程式（不是把它們的原始碼包進本工具），授權合規負擔低；但呼叫 Anthropic 非公開端點的 ToS 風險，不會因為透過 `cswap` 或直接呼叫而有差別——兩者本質上打的是同一支端點。
-- 這些都是**已知、已評估過的取捨**（本機不儲存資料、不繞過任何付費牆、只讀取使用者自己有權查看的自身帳號用量），但仍建議：**若要發布給其他開發者使用，先明確告知他們這個依賴，不要包裝成「官方支援」**；若考慮更大規模發布/商業化，建議找律師檢視 Anthropic 的 API 使用條款。本專案作者不對此提供法律保證。
+本工具部分功能（Claude/Codex 用量、Kimi 訂閱制）依賴**非官方、非文件化的端點**，Anthropic/OpenAI 可能無預告改版或停用；已知情、已評估過的取捨，不代表官方保證支援。完整清單、每個 provider 的風險細節 → [`RISKS.md`](RISKS.md)。
 
 ## 開發
 
@@ -25,109 +17,37 @@
 ./scripts/dev.sh
 ```
 
-會同時啟動 Angular dev server（`http://localhost:4200`，含 hot reload）跟 Photino 視窗，視窗會載入 dev server 的網址。
+同時啟動 Angular dev server（`http://localhost:4200`，含 hot reload）跟 Photino 視窗，視窗載入 dev server 的網址。
 
 ## 打包
 
 ```bash
-./scripts/build.sh              # 目前平台的 framework-dependent build
-./scripts/build.sh osx-arm64    # 指定 RID 產出 self-contained build
+./scripts/build.sh              # 目前平台
+./scripts/build.sh osx-arm64    # 指定 RID，self-contained（macOS 會順便組成 SanringMonitor.app）
 ./scripts/build.sh win-x64
 ```
 
-流程：`ng build` → 把 `frontend/dist/frontend/browser` 複製進 `backend/wwwroot/browser` → `dotnet publish`。
+流程：`ng build` → 複製進 `backend/wwwroot/browser` → `dotnet publish`。macOS 目標另外會組 `.app` bundle（見 `backend/packaging/macos/`）。
 
-## 發布規劃（分階段，2026-08-31 記錄）
-
-這是桌面 app，不是網站——`sanring.dev` 這類靜態網站/GitHub Pages 沒辦法「跑」這個 app（沒有後端，讀不到本機 Keychain/CLI session），但可以拿來當**下載頁**：放幾顆「Download for Mac / Windows」按鈕連到實際安裝檔。現況：repo 私有（`sanringtech/usage_monitor`），Photino.Native 的 NuGet 套件已經內建 macOS(x64/arm64)、Windows(x64/arm64)、Linux(x64/arm64) 的原生執行檔，跨平台編譯技術上沒問題。
-
-按使用者規模分三個階段，越後面要多做的事越多：
-
-### 階段 0（現在）：只有自己，跨自己的多台電腦
-
-- 直接 `git clone` 私有 repo + `./scripts/build.sh`，或跨平台編譯（`./scripts/build.sh osx-arm64`／`win-x64`）後把 `publish/<rid>/` 整包傳過去執行
-- 不需要簽章、不需要下載頁、不需要版本號機制——這階段的「發布」就是把資料夾複製過去
-- **重要**：帳號/設定/憑證完全不同步雲端，全部存在本機（`~/Library/Application Support/SanRingUsageMonitor/` + Keychain）。換一台電腦＝從零開始，Claude/Codex/Kimi 要重新登入、API key 要重新貼、`cswap` 要另外裝
-
-### 階段 1：小範圍分享（少數信任的人/小團隊）
-
-- 選項 A：GitHub Releases 掛在私有 repo，收件人需要是 repo collaborator（或用有權限的 token）才能下載 release assets
-- 選項 B：build 好直接壓縮，用雲端連結/AirDrop 分享 `publish/<rid>/` 整包
-- **打包格式還沒做**：macOS 這邊已經有 `SanringMonitor.app`（`scripts/build.sh` 會組，見上面「架構」一節），但還沒包成 `.dmg`——分享出去目前只能傳整個 `.app` 資料夾（壓縮），不是雙擊掛載拖進「應用程式」的標準體驗；`.dmg` 本身不難做（`hdiutil create` 或 `create-dmg`），主要是還沒寫進 `build.sh`。Windows 更早一步：連自包含單一 `.exe` 都還沒做（`dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true`），現在 `publish/win-x64/` 是一整包資料夾，不是一支檔案；真的裝成 `.msi`/安裝程式（Start Menu 捷徑、解安裝、之後的自動更新）留到階段 2 再評估值不值得
-- **開始需要版本號**：建議語意化版本（[SemVer](https://semver.org/)，`MAJOR.MINOR.PATCH`），目前完全沒有版本號機制，要決定存在哪裡（`.csproj` 的 `<Version>`？`package.json`？獨立的 `VERSION` 檔？）以及誰負責遞增
-- **開始需要 changelog**：跟 git commit message 是兩回事——commit message 是給開發者看的技術細節（例如這次 session 一堆「查證/修 bug」的過程），changelog 是給使用者看的「這個版本新增/修了什麼」，用詞跟顆粒度都不同，需要另外維護（`CHANGELOG.md`，或下載頁上直接列）
-- macOS 沒簽章依然要手動繞過 Gatekeeper（右鍵開啟，或 `xattr -d com.apple.quarantine`），這階段可以接受，但要在分享時附上這段說明，不然對方會以為程式壞了
-
-### 階段 2：真的對外公開發布
-
-- **repo 公開性**：要嘛整個 repo 公開，要嘛至少開一個獨立的公開 repo/管道只放 release 產物（原始碼可以留私有）
-- **macOS 簽章 + 公證（notarization）**：需要 Apple Developer Program（US$99/年）；不簽章的話一般使用者看到「無法確認開發者」多半直接放棄，不像階段 1 對象會自己想辦法繞過
-- **Windows 程式碼簽章**：需要程式碼簽章憑證（EV 憑證最順、但費用較高；便宜的 OV 憑證前期仍會有 SmartScreen 警告，需要累積下載量/信譽才會消失）——這筆成本比 macOS 高，值得先評估要不要做
-- **正式下載頁**：這時候 `usage-monitor.sanring.dev`（或類似命名，跟現有 `ui.sanring.dev`/`date-picker.sanring.dev` 同一套 Cloudflare CNAME → GitHub Pages 模式）才真的派上用場——列出各平台下載連結、目前版本號、changelog
-- **風險揭露要更顯眼**：README 開頭「已知風險與揭露」那段（非公開端點、`cswap` 依賴）現在只有看原始碼的人看得到，對外部一般使用者要搬到下載頁上顯著位置，不能只藏在 README
-- **自動更新機制（可選，進階）**：這個技術棧（Photino）沒有內建 auto-updater，要做的話得自己設計，例如 app 啟動時打 GitHub Releases API 比對版本號、提示使用者手動下載新版——這階段才需要考慮，前兩階段不用
-
-## 前後端溝通
-
-Photino 會在 window 物件注入 `window.external`（訊息 schema 見 PRD §7）：
-
-- 前端呼叫 `window.external.sendMessage(json)` 送訊息給 C#
-- C# 用 `RegisterWebMessageReceivedHandler` 收訊息、`SendWebMessage(json)` 回傳（camelCase JSON，見 `Program.cs` 的 `jsonOptions`）
-- 目前已接好：前端按「重新整理用量」→ 送 `{"type":"get-usage-summary"}` → `backend/UsageService.cs` 依序呼叫各 `IUsageProvider`
-
-## 架構（M1 完成後）
+## 架構
 
 ```
 backend/
-├── Program.cs              視窗設定 + JS↔C# 訊息橋接（camelCase JSON）
-├── UsageService.cs         orchestrator：跑所有 IUsageProvider，單一 provider 出錯不拖垮整批
-├── Models/
-│   ├── UsageSummary.cs     前端 wire format
-│   └── AppSettings.cs      刷新頻率 / 保留期 / 閾值（本機 JSON 檔，不放密鑰）
-├── Providers/
-│   ├── IUsageProvider.cs
-│   ├── ClaudeUsageProvider.cs   打 Anthropic 官方（非公開 beta）用量端點（見下），不再靠 ccusage 估算
-│   ├── CodexUsageProvider.cs    打 ChatGPT 後端的（非公開）用量端點（見下），不再靠 ccusage 估算
-│   ├── DeepSeekUsageProvider.cs / KimiUsageProvider.cs   打官方 balance API，key 從 Keychain 讀（API key 制）
-│   ├── KimiSubscriptionUsageProvider.cs   打 Kimi Code CLI 的用量端點（見下，⚠️ 未實測）（訂閱制，SourceId="kimi-subscription"，跟上面的 "kimi" 是同一個 AI 類型的不同存取類型）
-│   ├── CcusageDtos.cs
-│   └── ShellCommandRunner.cs    透過使用者登入 shell 執行指令，繞開 GUI app 沒有 PATH 的問題
-└── Security/
-    ├── ISecretStore.cs / MacKeychainSecretStore.cs / WindowsSecretStore.cs / SecretStoreFactory.cs
-    │     使用者提供的 API key 存這裡（DeepSeek/Kimi），2026-08-31 起 key 是 accountId 不是 sourceId（多帳號支援）
-    ├── ClaudeAuthReader.cs / CodexAuthReader.cs / KimiCliAuthReader.cs
-    │     唯讀讀取各 CLI 自己的本機 session（見下），不寫入不刷新
+├── Program.cs        視窗設定 + JS↔C# 訊息橋接
+├── UsageService.cs   orchestrator：跑所有 IUsageProvider，單一 provider 出錯不拖垮整批
+├── Models/            wire format（`UsageSummary`）+ 設定（`AppSettings`）
+├── Providers/          每個 AI 一支 IUsageProvider 實作，API key 制 / 訂閱制皆有
+└── Security/           API key 存 OS Keychain，CLI session 唯讀讀取（不寫入、不主動 refresh）
 ```
 
-**⚠️ 已修過的路徑 bug（2026-08-31）**：`Services/AppPaths.cs` 原本用 `Environment.SpecialFolder.Personal` 想拿使用者根目錄，但 **.NET 在 macOS 上這個值實際指向 `~/Documents`，不是 `~`**——本機資料檔一度被存到 `~/Documents/Library/Application Support/...` 這種錯誤的巢狀路徑。已改用 `.UserProfile`（本來 `ClaudeAuthReader` 等三個 auth reader 就用對了，只有這一處寫錯）。**代價**：修這個 bug 換了資料夾，舊路徑下的設定（含手動測試新增過的帳號）不會自動搬過來。
+前後端溝通協定、除錯旗標、各 AI 用量怎麼來的（含反查非公開端點的過程）、修過的關鍵 bug → [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
-**除錯用旗標**：`dotnet run --project backend -- --print-usage` 印一次 JSON 結果就結束，不開 GUI 視窗，方便驗證 provider 邏輯。
+## 發布規劃
 
-**Claude 用量怎麼來的（重要，M2 二次修訂過）**：一開始（M1）是 shell out 呼叫 [`ccusage`](https://github.com/ryoppippi/ccusage) 估算，但拿不到真正的百分比。後來實測比對開源工具 [`claude-swap`](https://pypi.org/project/claude-swap/)（`cswap`）發現它是直接打 Anthropic 官方（但非公開/beta）的 `GET /api/oauth/usage`，用 Claude Code 自己在本機的 OAuth session（macOS 讀 Keychain「Claude Code-credentials」，其他平台讀 `~/.claude/.credentials.json`）+ `anthropic-beta: oauth-2025-04-20` header，可以拿到真正的官方 5h/7d 百分比與重置時間。**已比對過 `cswap list` 的數字一致**，改採這個做法（使用者已知情並拍板）。風險：這是非公開端點，Anthropic 可能無預告改版；`ClaudeAuthReader.cs` 純讀取、不碰 Claude Code 的 session（不寫入、不主動 refresh）。
+分三階段（自己用 → 小範圍分享 → 公開發布），各階段要做的事、目前進度 → [`RELEASE-PLAN.md`](RELEASE-PLAN.md)。
 
-**Codex 用量（2026-08-31 同樣升級過）**：一開始也是 `ccusage codex` 估算 token 數，沒有百分比。後來從 [`openai/codex` 官方 repo 的一則 bug report](https://github.com/openai/codex/issues/10869) 發現 Codex CLI 自己會定期打一支非公開端點 `GET https://chatgpt.com/backend-api/wham/usage`，帶本機 `~/.codex/auth.json` 裡的 ChatGPT 登入憑證（`Authorization: Bearer` + `chatgpt-account-id` header）。**已實測打通並跟 ChatGPT 設定裡的「使用情況」頁面數字比對一致**（5 小時窗 + 每週窗，兩者結構跟 Claude 幾乎一樣），改採這個做法。`CodexAuthReader.cs` 一樣是純讀取、不碰 Codex CLI 的 session。風險跟 Claude 那支一樣：非公開端點，OpenAI 可能無預告改版；壞掉的話 fallback 是退回 ccusage 估算。
+現況（2026-08-31）：repo 已公開（`sanringtech/usage_monitor`），Coming Soon 頁面已上線：[usage-monitor.sanring.dev](https://usage-monitor.sanring.dev)。還沒有正式安裝檔可下載。
 
-## 待辦 / 下一步（依 PRD 里程碑）
+## 待辦 / 進度
 
-- [x] M1：`UsageProvider` 抽象、Claude 來源端到端接通（ccusage + 估算標示 + 用量/連線狀態）、OS Keychain 儲存層就緒
-- [x] M1：Tailwind CSS v4 + [`@sanring/ui`](https://ui.sanring.dev/)（**改用**，取代原拍板的 spartan/ui——它的官方 CLI 綁 Nx workspace，跟本專案的純 Angular CLI 結構不合）已裝好並套用到畫面（card/badge/progress/button）
-- [x] M2：`CodexUsageProvider`（ccusage codex）、`DeepSeekUsageProvider` / `KimiUsageProvider`（官方 balance API，key 存 Keychain）；「新增來源」/「取消追蹤」（含二次確認）UI 都接好了。DeepSeek 401 錯誤處理實測過（用假 key 驗證會正確回報「失效」）
-- [x] M2 二次修訂：`ClaudeUsageProvider` 改打 Anthropic 官方 `/api/oauth/usage`（見上），拿到真正 5h/7d 百分比，不再只是估算 token 數；已修過兩個實測才抓到的 bug：① Angular build 預設 `<base href="/">` 在 `file://` 載入下整頁空白（`scripts/build.sh` 已加 `--base-href ./`）② DeepSeek/Kimi 的 JSON 是 snake_case，`PropertyNameCaseInsensitive` 不會處理底線，導致「無法解析」（已加 `[JsonPropertyName]`）
-- [x] 多帳號重構（2026-08-31）：`TrackedAccount`（`accountId`/`sourceId`/`label`）取代單帳號的 `TrackedSourceIds`；API key 制（DeepSeek/Kimi）可以新增多個帳號，訂閱制（Claude/Codex）維持單一；新增了「＋ 新增來源」畫面（AI 類型 → 存取類型兩層選單，依存取類型分區並用邊框卡起來）
-- [x] `CodexUsageProvider` 升級（2026-08-31）：改打 ChatGPT 後端 `/backend-api/wham/usage`（見上），拿到真正 5h/7d 百分比，不再只是估算 token 數，跟 Claude 現在同等級
-- [x] 已查證 Claude/Codex 的 API key 制官方用量查詢不可行（見上「已知風險與揭露」+ PRD §5/§9/§12），Grok 同理只支援訂閱制
-- [x] 多帳號技術查證（2026-08-31）：
-  - **Claude 多帳號**：查到 `cswap list --json` 是官方文件化的「JSON output for scripting」介面，會回傳每個帳號的 email/5h/7d 百分比/重置時間，資料格式跟我們自己打 `/api/oauth/usage` 一致。設計：偵測到本機有裝 `cswap` 就 shell out 呼叫它拿多帳號；沒裝就退回現有的單帳號直接呼叫
-  - **Grok API key 制**：查了 xAI 官方文件（`docs.x.ai`），沒有查到任何餘額/用量查詢端點，**目前技術上做不到**，先只做 Grok 訂閱制（`ccusage grok` 有支援）
-  - 兩者都不影響「AI 類型 × 存取類型 × 帳號」的架構模型本身，只是某些組合目前技術上不可行/需要額外外部依賴
-- [x] Kimi 訂閱制（2026-08-31，⚠️ 未實測）：`KimiSubscriptionUsageProvider` + `KimiCliAuthReader`，從開源的 `MoonshotAI/kimi-code` repo 讀出端點/憑證格式；headless 測過「找不到本機憑證」這條路徑，但真的打通端點這件事沒人能驗證（沒有真實 Kimi Code 帳號）。Grok 訂閱制同理查過（見上）但更不確定，先沒動手寫
-- [x] **修掉一個藏很深的 bug（2026-08-31）**：`AppPaths.cs` 用錯 `SpecialFolder.Personal`，導致 macOS 上設定檔存到 `~/Documents/Library/...` 而不是 `~/Library/...`，改用 `.UserProfile` 修正（詳見上面架構區塊）
-- [x] 清單拖曳排序 + 帳號改名（2026-08-31）：`sanring-card` 掛 `@angular/cdk` 的 `cdkDropList`/`cdkDrag`（左側 ⠿ 把手拖曳），排序即時反映在 UI 並整批送 `reorder-accounts` 存回 `TrackedAccounts` 順序；點主標題進入行內編輯改名（存的是 `accountLabel`，不動 `displayName`），走新的 `rename-account` 訊息。兩者都改成「本地樂觀更新 + 靜默存檔」，不觸發完整用量刷新；主標題右側另外掛一個唯讀的「訂閱制/API key 制」badge，改名蓋掉 AI 類型文字後仍分得出兩張同名卡是哪一種存取方式
-- [x] 主題切換 + 完整雙語 i18n（2026-08-31）：`theme`/`lang` signal + `effect()` 切 `data-theme` 屬性（沿用 `sanring-theme.css` 本來就有的淺/深色 token）跟查 `frontend/src/app/i18n.ts` 翻譯表，兩者都存 localStorage、按一下當場生效不重載視窗。**刻意不用 `@angular/localize`**——那是 build-time 多 bundle 機制（每語言各編一份完整 Angular 打包），跟這裡要的「app 內即時切換」不合。**卡片內容（後端訊息）也接上了**：`backend/Models/LocalizedText.cs`（key + params）+ `MessageKeys.cs`（key 常數），五支 Provider 全部改成送 key 不送組好的中文句子，前端 `tm()` 查表渲染——`i18n.ts` 開頭有兩邊 key 集合必須手動保持一致的提醒（C# 拼錯字沒有型別檢查會抓）
-- [x] 主題/圖示樣式（2026-08-31）：原本主題切換等處用原生 emoji（☀️/🌙/✅/⠿/←/＋），改用專案已有的 `@lucide/angular`（跟 spinner 元件同一套慣例），兩個 `sanring-alert` 也補上元件本來就內建、沒人用過的 icon-first 定位樣式
-- [x]（後來還原，見下）~~浮動小工具（widget）~~：做過一版雙視窗（主視窗 + chromeless/transparent/topmost 小工具，pixel-star 圖示、卡片堆疊、上下拖曳切換），星星圖示/展開收合/拖曳切卡片/結束整個 app 都測過正常，但「詳細」按鈕（叫回主視窗）連試四種修法都沒解決（攔截關閉鈕改最小化、補 `SetTopMost` 開關、補 `osascript` 跨 app 搶焦點、每次都無條件開新視窗、用 `host.Invoke()` 丟回 UI 主執行緒），使用者決定整個功能先還原：`Program.cs`/`main.ts` 已改回單一主視窗（跟 M4 之前一樣），`frontend/src/app/widget/`、`shared/wire-types.ts` 的程式碼還留著沒刪，只是目前不會被載入執行，之後要重啟可以當基礎
-- [x] M3：設定頁（2026-08-31）：齒輪按鈕開啟，刷新頻率（5分/1時/2時/純手動，驅動真的 `setInterval` 自動刷新）、接近上限閾值（滑桿 50-95，存檔後觸發完整刷新讓卡片立刻反映新門檻）都是真的有效果的設定。**保留期是例外**：UI 上有這個控制項、值也會存下來，但目前完全沒作用——這個 app 沒有「歷史用量序列」資料可以清除，每次刷新都是即時查詢不落地存歷史，UI 上直接用一行小字誠實告知使用者，不假裝它有在運作。順便換上使用者提供的 `pixel-star.svg` 當 logo（favicon + app header + `SetIconFile`，後者只在 Windows/Linux 有效，macOS 這台機器上驗證不到）
-- [x] M4：取消追蹤 vs 關閉顯示，兩個獨立操作（2026-08-31）：「取消追蹤」（完整刪除本機資料含 Keychain，二次確認）在多帳號重構那次就做好了；「關閉顯示」的後端（`SetVisibility`/`set-visibility` 訊息）其實也早就寫好，這次補的是前端——卡片新增「關閉顯示」按鈕（灰色、可逆、無二次確認，跟紅色「取消追蹤」視覺區隔開）。「已隱藏的來源」清單原本放在設定頁，使用者反饋跟卡片分屬兩個畫面不直覺，改到主畫面清單底部一塊可展開/收合的區塊（藏在哪裡就在哪裡找回來，只在真的有隱藏帳號時才出現）
-- [x] Claude 多帳號實作完成（2026-08-31）：靠偵測本機是否裝了選用的 `cswap`，用真實 `cswap list --json` 輸出核對過 schema（`resetsAt` 跟官方 API 一樣是 ISO8601，直接沿用既有格式化邏輯）。「＋ 新增來源」點 Claude 會一次偵測、加入 cswap 回報的所有帳號（AccountId 用 email 識別，不用 cswap 的 account number——那只是清單序號，帳號增減會變動）；沒裝 cswap 就退回原本的單帳號行為，完全不影響。**關鍵邊界情況**：升級前留下的舊版單帳號紀錄會原地升級成新的 email 格式（保留使用者改過的名稱），不會變成兩張卡片重複顯示同一個帳號——這個用使用者自己真實的帳號+既有設定檔實測過（暫時的 debug flag，測完已拿掉）。`GetCatalog()` 也調整：Claude 不會因為已經追蹤一個就整個變灰，永遠可以再按一次抓新帳號
-- [ ] M5：Windows 上實際跑一次打包驗證（`WindowsSecretStore` 目前只是照文件寫的 P/Invoke，還沒真的在 Windows 上測過）
-- [ ] 系統匣圖示（tray icon）：Photino.NET 沒有內建跨平台 tray API，查證過三條路（維持現狀／換 Tauri／Mac 端整個換原生 Swift 像 `stats`/`eul`），浮動小工具那條路後來還原了（見上），目前 tray 整個擱置
+依 PRD 里程碑：M1–M4 已完成，M5（Windows 打包驗證、系統匣圖示）進行中。完整開發歷程 → [`CHANGELOG.md`](CHANGELOG.md)。
