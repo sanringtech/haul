@@ -13,6 +13,15 @@ namespace UsageMonitor.Desktop.Providers;
 /// estimate" approach (constitution R2's original framing): real 5h + 7d percentages and reset times,
 /// at the cost of depending on an Anthropic-internal API that could change without notice.
 /// If it ever breaks, the fallback is reverting to a ccusage-based estimate like CodexUsageProvider.
+///
+/// <para>
+/// <b>多帳號（2026-08-31，新增）</b>：Claude 是唯一支援多個訂閱制帳號同時追蹤的來源，靠 shell out
+/// 呼叫使用者選用安裝的 <c>cswap</c>（claude-swap，見 <see href="https://pypi.org/project/claude-swap/"/>）
+/// 的 <c>cswap list --json</c>——已用真實輸出核對過格式，`resetsAt` 是跟 Anthropic 官方 API 一樣的
+/// ISO8601，直接沿用同一套 FormatResetLocal。單一帳號的既有行為（AccountId 就是字面上的 "claude"）
+/// 完全不變，只有 AccountId 帶 <see cref="CswapAccountPrefix"/> 前綴的才會走 cswap 這條路——見
+/// UsageService.AddSourceAsync 怎麼決定要不要建立 cswap 帳號。
+/// </para>
 /// </summary>
 public sealed class ClaudeUsageProvider : IUsageProvider
 {
@@ -20,13 +29,42 @@ public sealed class ClaudeUsageProvider : IUsageProvider
     public string DisplayName => "Claude Code";
     public string SourceType => "subscription";
 
+    /// <summary>cswap 帳號的 AccountId 格式是 "claude:{email}"——用 email 當識別，不是 cswap 的
+    /// account number（number 只是清單裡的序號，帳號增減會變動，email 才是穩定的）。</summary>
+    internal const string CswapAccountPrefix = "claude:";
+    internal static string CswapAccountId(string email) => CswapAccountPrefix + email;
+
     private const string UsageEndpoint = "https://api.anthropic.com/api/oauth/usage";
     private const string OAuthBetaHeader = "oauth-2025-04-20"; // required by the endpoint; value confirmed from claude-swap's source
+    private const string CswapListCommand = "cswap list --json";
+    private static readonly TimeSpan CswapTimeout = TimeSpan.FromSeconds(10);
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
+    /// <summary>
+    /// 偵測本機是否裝了 cswap，有的話回傳它目前看到的「所有」帳號（不管有沒有已經被追蹤，篩選/
+    /// 去重是呼叫端 <see cref="UsageService"/> 的事）。回傳 null＝沒裝 cswap，或執行失敗/逾時/JSON
+    /// 解析不出來——呼叫端要當成「這台機器沒有 cswap」退回單帳號行為，不是當成錯誤攔下來。
+    /// </summary>
+    internal async Task<CswapAccount[]?> TryDetectCswapAccountsAsync(CancellationToken ct)
+    {
+        try
+        {
+            var (exitCode, stdout, _) = await ShellCommandRunner.RunAsync(CswapListCommand, CswapTimeout, ct);
+            if (exitCode != 0) return null;
+            return JsonSerializer.Deserialize<CswapListResponse>(stdout, JsonOptions)?.Accounts?.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
+        if (account.AccountId.StartsWith(CswapAccountPrefix, StringComparison.Ordinal))
+            return await GetUsageViaCswapAsync(account, account.AccountId[CswapAccountPrefix.Length..], settings, ct);
+
         var token = ClaudeAuthReader.Read();
         if (token is null)
             return Build(account, "not_configured", L(MessageKeys.ClaudeCredentialsNotFound));
@@ -66,6 +104,74 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
     private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
         new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
+
+    private async Task<UsageSummary> GetUsageViaCswapAsync(TrackedAccount account, string email, AppSettings settings, CancellationToken ct)
+    {
+        (int ExitCode, string StdOut, string StdErr) result;
+        try
+        {
+            result = await ShellCommandRunner.RunAsync(CswapListCommand, CswapTimeout, ct);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
+        {
+            return Build(account, "invalid", L(MessageKeys.CswapCallFailed, ("message", ex.Message)));
+        }
+
+        if (result.ExitCode != 0)
+        {
+            var errorOutput = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
+            return Build(account, "invalid", L(MessageKeys.CswapCallFailed, ("message", Truncate(errorOutput))));
+        }
+
+        CswapListResponse? parsed;
+        try
+        {
+            parsed = JsonSerializer.Deserialize<CswapListResponse>(result.StdOut, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return Build(account, "invalid", L(MessageKeys.ParseError, ("body", Truncate(result.StdOut))));
+        }
+
+        // cswap 的 account number 只是清單裡的序號，帳號增減會變動——用 email 比對才穩定。
+        var match = parsed?.Accounts?.FirstOrDefault(a => string.Equals(a.Email, email, StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+            return Build(account, "invalid", L(MessageKeys.CswapAccountNotFound, ("email", email)));
+
+        if (!string.IsNullOrEmpty(match.UsageStatus) && match.UsageStatus != "ok")
+            return Build(account, "invalid", L(MessageKeys.CswapUsageStatusNotOk, ("status", match.UsageStatus)));
+
+        return BuildFromCswapUsage(account, match, settings);
+    }
+
+    private UsageSummary BuildFromCswapUsage(TrackedAccount account, CswapAccount cswapAccount, AppSettings settings)
+    {
+        var threshold = settings.NearLimitThresholdPercent;
+        var now = DateTime.Now.ToString("HH:mm:ss");
+
+        double? fiveHourPct = cswapAccount.Usage?.FiveHour?.Pct;
+        double? sevenDayPct = cswapAccount.Usage?.SevenDay?.Pct;
+
+        LocalizedText? fiveHourDetail = cswapAccount.Usage?.FiveHour?.ResetsAt is { } h5Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(h5Reset))) : null;
+        LocalizedText? sevenDayDetail = cswapAccount.Usage?.SevenDay?.ResetsAt is { } d7Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocalWithDate(d7Reset))) : null;
+
+        return new UsageSummary(
+            Source: account.AccountId,
+            DisplayName: DisplayName,
+            SourceType: SourceType,
+            PercentUsed: fiveHourPct,
+            UsageState: ClassifyState(fiveHourPct, threshold),
+            ConnectionState: "valid",
+            IsEstimated: false, // cswap 直接轉述官方 API 的數字，不是本機估算
+            AsOf: now,
+            Detail: fiveHourDetail,
+            PercentUsedLabel: L(MessageKeys.FiveHourLabel),
+            SecondaryPercentUsed: sevenDayPct,
+            SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
+            SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
+            SecondaryDetail: sevenDayDetail,
+            AccountLabel: account.Label);
+    }
 
     private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings)
     {
@@ -162,5 +268,35 @@ internal sealed class AnthropicUsageWindow
     public double Utilization { get; set; }
 
     [JsonPropertyName("resets_at")]
+    public string? ResetsAt { get; set; }
+}
+
+// cswap 的 JSON 是 camelCase（跟上面 Anthropic 官方 API 的 snake_case 不一樣），PropertyNameCaseInsensitive
+// 只忽略大小寫、不轉換命名慣例，但 camelCase↔PascalCase 剛好只差大小寫，不用另外寫 [JsonPropertyName]。
+// 已用真實 `cswap list --json` 輸出核對過欄位名稱（2026-08-31）；只留這裡用得到的欄位，cswap 回傳的
+// 其他欄位（countdown/clock/expectedPct/...）沒對應的 property 就自動被忽略，不會壞。
+internal sealed class CswapListResponse
+{
+    public List<CswapAccount>? Accounts { get; set; }
+}
+
+internal sealed class CswapAccount
+{
+    public string Email { get; set; } = "";
+    public string? OrganizationName { get; set; }
+    public bool Active { get; set; }
+    public string? UsageStatus { get; set; }
+    public CswapUsage? Usage { get; set; }
+}
+
+internal sealed class CswapUsage
+{
+    public CswapWindow? FiveHour { get; set; }
+    public CswapWindow? SevenDay { get; set; }
+}
+
+internal sealed class CswapWindow
+{
+    public double Pct { get; set; }
     public string? ResetsAt { get; set; }
 }

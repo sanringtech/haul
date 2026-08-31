@@ -523,17 +523,32 @@ export class App {
       }
 
       // 新增來源的結果現在後端會單獨送一則（因為 API key 制的 accountId 是伺服器產生的 GUID，
-      // 前端沒辦法從一般的清單裡用 sourceId 反查回「剛剛加的是哪一個」）。
-      if (payload.type === 'account-added' && payload.data?.[0]) {
-        const added = payload.data[0];
-        if (added.connectionState === 'valid') {
+      // 前端沒辦法從一般的清單裡用 sourceId 反查回「剛剛加的是哪一個」）。通常是一個，但 Claude
+      // 透過 cswap 一次偵測可能加好幾個帳號，陣列也可能是空的（cswap 有裝但偵測到的都已經追蹤
+      // 過了）——三種情況分開處理，不能只看 data?.[0]。
+      if (payload.type === 'account-added' && payload.data) {
+        const addedAccounts = payload.data;
+        if (addedAccounts.length === 0) {
           this.addStatus.set('success');
-          this.addResultMessage.set(this.t('addedSuccess', { name: added.accountLabel ?? added.displayName }));
+          this.addResultMessage.set(this.t('noNewAccountsDetected'));
+          return;
+        }
+
+        const allValid = addedAccounts.every((a) => a.connectionState === 'valid');
+        if (allValid) {
+          this.addStatus.set('success');
+          this.addResultMessage.set(
+            addedAccounts.length === 1
+              ? this.t('addedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
+              : this.t('addedSuccessMultiple', { count: String(addedAccounts.length) }),
+          );
           // 讓使用者瞄到一眼「成功了」再切回去，不是完全無感跳轉，但也不用再多按一次確認。
           setTimeout(() => this.closeAddView(), 900);
         } else {
           this.addStatus.set('error');
-          this.addResultMessage.set(this.tm(added.detail) ?? this.t('unknownAddFailure'));
+          // 多帳號情況下只顯示第一個失敗的訊息，不逐一列舉——夠用，不用把畫面塞滿。
+          const firstFailed = addedAccounts.find((a) => a.connectionState !== 'valid') ?? addedAccounts[0];
+          this.addResultMessage.set(this.tm(firstFailed.detail) ?? this.t('unknownAddFailure'));
         }
         return;
       }

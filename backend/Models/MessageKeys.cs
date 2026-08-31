@@ -24,6 +24,11 @@ public static class MessageKeys
     public const string ClaudeCredentialsExpiredLocal = "claudeCredentialsExpiredLocal";
     public const string ClaudeCredentialsRejected = "claudeCredentialsRejected";
 
+    // ── ClaudeUsageProvider 的 cswap 多帳號路徑（2026-08-31 新增）─────────────
+    public const string CswapCallFailed = "cswapCallFailed";
+    public const string CswapAccountNotFound = "cswapAccountNotFound";
+    public const string CswapUsageStatusNotOk = "cswapUsageStatusNotOk";
+
     // ── CodexUsageProvider ───────────────────────────────────────────────────
     public const string CodexCredentialsNotFound = "codexCredentialsNotFound";
     public const string CodexCredentialsRejected = "codexCredentialsRejected";

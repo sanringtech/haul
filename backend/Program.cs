@@ -80,8 +80,10 @@ async void OnWebMessageReceived(object? sender, string message)
                 // Sent as its own message (not just folded into the full-list refresh below) because
                 // the new account's id is generated server-side (api_key sources get a fresh GUID) —
                 // the frontend has no way to pick "the one it just added" back out of a plain list.
+                // 通常只會有一個，但 Claude 透過 cswap 一次偵測可能加好幾個帳號（見 UsageService.
+                // AddClaudeAccountsAsync），陣列可能是空的（cswap 有裝但偵測到的都已經追蹤過了）。
                 var added = await usageService.AddSourceAsync(request.Source, request.Credential?.ApiKey);
-                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("account-added", [added], null), jsonOptions));
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("account-added", added, null), jsonOptions));
                 await RespondWithSummaries();
                 break;
 

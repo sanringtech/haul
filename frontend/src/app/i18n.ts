@@ -59,6 +59,8 @@ export interface Translations {
   unknownAddFailure: string;
   hostNotConnected: string;
   addedSuccess: string;
+  addedSuccessMultiple: string;
+  noNewAccountsDetected: string;
   parseError: string;
   switchToLight: string;
   switchToDark: string;
@@ -94,6 +96,9 @@ export interface Translations {
   kimiSubCredentialsRejected: string;
   kimiSubHttpErrorWithBody: string;
   kimiSubParseErrorUnverified: string;
+  cswapCallFailed: string;
+  cswapAccountNotFound: string;
+  cswapUsageStatusNotOk: string;
 
   // ── 浮動小工具（widget-app.ts）專用 ──
   widgetDetails: string;
@@ -167,6 +172,8 @@ export const translations: Record<Lang, Translations> = {
     unknownAddFailure: '新增失敗，原因不明',
     hostNotConnected: '未連接到桌面殼層（用 ng serve 純前端開發時無法呼叫 C# 後端）',
     addedSuccess: '已新增 {name}',
+    addedSuccessMultiple: '已新增 {count} 個帳號',
+    noNewAccountsDetected: '沒有偵測到新帳號（可能都已經追蹤過了）',
     parseError: '收到無法解析的訊息: {raw}',
     switchToLight: '切換成淺色模式',
     switchToDark: '切換成深色模式',
@@ -201,6 +208,9 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`',
     kimiSubHttpErrorWithBody: '用量端點回應錯誤：HTTP {status}　{body}',
     kimiSubParseErrorUnverified: '用量端點回應內容無法解析（未驗證過的端點，第一次遇到請把這段回傳貼給開發者）：{body}',
+    cswapCallFailed: '呼叫 cswap 失敗：{message}',
+    cswapAccountNotFound: 'cswap 清單裡找不到帳號 {email}（可能在 cswap 裡被登出或移除了）',
+    cswapUsageStatusNotOk: 'cswap 回報這個帳號的用量狀態異常：{status}',
 
     widgetDetails: '詳細',
     widgetCollapse: '收合',
@@ -269,6 +279,8 @@ export const translations: Record<Lang, Translations> = {
     unknownAddFailure: 'Failed to add, reason unknown',
     hostNotConnected: "Not connected to the desktop shell (can't reach the C# backend when running frontend-only via ng serve)",
     addedSuccess: 'Added {name}',
+    addedSuccessMultiple: 'Added {count} accounts',
+    noNewAccountsDetected: 'No new accounts detected (they may already be tracked)',
     parseError: 'Received an unparseable message: {raw}',
     switchToLight: 'Switch to light mode',
     switchToDark: 'Switch to dark mode',
@@ -303,6 +315,9 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code rejected the current login credentials — run `/login` again',
     kimiSubHttpErrorWithBody: 'Usage endpoint returned an error: HTTP {status}　{body}',
     kimiSubParseErrorUnverified: "Could not parse the usage endpoint's response (this endpoint is unverified — if you're the first to hit this, please paste this response for the developer): {body}",
+    cswapCallFailed: 'Failed to call cswap: {message}',
+    cswapAccountNotFound: "Couldn't find account {email} in cswap's list (it may have been logged out or removed from cswap)",
+    cswapUsageStatusNotOk: "cswap reported an abnormal usage status for this account: {status}",
 
     widgetDetails: 'Details',
     widgetCollapse: 'Collapse',

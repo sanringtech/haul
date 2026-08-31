@@ -66,25 +66,34 @@ public sealed class UsageService
         return [.. _providersBySourceId.Values.Select(p =>
         {
             var alreadyHasAccount = settings.TrackedAccounts.Any(a => a.SourceId == p.SourceId);
-            var isTracked = p.SourceType == "subscription" && alreadyHasAccount;
+            // Claude 是唯一支援多個訂閱制帳號的來源（靠 cswap，見 AddClaudeAccountsAsync）——已經追蹤
+            // 一個不代表不能再偵測到新的，所以「＋ 新增來源」清單裡永遠讓它可以再按一次，不像其他
+            // 訂閱制來源（Codex）那樣一有帳號就整個變灰。
+            var isTracked = p.SourceType == "subscription" && alreadyHasAccount && p.SourceId != "claude";
             return new SourceCatalogEntry(p.SourceId, p.DisplayName, p.SourceType, isTracked);
         })];
     }
 
     /// <summary>
-    /// Adds a new account and does one immediate probe — for api_key sources that's validating the
-    /// key against the real endpoint; for subscription sources it's "try to detect the local CLI/
-    /// session right now" (constitution R2: nothing to type, just something to find).
+    /// Adds a new account (or several — see the Claude/cswap branch) and does one immediate probe —
+    /// for api_key sources that's validating the key against the real endpoint; for subscription
+    /// sources it's "try to detect the local CLI/session right now" (constitution R2: nothing to
+    /// type, just something to find). Returns one UsageSummary per account actually added — usually
+    /// one, but Claude-via-cswap can add several in a single click; an empty array means "nothing new
+    /// to add" (e.g. cswap detected accounts but all of them were already tracked).
     /// </summary>
-    public async Task<UsageSummary> AddSourceAsync(string sourceId, string? apiKey, CancellationToken ct = default)
+    public async Task<UsageSummary[]> AddSourceAsync(string sourceId, string? apiKey, CancellationToken ct = default)
     {
         var provider = FindProvider(sourceId);
         var settings = SettingsStore.Load();
 
+        if (sourceId == "claude")
+            return await AddClaudeAccountsAsync((ClaudeUsageProvider)provider, settings, ct);
+
         TrackedAccount account;
         if (provider.SourceType == "subscription")
         {
-            // Singleton — reuse the existing entry if this is a retry, don't spawn a second "claude".
+            // Singleton — reuse the existing entry if this is a retry, don't spawn a second one.
             account = settings.TrackedAccounts.FirstOrDefault(a => a.SourceId == sourceId)
                 ?? new TrackedAccount(sourceId, sourceId, Label: null);
         }
@@ -112,7 +121,77 @@ public sealed class UsageService
 
         // Call it once immediately so the caller finds out right away whether it actually worked,
         // rather than waiting for the next refresh cycle.
-        return await GetOneAsync(account, settings, ct);
+        return [await GetOneAsync(account, settings, ct)];
+    }
+
+    /// <summary>
+    /// Claude 是唯一支援多個訂閱制帳號同時追蹤的來源，靠偵測本機是否裝了使用者選用安裝的 cswap
+    /// （claude-swap）——有裝就把它回報的「每一個」帳號各自變成一個 TrackedAccount（AccountId 用
+    /// email 識別，見 ClaudeUsageProvider.CswapAccountId），已經追蹤過的跳過不重複加；沒裝 cswap
+    /// 就退回原本的單帳號行為（讀本機唯一登入中的 Claude Code session，AccountId 就是 "claude"）。
+    /// </summary>
+    private async Task<UsageSummary[]> AddClaudeAccountsAsync(ClaudeUsageProvider provider, AppSettings settings, CancellationToken ct)
+    {
+        var cswapAccounts = await provider.TryDetectCswapAccountsAsync(ct);
+
+        if (cswapAccounts is { Length: > 0 })
+        {
+            // 舊版單帳號模式留下的 TrackedAccount（AccountId 字面上就是 "claude"）如果還在，代表
+            // 使用者升級這個功能前就已經在追蹤——它讀的正是「目前登入中」那個 session，對應到
+            // cswap 清單裡 active=true 的那個帳號。原地「升級」成新的 email 格式（保留使用者可能
+            // 已經改過的 Label），不是留著兩份重複顯示同一個帳號的用量。
+            var upgraded = false;
+            var legacyIndex = settings.TrackedAccounts.FindIndex(a => a.AccountId == "claude");
+            if (legacyIndex >= 0)
+            {
+                var activeEmail = cswapAccounts.FirstOrDefault(c => c.Active)?.Email;
+                if (!string.IsNullOrEmpty(activeEmail))
+                {
+                    var upgradedId = ClaudeUsageProvider.CswapAccountId(activeEmail);
+                    if (settings.TrackedAccounts.Any(a => a.AccountId == upgradedId))
+                    {
+                        // 新格式理論上不該已經存在（防禦性處理）——與其硬升級造成衝突，直接把舊的
+                        // 重複條目丟掉，讓新格式那筆（下面 newAccounts 的邏輯會跳過它，因為已存在）繼續運作。
+                        settings.TrackedAccounts.RemoveAt(legacyIndex);
+                    }
+                    else
+                    {
+                        var legacyAccount = settings.TrackedAccounts[legacyIndex];
+                        settings.TrackedAccounts[legacyIndex] = legacyAccount with { AccountId = upgradedId };
+                        if (settings.HiddenAccountIds.Remove("claude"))
+                            settings.HiddenAccountIds.Add(upgradedId);
+                    }
+                    upgraded = true;
+                }
+                // activeEmail 拿不到（cswap 清單裡沒有任何 active=true 的帳號，理論上不該發生）就
+                // 不動舊格式——保守起見寧可讓它繼續用原本的直接呼叫邏輯運作，也不要亂猜升級成哪個帳號。
+            }
+
+            var newAccounts = cswapAccounts
+                .Where(c => !string.IsNullOrEmpty(c.Email))
+                .Select(c => new TrackedAccount(ClaudeUsageProvider.CswapAccountId(c.Email), "claude", c.Email))
+                .Where(a => !settings.TrackedAccounts.Any(existing => existing.AccountId == a.AccountId))
+                .ToList();
+
+            if (newAccounts.Count == 0 && !upgraded)
+                return []; // cswap 有裝，但偵測到的帳號全部都已經追蹤過了，沒有任何異動可存
+
+            settings.TrackedAccounts.AddRange(newAccounts);
+            foreach (var a in newAccounts) settings.HiddenAccountIds.Remove(a.AccountId);
+            SettingsStore.Save(settings); // upgraded 或 newAccounts 任一有變動都要存，不能只在有新帳號時才存
+
+            return await Task.WhenAll(newAccounts.Select(a => GetOneAsync(a, settings, ct)));
+        }
+
+        // cswap 沒裝（或偵測失敗/逾時）——退回原本的單帳號直接呼叫，行為完全不變。
+        var legacy = settings.TrackedAccounts.FirstOrDefault(a => a.AccountId == "claude")
+            ?? new TrackedAccount("claude", "claude", Label: null);
+        if (!settings.TrackedAccounts.Any(a => a.AccountId == legacy.AccountId))
+        {
+            settings.TrackedAccounts.Add(legacy);
+            SettingsStore.Save(settings);
+        }
+        return [await GetOneAsync(legacy, settings, ct)];
     }
 
     /// <summary>取消追蹤（constitution §8）— full deletion of this one account, siblings of the same source untouched (R5).</summary>
