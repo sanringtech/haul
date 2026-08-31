@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SanRing Usage Monitor</title>
-<meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Grok 的用量與重置時間。桌面版打包中。">
+<meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Grok 的用量與重置時間。v0.1.0 現已提供 macOS / Windows 下載。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -2 25 25' shape-rendering='crispEdges'%3E%3Crect x='12' y='0' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='1' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='4' y='2' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='2' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='4' y='3' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='5' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='20' y='3' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='4' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='19' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='20' y='4' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='21' y='4' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='5' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='12' y='5' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='13' y='5' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='20' y='5' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='6' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='11' y='6' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='12' y='6' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='9' y='7' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='10' y='7' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='11' y='7' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='12' y='7' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='7' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='8' y='8' width='1' height='1' fill='%236f9fd0'/%3E%3Crect x='9' y='8' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='10' y='8' width='1' height='1' fill='%23fff3b8'/%3E%3Crect x='11' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='8' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='0' y='9' width='25' height='1' fill='%239ec7f0'/%3E%3Crect x='8' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='9' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='15' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='16' y='10' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='9' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='15' y='11' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='10' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='11' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='13' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='14' y='12' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='13' width='1' height='1' fill='%239ec7f0'/%3E%3Crect x='12' y='14' width='1' height='1' fill='%239ec7f0'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Ubuntu:wght@400;500;700&display=swap">
 <style>
@@ -229,16 +229,32 @@
   .platform {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.65rem;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 0.6rem 0.95rem;
+    padding: 0.65rem 0.75rem 0.65rem 1rem;
     color: var(--muted);
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
   }
-  .platform svg { width: 17px; height: 17px; fill: var(--muted); flex-shrink: 0; }
-  .platform-name { font-size: 0.84rem; color: var(--fg); font-weight: 500; }
-  .platform-status { font-family: var(--font-display); font-size: 0.64rem; color: var(--accent); margin-left: 0.15rem; }
+  .platform:hover, .platform:focus-visible { border-color: var(--accent); background: var(--surface-strong); }
+  .platform svg { width: 18px; height: 18px; fill: var(--fg); flex-shrink: 0; }
+  .platform-text { display: flex; flex-direction: column; gap: 0.15rem; }
+  .platform-name { font-size: 0.84rem; color: var(--fg); font-weight: 500; display: flex; flex-direction: column; gap: 0.15rem; }
+  .platform-sub { font-family: var(--font-display); font-size: 0.62rem; font-weight: 400; color: var(--muted); }
+  .platform-status {
+    font-family: var(--font-display);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--bg);
+    background: var(--accent);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    margin-left: 0.5rem;
+    flex-shrink: 0;
+  }
 
   footer {
     margin-top: auto;
@@ -258,7 +274,7 @@
 <canvas id="stars" aria-hidden="true"></canvas>
 
 <main>
-  <p class="kicker"><span class="dot"></span>SANRING · 開發中</p>
+  <p class="kicker"><span class="dot"></span>SANRING · v0.1.0</p>
 
   <svg class="mark" viewBox="0 -2 25 25" shape-rendering="crispEdges" aria-hidden="true">
     <rect x="12" y="0" width="1" height="1" fill="#9ec7f0"/><rect x="12" y="1" width="1" height="1" fill="#9ec7f0"/>
@@ -278,9 +294,9 @@
   </svg>
 
   <h1>Claude、Codex、DeepSeek、Kimi、Grok 用量<br><span class="accent">一次看完</span>，不用切五個分頁</h1>
-  <p class="sub">SanRing Usage Monitor 是一支常駐在你電腦上的小工具，把好幾個帳號的剩餘額度、重置時間放進同一個畫面——桌面版還在整理打包，這裡先佔個位置。</p>
+  <p class="sub">SanRing Usage Monitor 是一支常駐在你電腦上的小工具，把好幾個帳號的剩餘額度、重置時間放進同一個畫面。v0.1.0 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
 
-  <p class="status-pill">桌面版打包中 · v0.1</p>
+  <p class="status-pill">v0.1.0 · 未簽章，開啟需手動繞過安全性警告</p>
 
   <div class="preview" role="img" aria-label="用量卡片預覽：Claude Code，5 小時已用 62%，7 天已用 40%">
     <div class="preview-head">
@@ -304,20 +320,26 @@
   </div>
 
   <div class="platforms">
-    <div class="platform">
+    <a class="platform" href="https://github.com/sanringtech/usage_monitor/releases/download/v0.1.0/SanringMonitor-0.1.0-macOS-arm64.dmg">
       <svg viewBox="0 0 24 24"><path d="M16.365 1.43c0 1.14-.468 2.06-1.14 2.75-.73.75-1.94 1.33-2.94 1.33-.11-1.13.44-2.29 1.13-3.02.75-.8 2.05-1.4 2.95-1.44 0 .13.01.25 0 .38zm4.14 15.66c-.55 1.27-1.22 2.53-2.2 3.62-.94 1.05-1.98 2.1-3.4 2.12-1.4.02-1.85-.83-3.45-.83-1.6 0-2.1.81-3.42.85-1.36.05-2.4-1.13-3.36-2.17-1.86-2.03-3.31-5.74-1.4-8.87.95-1.55 2.64-2.53 4.47-2.56 1.34-.02 2.6.9 3.42.9.81 0 2.35-1.11 3.96-.95.67.03 2.56.27 3.77 2.03-.1.06-2.25 1.32-2.22 3.94.03 3.13 2.75 4.17 2.79 4.19-.03.09-.44 1.5-1.46 2.73z"/></svg>
-      <span class="platform-name">macOS</span>
-      <span class="platform-status">陸續推出</span>
-    </div>
-    <div class="platform">
+      <span class="platform-text">
+        <span class="platform-name">macOS <span class="platform-sub">Apple Silicon · .dmg</span></span>
+      </span>
+      <span class="platform-status">下載</span>
+    </a>
+    <a class="platform" href="https://github.com/sanringtech/usage_monitor/releases/download/v0.1.0/SanringMonitor-0.1.0-Windows-x64.zip">
       <svg viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4V11.5H3V5.5ZM11.4 4.27 21 3v8.5H11.4V4.27ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.4 12.5H21V21L11.4 19.73V12.5Z"/></svg>
-      <span class="platform-name">Windows</span>
-      <span class="platform-status">陸續推出</span>
-    </div>
+      <span class="platform-text">
+        <span class="platform-name">Windows <span class="platform-sub">x64 · ⚠️ 未實測</span></span>
+      </span>
+      <span class="platform-status">下載</span>
+    </a>
   </div>
 
   <footer>
-    個人開發中的小工具，不是商業產品，目前尚無公開下載連結。<br>
+    個人開發的小工具，不是商業產品。下載前請看
+    <a href="https://github.com/sanringtech/usage_monitor/blob/main/RISKS.md">已知風險與揭露</a>、
+    <a href="https://github.com/sanringtech/usage_monitor/releases/tag/v0.1.0">完整版本說明</a>。<br>
     sanring.dev
   </footer>
 </main>
