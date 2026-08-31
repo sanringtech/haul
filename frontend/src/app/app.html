@@ -1,11 +1,14 @@
 <main class="flex flex-col gap-4 p-6 pb-20 bg-[var(--sanring-background)] text-[var(--sanring-foreground)] min-h-screen relative">
-  <header class="flex items-center gap-2">
+  <!-- 文字標題拿掉了——視窗標題列本身已經有「SanRing Usage Monitor」，這裡再重複一次是多餘的，
+       logo 圖示自己就夠識別。title() signal 沒消失，改當這個 header 的 aria-label，畫面上看不到
+       文字不代表螢幕報讀器也不用知道這是什麼。 -->
+  <header class="flex items-center gap-2" [attr.aria-label]="title()">
     <!-- logo.svg 是 public/ 底下的真實檔案（build 時複製到 wwwroot/browser/logo.svg），不是內嵌
          一堆 <rect>——跟 index.html 的 favicon 用同一份圖，同一套相對路徑解析，不用另外處理。 -->
-    <img src="logo.svg" alt="" class="h-5 w-auto shrink-0" />
-    <!-- 標題單獨一行是硬需求——info/語言/主題三顆按鈕全部移進設定頁（見下方 settings view），
-         header 只留「非它不可」的兩顆：設定入口本身，跟一眼要看到、不用多點一層的連線狀態燈號。 -->
-    <h1 class="text-base font-semibold flex-1 truncate">{{ title() }}</h1>
+    <img src="logo.svg" [alt]="title()" class="h-5 w-auto shrink-0" />
+    <!-- info/語言/主題三顆按鈕全部移進設定頁（見下方 settings view），header 只留「非它不可」的
+         兩顆：設定入口本身，跟一眼要看到、不用多點一層的連線狀態燈號。 -->
+    <div class="flex-1"></div>
     <button
       sanringBtn
       type="button"

@@ -53,6 +53,7 @@
 
 - 選項 A：GitHub Releases 掛在私有 repo，收件人需要是 repo collaborator（或用有權限的 token）才能下載 release assets
 - 選項 B：build 好直接壓縮，用雲端連結/AirDrop 分享 `publish/<rid>/` 整包
+- **打包格式還沒做**：macOS 這邊已經有 `SanringMonitor.app`（`scripts/build.sh` 會組，見上面「架構」一節），但還沒包成 `.dmg`——分享出去目前只能傳整個 `.app` 資料夾（壓縮），不是雙擊掛載拖進「應用程式」的標準體驗；`.dmg` 本身不難做（`hdiutil create` 或 `create-dmg`），主要是還沒寫進 `build.sh`。Windows 更早一步：連自包含單一 `.exe` 都還沒做（`dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true`），現在 `publish/win-x64/` 是一整包資料夾，不是一支檔案；真的裝成 `.msi`/安裝程式（Start Menu 捷徑、解安裝、之後的自動更新）留到階段 2 再評估值不值得
 - **開始需要版本號**：建議語意化版本（[SemVer](https://semver.org/)，`MAJOR.MINOR.PATCH`），目前完全沒有版本號機制，要決定存在哪裡（`.csproj` 的 `<Version>`？`package.json`？獨立的 `VERSION` 檔？）以及誰負責遞增
 - **開始需要 changelog**：跟 git commit message 是兩回事——commit message 是給開發者看的技術細節（例如這次 session 一堆「查證/修 bug」的過程），changelog 是給使用者看的「這個版本新增/修了什麼」，用詞跟顆粒度都不同，需要另外維護（`CHANGELOG.md`，或下載頁上直接列）
 - macOS 沒簽章依然要手動繞過 Gatekeeper（右鍵開啟，或 `xattr -d com.apple.quarantine`），這階段可以接受，但要在分享時附上這段說明，不然對方會以為程式壞了
