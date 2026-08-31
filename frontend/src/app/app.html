@@ -10,6 +10,17 @@
       variant="ghost"
       size="sm"
       class="px-2"
+      [title]="t('infoAria')"
+      (click)="openInfoView()"
+    >
+      <svg lucideInfo class="size-4"></svg>
+    </button>
+    <button
+      sanringBtn
+      type="button"
+      variant="ghost"
+      size="sm"
+      class="px-2"
       [title]="t('settingsAria')"
       (click)="openSettingsView()"
     >
@@ -394,7 +405,7 @@
         </sanring-alert>
       }
     }
-  } @else {
+  } @else if (view() === 'settings') {
     <!-- ── 設定頁（PRD M3）─────────────────────────────────────────── -->
     <div class="flex flex-col gap-1">
       <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeSettingsView()">
@@ -450,5 +461,45 @@
       }
       {{ settingsSaveStatus() === 'saved' ? t('settingsSaved') : t('saveSettings') }}
     </button>
+  } @else {
+    <!-- ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況，純靜態內容） ──────────── -->
+    <div class="flex flex-col gap-1">
+      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeInfoView()">
+        <svg lucideArrowLeft class="size-4"></svg>
+        {{ t('back') }}
+      </button>
+      <h2 class="text-lg font-semibold">{{ t('infoTitle') }}</h2>
+    </div>
+
+    <div class="flex flex-col gap-4 text-sm">
+      <div class="flex flex-col gap-1">
+        <h3 class="font-semibold">{{ t('infoClaudeTitle') }}</h3>
+        <p class="text-[var(--sanring-muted)]">{{ t('infoClaudeBody') }}</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <h3 class="font-semibold">{{ t('infoCodexTitle') }}</h3>
+        <p class="text-[var(--sanring-muted)]">{{ t('infoCodexBody') }}</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <h3 class="font-semibold">{{ t('infoApiKeyTitle') }}</h3>
+        <p class="text-[var(--sanring-muted)]">{{ t('infoApiKeyBody') }}</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <h3 class="font-semibold">{{ t('infoKimiSubTitle') }}</h3>
+        <p class="text-[var(--sanring-muted)]">{{ t('infoKimiSubBody') }}</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <h3 class="font-semibold">{{ t('infoGrokTitle') }}</h3>
+        <p class="text-[var(--sanring-muted)]">{{ t('infoGrokBody') }}</p>
+      </div>
+
+      <sanring-alert class="text-xs">
+        <svg lucideInfo class="size-4"></svg>
+        <p sanringAlertDescription>
+          <span class="font-semibold block mb-0.5">{{ t('infoDisclaimerTitle') }}</span>
+          {{ t('infoDisclaimerBody') }}
+        </p>
+      </sanring-alert>
+    </div>
   }
 </main>

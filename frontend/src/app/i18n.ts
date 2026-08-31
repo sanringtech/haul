@@ -126,6 +126,22 @@ export interface Translations {
   hideSource: string;
   unhideSource: string;
   hiddenSourcesTitle: string;
+
+  // ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況）──
+  infoAria: string;
+  infoTitle: string;
+  infoClaudeTitle: string;
+  infoClaudeBody: string;
+  infoCodexTitle: string;
+  infoCodexBody: string;
+  infoApiKeyTitle: string;
+  infoApiKeyBody: string;
+  infoKimiSubTitle: string;
+  infoKimiSubBody: string;
+  infoGrokTitle: string;
+  infoGrokBody: string;
+  infoDisclaimerTitle: string;
+  infoDisclaimerBody: string;
 }
 
 export const translations: Record<Lang, Translations> = {
@@ -235,6 +251,21 @@ export const translations: Record<Lang, Translations> = {
     hideSource: '關閉顯示',
     unhideSource: '顯示',
     hiddenSourcesTitle: '已隱藏的來源',
+
+    infoAria: '用量來源說明',
+    infoTitle: '用量來源說明',
+    infoClaudeTitle: 'Claude',
+    infoClaudeBody: '支援多帳號。有安裝選用工具 cswap（claude-swap）時，會自動偵測並同時追蹤所有登入的帳號；沒有安裝則只能看到目前登入中的那一個。',
+    infoCodexTitle: 'Codex',
+    infoCodexBody: '目前只支援單一帳號。官方 Codex CLI 還沒有多帳號功能（OpenAI 尚未實作，見官方 issue #4432）；市面上雖然有幾個第三方切換工具，但機制都是「切換目前登入的帳號」而非唯讀查詢多個帳號，牽涉的風險比 Claude 那邊高，目前沒有整合。',
+    infoApiKeyTitle: 'DeepSeek / Kimi（API key 制）',
+    infoApiKeyBody: '原生支援多個帳號，各自用獨立的 API key，互不影響，隨時可以新增。',
+    infoKimiSubTitle: 'Kimi（訂閱制）',
+    infoKimiSubBody: '單一帳號，讀取本機 Kimi Code CLI 的登入 session。⚠️ 這條路徑目前尚未經過真實帳號驗證，第一次使用如果卡住請把錯誤訊息回報給開發者。',
+    infoGrokTitle: 'Grok',
+    infoGrokBody: '目前不支援 API key 制（xAI 官方沒有對應的查詢端點）；訂閱制走本機估算（ccusage grok）。官方訂閱制端點雖然已經查到，但認證複雜、不確定性偏高，暫時沒有實作。',
+    infoDisclaimerTitle: '關於非公開端點',
+    infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
   },
   en: {
     connectedDesktop: 'Connected to desktop shell',
@@ -342,5 +373,20 @@ export const translations: Record<Lang, Translations> = {
     hideSource: 'Hide',
     unhideSource: 'Show',
     hiddenSourcesTitle: 'Hidden sources',
+
+    infoAria: 'Usage sources info',
+    infoTitle: 'Usage sources',
+    infoClaudeTitle: 'Claude',
+    infoClaudeBody: 'Supports multiple accounts. If the optional cswap (claude-swap) tool is installed, all logged-in accounts are detected and tracked automatically; otherwise only the currently logged-in one is shown.',
+    infoCodexTitle: 'Codex',
+    infoCodexBody: "Currently single-account only. The official Codex CLI has no multi-account support yet (OpenAI hasn't built this — see official issue #4432). A few third-party switcher tools exist, but they work by changing which account is actively logged in rather than reading multiple accounts non-destructively, carrying more risk than the Claude approach — not integrated for now.",
+    infoApiKeyTitle: 'DeepSeek / Kimi (API key)',
+    infoApiKeyBody: 'Natively supports multiple accounts, each with its own independent API key — add as many as you like.',
+    infoKimiSubTitle: 'Kimi (Subscription)',
+    infoKimiSubBody: "Single account, reads the local Kimi Code CLI's login session. ⚠️ This path hasn't been verified against a real account yet — if it gets stuck on first use, please report the error message to the developer.",
+    infoGrokTitle: 'Grok',
+    infoGrokBody: "API key mode isn't supported (xAI has no corresponding query endpoint); subscription mode uses a local estimate (ccusage grok). An official subscription endpoint was found but its complexity/uncertainty is high, so it hasn't been implemented yet.",
+    infoDisclaimerTitle: 'About undocumented endpoints',
+    infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
   },
 };

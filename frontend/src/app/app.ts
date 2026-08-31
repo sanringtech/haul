@@ -10,6 +10,7 @@ import {
   LucideEye,
   LucideEyeOff,
   LucideGripVertical,
+  LucideInfo,
   LucideMoon,
   LucidePlus,
   LucideRefreshCw,
@@ -33,7 +34,7 @@ import { ConnectionState, HiddenAccountEntry, LocalizedMessage, SourceType, Usag
 type Theme = 'dark' | 'light';
 const THEME_STORAGE_KEY = 'sanring-usage-monitor:theme';
 
-type View = 'list' | 'add' | 'settings';
+type View = 'list' | 'add' | 'settings' | 'info';
 type AddStatus = 'idle' | 'pending' | 'success' | 'error';
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
@@ -83,6 +84,7 @@ interface CatalogEntry {
     LucideEye,
     LucideEyeOff,
     LucideGripVertical,
+    LucideInfo,
     LucideMoon,
     LucidePlus,
     LucideRefreshCw,
@@ -246,6 +248,15 @@ export class App {
   }
 
   protected closeSettingsView(): void {
+    this.view.set('list');
+  }
+
+  /** 純靜態說明頁，不用打任何後端訊息——內容見 i18n.ts 的 info* 那組 key。 */
+  protected openInfoView(): void {
+    this.view.set('info');
+  }
+
+  protected closeInfoView(): void {
     this.view.set('list');
   }
 
