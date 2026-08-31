@@ -46,3 +46,4 @@
 - Header 精簡：文字標題拿掉（視窗標題列已經有），info/設定/語言/主題四顆圖示都在 header，不用進設定頁
 - cswap 偵測失敗改用 `-ilc`（interactive+login shell）修復（詳見 [`ARCHITECTURE.md`](ARCHITECTURE.md)）
 - repo 轉 public，加入 `docs/index.html` Coming Soon 佔位頁（GitHub Pages，`usage-monitor.sanring.dev`）
+- macOS `.dmg` 打包：`scripts/make-dmg.sh`，獨立於 `build.sh` 之外手動執行（詳見 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 1）

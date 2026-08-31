@@ -16,7 +16,8 @@
 
 - [x] **repo 公開性**（2026-08-31）：`sanringtech/usage_monitor` 已轉 public——評估過的取捨是非公開端點依賴會更顯眼、還沒簽章公證，但 git 歷史掃過沒有任何憑證/API key 外洩
 - [x] **Coming Soon 佔位頁**（2026-08-31）：`docs/index.html`，GitHub Pages（Source: main /docs）已開啟，`docs/CNAME` 指到 `usage-monitor.sanring.dev`；Cloudflare 那邊要另外手動加一筆 CNAME 記錄（`usage-monitor` → `sanringtech.github.io`，先設 DNS only）才會真的解析到自訂網域
-- [ ] **打包格式**：macOS 已經有 `SanringMonitor.app`（`scripts/build.sh` 自動組），但還沒包成 `.dmg`——分享出去目前只能傳整個 `.app` 資料夾（壓縮），不是雙擊掛載拖進「應用程式」的標準體驗；`.dmg` 本身不難做（`hdiutil create` 或 `create-dmg`），主要是還沒寫進 `build.sh`。Windows 更早一步：連自包含單一 `.exe` 都還沒做（`dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true`），現在 `publish/win-x64/` 是一整包資料夾，不是一支檔案；真的裝成 `.msi`/安裝程式（Start Menu 捷徑、解安裝、之後的自動更新）留到階段 2 再評估值不值得
+- [x] **macOS `.dmg` 打包**（2026-08-31）：`scripts/make-dmg.sh`，讀 `publish/<dir>/SanringMonitor.app` 組成標準拖曳安裝的 `.dmg`（App + `/Applications` 捷徑並排），`hdiutil create` 壓縮格式。**刻意不接進 `build.sh`**——跟 `make-icns.sh` 同一套邏輯：打包分享才需要，不是每次 dev build 都要，接進去只會拖慢日常開發的建置速度。用法：先 `./scripts/build.sh` 產生 `.app`，再 `./scripts/make-dmg.sh` 包成 `.dmg`；已實測掛載/卸載、內容正確（1.4MB）
+- [ ] **Windows 單一 `.exe`**：連自包含單一 `.exe` 都還沒做（`dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true`），現在 `publish/win-x64/` 是一整包資料夾，不是一支檔案；真的裝成 `.msi`/安裝程式（Start Menu 捷徑、解安裝、之後的自動更新）留到階段 2 再評估值不值得
 - [ ] **版本號**：建議語意化版本（[SemVer](https://semver.org/)，`MAJOR.MINOR.PATCH`），目前完全沒有版本號機制，要決定存在哪裡（`.csproj` 的 `<Version>`？`package.json`？獨立的 `VERSION` 檔？）以及誰負責遞增
 - [ ] **實際下載連結**：GitHub Releases 掛在 repo（現在已公開，任何人都能下載 release assets），或 build 好直接壓縮用雲端連結/AirDrop 分享
 - macOS 沒簽章依然要手動繞過 Gatekeeper（右鍵開啟，或 `xattr -d com.apple.quarantine`），這階段可以接受，但要在分享時附上這段說明，不然對方會以為程式壞了
