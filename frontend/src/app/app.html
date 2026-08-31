@@ -29,13 +29,15 @@
         <svg lucideMoon class="size-4"></svg>
       }
     </button>
-    <span
-      sanringBadge
-      variant="outline"
-      [class]="isDesktopHost() ? 'border-transparent bg-[var(--sanring-success-50)] text-white' : ''"
-    >
-      {{ isDesktopHost() ? t('connectedDesktop') : t('browserMode') }}
-    </span>
+    <!-- 原本是常駐文字 badge，改成一顆點——跟卡片的連線狀態點同一套視覺語言，字只在 hover 時透過 tooltip 顯示 -->
+    <sanring-tooltip>
+      <span
+        sanringTooltipTrigger
+        class="h-2.5 w-2.5 rounded-full shrink-0"
+        [class]="isDesktopHost() ? 'bg-[var(--sanring-badge-online)]' : 'bg-[var(--sanring-badge-offline)]'"
+      ></span>
+      <sanring-tooltip-content>{{ isDesktopHost() ? t('connectedDesktop') : t('browserMode') }}</sanring-tooltip-content>
+    </sanring-tooltip>
   </header>
 
   @if (view() === 'list') {
