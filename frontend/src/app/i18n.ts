@@ -4,10 +4,12 @@
  * 每個語言各自編譯一份完整 Angular 打包，沒有內建的「app 內即時切換」，跟這裡要的體驗不合，
  * 詳見這次跟使用者的討論。
  *
- * ⚠️ 已知限制：這裡只涵蓋前端自己寫的字串（按鈕、標籤、提示文字）。每張卡片實際顯示的
- * detail/百分比視窗標籤（例如 "5 小時"/"7 天"、"08:07 重置"、"剩餘額度 10.00"、各種錯誤訊息）
- * 是後端 Provider 產生後直接塞在 UsageSummary.Detail 這類欄位裡的中文字串（見 backend/Providers/
- * *.cs），前端語言切換動不到它們——要做到完整雙語，後端也要有一套對應機制。這次先做前端 chrome。
+ * 涵蓋範圍（2026-08-31 擴充）：不只前端自己寫的字串（按鈕、標籤、提示文字），也涵蓋每張卡片的
+ * detail/百分比視窗標籤（例如 "5 小時"、"08:07 重置"、各種連線錯誤訊息）——後端（backend/Providers/
+ * *.cs、backend/Models/MessageKeys.cs）不再送組好的中文句子，只送一個穩定的 key（+ 動態部分當
+ * params），下面這份表就是那些 key 實際查到的文字。**兩邊的 key 必須完全對應**：backend/Models/
+ * MessageKeys.cs 每加一個新 key，這裡的 Translations 介面跟 zh-TW/en 兩個物件都要跟著加，少了任一
+ * 語言 TypeScript 會編譯期報錯，但 C# 那邊拼錯字不會——跨語言拼字一致純靠人工對照，沒有型別檢查。
  */
 
 export type Lang = 'zh-TW' | 'en';
@@ -62,6 +64,36 @@ export interface Translations {
   switchToDark: string;
   switchToEnglish: string;
   switchToChinese: string;
+
+  // ── 以下對應 backend/Models/MessageKeys.cs——後端 provider 產生的訊息，key 名稱必須一致 ──
+  httpError: string;
+  usageEndpointParseError: string;
+  callFailed: string;
+  windowReset: string;
+  fiveHourLabel: string;
+  sevenDayLabel: string;
+  apiKeyNotConfigured: string;
+  rateLimited: string;
+  unexpectedError: string;
+  claudeCredentialsNotFound: string;
+  claudeCredentialsExpiredLocal: string;
+  claudeCredentialsRejected: string;
+  codexCredentialsNotFound: string;
+  codexCredentialsRejected: string;
+  deepSeekInvalidKey: string;
+  deepSeekHttpError: string;
+  deepSeekParseError: string;
+  deepSeekBalance: string;
+  deepSeekCallFailed: string;
+  kimiInvalidKey: string;
+  kimiHttpError: string;
+  kimiParseError: string;
+  kimiBalance: string;
+  kimiCallFailed: string;
+  kimiSubCredentialsNotFound: string;
+  kimiSubCredentialsRejected: string;
+  kimiSubHttpErrorWithBody: string;
+  kimiSubParseErrorUnverified: string;
 }
 
 export const translations: Record<Lang, Translations> = {
@@ -113,6 +145,35 @@ export const translations: Record<Lang, Translations> = {
     switchToDark: '切換成深色模式',
     switchToEnglish: '切換成英文',
     switchToChinese: '切換成中文',
+
+    httpError: '用量端點回應錯誤：HTTP {status}',
+    usageEndpointParseError: '用量端點回應內容無法解析：{body}',
+    callFailed: '呼叫用量端點失敗：{message}',
+    windowReset: '{time} 重置',
+    fiveHourLabel: '5 小時',
+    sevenDayLabel: '7 天',
+    apiKeyNotConfigured: '尚未設定 API key',
+    rateLimited: '請求太頻繁被 {provider} 限流（HTTP 429），稍後再按重新整理即可，不是憑證壞了',
+    unexpectedError: '未預期的錯誤：{message}',
+    claudeCredentialsNotFound: '找不到 Claude Code 的登入憑證，請先執行 `claude` 完成登入',
+    claudeCredentialsExpiredLocal: '登入憑證已過期，請執行一次 `claude` 讓它自動刷新',
+    claudeCredentialsRejected: 'Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入',
+    codexCredentialsNotFound: '找不到 Codex 的登入憑證，請先執行 `codex login` 完成登入',
+    codexCredentialsRejected: 'ChatGPT 拒絕了目前的登入憑證，請執行一次 `codex login` 重新登入',
+    deepSeekInvalidKey: 'API key 被拒絕（撤銷或格式錯誤）',
+    deepSeekHttpError: 'DeepSeek 回應錯誤：HTTP {status}',
+    deepSeekParseError: 'DeepSeek 回應內容無法解析：{body}',
+    deepSeekBalance: '剩餘額度 {currency} {balance}',
+    deepSeekCallFailed: '呼叫 DeepSeek 用量端點失敗：{message}',
+    kimiInvalidKey: 'API key 被拒絕（撤銷、格式錯誤，或這是 platform.kimi.ai 而非 moonshot.ai 發的 key）',
+    kimiHttpError: 'Kimi 回應錯誤：HTTP {status}',
+    kimiParseError: 'Kimi 回應內容無法解析或回報失敗：{body}',
+    kimiBalance: '剩餘額度 {balance}',
+    kimiCallFailed: '呼叫 Kimi 用量端點失敗：{message}',
+    kimiSubCredentialsNotFound: '找不到 Kimi Code 的登入憑證，請先在 Kimi Code CLI 裡執行 `/login`',
+    kimiSubCredentialsRejected: 'Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`',
+    kimiSubHttpErrorWithBody: '用量端點回應錯誤：HTTP {status}　{body}',
+    kimiSubParseErrorUnverified: '用量端點回應內容無法解析（未驗證過的端點，第一次遇到請把這段回傳貼給開發者）：{body}',
   },
   en: {
     connectedDesktop: 'Connected to desktop shell',
@@ -162,5 +223,34 @@ export const translations: Record<Lang, Translations> = {
     switchToDark: 'Switch to dark mode',
     switchToEnglish: 'Switch to English',
     switchToChinese: 'Switch to Chinese',
+
+    httpError: 'Usage endpoint returned an error: HTTP {status}',
+    usageEndpointParseError: "Could not parse the usage endpoint's response: {body}",
+    callFailed: 'Failed to call the usage endpoint: {message}',
+    windowReset: 'Resets at {time}',
+    fiveHourLabel: '5h',
+    sevenDayLabel: '7d',
+    apiKeyNotConfigured: 'API key not configured yet',
+    rateLimited: "Too many requests — rate-limited by {provider} (HTTP 429). Just try refreshing again later, your credentials are fine.",
+    unexpectedError: 'Unexpected error: {message}',
+    claudeCredentialsNotFound: "Couldn't find Claude Code's login credentials — run `claude` to log in first",
+    claudeCredentialsExpiredLocal: 'Login credentials have expired — run `claude` once to let it auto-refresh',
+    claudeCredentialsRejected: 'Anthropic rejected the current login credentials — run `claude` once to log in again',
+    codexCredentialsNotFound: "Couldn't find Codex's login credentials — run `codex login` to log in first",
+    codexCredentialsRejected: 'ChatGPT rejected the current login credentials — run `codex login` once to log in again',
+    deepSeekInvalidKey: 'API key was rejected (revoked or malformed)',
+    deepSeekHttpError: 'DeepSeek returned an error: HTTP {status}',
+    deepSeekParseError: "Could not parse DeepSeek's response: {body}",
+    deepSeekBalance: 'Remaining balance {currency} {balance}',
+    deepSeekCallFailed: "Failed to call DeepSeek's usage endpoint: {message}",
+    kimiInvalidKey: 'API key was rejected (revoked, malformed, or this is a platform.kimi.ai key rather than moonshot.ai)',
+    kimiHttpError: 'Kimi returned an error: HTTP {status}',
+    kimiParseError: "Could not parse Kimi's response, or it reported failure: {body}",
+    kimiBalance: 'Remaining balance {balance}',
+    kimiCallFailed: "Failed to call Kimi's usage endpoint: {message}",
+    kimiSubCredentialsNotFound: "Couldn't find Kimi Code's login credentials — run `/login` inside the Kimi Code CLI first",
+    kimiSubCredentialsRejected: 'Kimi Code rejected the current login credentials — run `/login` again',
+    kimiSubHttpErrorWithBody: 'Usage endpoint returned an error: HTTP {status}　{body}',
+    kimiSubParseErrorUnverified: "Could not parse the usage endpoint's response (this endpoint is unverified — if you're the first to hit this, please paste this response for the developer): {body}",
   },
 };

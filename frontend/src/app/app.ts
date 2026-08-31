@@ -39,6 +39,12 @@ type ConnectionState = 'not_configured' | 'valid' | 'invalid' | 'expired';
 type View = 'list' | 'add';
 type AddStatus = 'idle' | 'pending' | 'success' | 'error';
 
+/** Mirrors backend/Models/LocalizedText.cs — a message key + interpolation params, rendered via t(). */
+interface LocalizedMessage {
+  key: string;
+  params?: Record<string, string> | null;
+}
+
 /** Mirrors backend/Models/UsageSummary.cs (camelCase on the wire, see Program.cs jsonOptions). */
 interface UsageSummary {
   /** Now an accountId, not a bare sourceId — unique per tracked account (multi-account support). */
@@ -51,13 +57,13 @@ interface UsageSummary {
   connectionState: ConnectionState;
   isEstimated: boolean;
   asOf: string;
-  detail: string | null;
+  detail: LocalizedMessage | null;
   /** Set when a source has more than one quota window (Claude: 5h + 7d) — see backend for why. */
-  percentUsedLabel: string | null;
+  percentUsedLabel: LocalizedMessage | null;
   secondaryPercentUsed: number | null;
   secondaryUsageState: UsageState | null;
-  secondaryPercentUsedLabel: string | null;
-  secondaryDetail: string | null;
+  secondaryPercentUsedLabel: LocalizedMessage | null;
+  secondaryDetail: LocalizedMessage | null;
   /** 帳號副標題（例如 "DeepSeek #2"）——null 時代表這個來源目前只有單一帳號，不用另外標示。 */
   accountLabel: string | null;
 }
@@ -178,6 +184,17 @@ export class App {
       }
     }
     return text;
+  }
+
+  /**
+   * 跟 t() 一樣的查表邏輯，只是輸入換成後端送來的 LocalizedMessage（見 backend/Models/LocalizedText.cs）
+   * 而不是前端寫死的 key——後端 provider 產生的每一句訊息（錯誤、視窗標籤、重置時間）都走這條路，
+   * 不是直接顯示後端組好的中文字串。key 是 string（來自 JSON，編譯期無法檢查跟 Translations 對不對得
+   * 上），所以用 `as keyof Translations`；兩邊的 key 集合要人工保持一致，見 i18n.ts 開頭的提醒。
+   */
+  protected tm(msg: LocalizedMessage | null): string | null {
+    if (msg === null) return null;
+    return this.t(msg.key as keyof Translations, msg.params ?? undefined);
   }
 
   protected refresh(): void {
@@ -360,10 +377,10 @@ export class App {
    */
   protected windows(item: UsageSummary): UsageWindow[] {
     const primary: UsageWindow = {
-      label: item.percentUsedLabel,
+      label: this.tm(item.percentUsedLabel),
       percent: item.percentUsed,
       state: item.usageState,
-      detail: item.detail,
+      detail: this.tm(item.detail),
     };
     if (item.secondaryPercentUsedLabel === null) {
       return [primary];
@@ -371,10 +388,10 @@ export class App {
     return [
       primary,
       {
-        label: item.secondaryPercentUsedLabel,
+        label: this.tm(item.secondaryPercentUsedLabel),
         percent: item.secondaryPercentUsed,
         state: item.secondaryUsageState ?? 'unknown',
-        detail: item.secondaryDetail,
+        detail: this.tm(item.secondaryDetail),
       },
     ];
   }
@@ -421,9 +438,7 @@ export class App {
           setTimeout(() => this.closeAddView(), 900);
         } else {
           this.addStatus.set('error');
-          // added.detail 是後端組的訊息（已經是中文，見 i18n.ts 開頭的已知限制），只有「完全沒有
-          // detail」這個 fallback 案例是前端自己的字串，才需要走翻譯表。
-          this.addResultMessage.set(added.detail ?? this.t('unknownAddFailure'));
+          this.addResultMessage.set(this.tm(added.detail) ?? this.t('unknownAddFailure'));
         }
         return;
       }

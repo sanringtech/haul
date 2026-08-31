@@ -29,7 +29,7 @@ public sealed class CodexUsageProvider : IUsageProvider
     {
         var auth = CodexAuthReader.Read();
         if (auth is null)
-            return Build(account, "not_configured", detail: "找不到 Codex 的登入憑證，請先執行 `codex login` 完成登入");
+            return Build(account, "not_configured", L(MessageKeys.CodexCredentialsNotFound));
 
         try
         {
@@ -40,23 +40,26 @@ public sealed class CodexUsageProvider : IUsageProvider
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build(account, "expired", detail: "ChatGPT 拒絕了目前的登入憑證，請執行一次 `codex login` 重新登入");
+                return Build(account, "expired", L(MessageKeys.CodexCredentialsRejected));
 
             if (!response.IsSuccessStatusCode)
-                return Build(account, "invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}");
+                return Build(account, "invalid", L(MessageKeys.HttpError, ("status", ((int)response.StatusCode).ToString())));
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var parsed = JsonSerializer.Deserialize<WhamUsageResponse>(body, JsonOptions);
             if (parsed?.RateLimit is null)
-                return Build(account, "invalid", detail: $"用量端點回應內容無法解析：{Truncate(body)}");
+                return Build(account, "invalid", L(MessageKeys.ParseError, ("body", Truncate(body))));
 
             return BuildFromUsage(account, parsed, settings);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build(account, "invalid", detail: $"呼叫用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", L(MessageKeys.CallFailed, ("message", ex.Message)));
         }
     }
+
+    private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
+        new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
 
     private UsageSummary BuildFromUsage(TrackedAccount account, WhamUsageResponse usage, AppSettings settings)
     {
@@ -66,8 +69,8 @@ public sealed class CodexUsageProvider : IUsageProvider
         double? primaryPct = usage.RateLimit!.PrimaryWindow?.UsedPercent;
         double? secondaryPct = usage.RateLimit.SecondaryWindow?.UsedPercent;
 
-        string? primaryDetail = usage.RateLimit.PrimaryWindow?.ResetAt is { } r1 ? $"{FormatResetLocal(r1)} 重置" : null;
-        string? secondaryDetail = usage.RateLimit.SecondaryWindow?.ResetAt is { } r2 ? $"{FormatResetLocal(r2)} 重置" : null;
+        LocalizedText? primaryDetail = usage.RateLimit.PrimaryWindow?.ResetAt is { } r1 ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(r1))) : null;
+        LocalizedText? secondaryDetail = usage.RateLimit.SecondaryWindow?.ResetAt is { } r2 ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(r2))) : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -79,10 +82,10 @@ public sealed class CodexUsageProvider : IUsageProvider
             IsEstimated: false, // official ChatGPT backend data now, not a local ccusage estimate
             AsOf: now,
             Detail: primaryDetail,
-            PercentUsedLabel: "5 小時",
+            PercentUsedLabel: L(MessageKeys.FiveHourLabel),
             SecondaryPercentUsed: secondaryPct,
             SecondaryUsageState: ClassifyState(secondaryPct, threshold),
-            SecondaryPercentUsedLabel: "7 天",
+            SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: secondaryDetail,
             AccountLabel: account.Label);
     }
@@ -107,7 +110,7 @@ public sealed class CodexUsageProvider : IUsageProvider
         }
     }
 
-    private UsageSummary Build(TrackedAccount account, string connectionState, string detail) => new(
+    private UsageSummary Build(TrackedAccount account, string connectionState, LocalizedText detail) => new(
         Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,

@@ -24,7 +24,7 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
         // Keyed by AccountId, not SourceId — that's what lets two DeepSeek accounts hold two different keys.
         var apiKey = secretStore.Get(account.AccountId);
         if (string.IsNullOrEmpty(apiKey))
-            return Build(account, "not_configured", null, null, "尚未設定 API key");
+            return Build(account, "not_configured", null, null, L(MessageKeys.ApiKeyNotConfigured));
 
         try
         {
@@ -33,10 +33,10 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build(account, "invalid", null, null, "API key 被拒絕（撤銷或格式錯誤）");
+                return Build(account, "invalid", null, null, L(MessageKeys.DeepSeekInvalidKey));
 
             if (!response.IsSuccessStatusCode)
-                return Build(account, "invalid", null, null, $"DeepSeek 回應錯誤：HTTP {(int)response.StatusCode}");
+                return Build(account, "invalid", null, null, L(MessageKeys.DeepSeekHttpError, ("status", ((int)response.StatusCode).ToString())));
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var parsed = JsonSerializer.Deserialize<DeepSeekBalanceResponse>(body, JsonOptions);
@@ -45,24 +45,27 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
                 // Include the raw body (truncated) instead of a bare "can't parse" — it's the
                 // user's own balance figures on their own machine, safe to surface, and the only
                 // way to actually debug a future schema mismatch without guessing again.
-                return Build(account, "invalid", null, null, $"DeepSeek 回應內容無法解析：{Truncate(body)}");
+                return Build(account, "invalid", null, null, L(MessageKeys.DeepSeekParseError, ("body", Truncate(body))));
 
             var threshold = settings.DeepSeekLowBalanceThresholdUsd;
             var usageState = !parsed!.IsAvailable ? "exceeded"
                 : threshold is { } t && balance <= t ? "near_limit"
                 : "normal";
 
-            return Build(account, "valid", usageState, null, $"剩餘額度 {info.Currency} {balance:N2}");
+            return Build(account, "valid", usageState, null, L(MessageKeys.DeepSeekBalance, ("currency", info.Currency), ("balance", balance.ToString("N2"))));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build(account, "invalid", null, null, $"呼叫 DeepSeek 用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", null, null, L(MessageKeys.DeepSeekCallFailed, ("message", ex.Message)));
         }
     }
 
     private static string Truncate(string s) => s.Length <= 200 ? s : s[..200] + "…";
 
-    private UsageSummary Build(TrackedAccount account, string connectionState, string? usageState, double? percentUsed, string detail) => new(
+    private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
+        new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
+
+    private UsageSummary Build(TrackedAccount account, string connectionState, string? usageState, double? percentUsed, LocalizedText detail) => new(
         Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,

@@ -29,10 +29,10 @@ public sealed class ClaudeUsageProvider : IUsageProvider
     {
         var token = ClaudeAuthReader.Read();
         if (token is null)
-            return Build(account, "not_configured", detail: "找不到 Claude Code 的登入憑證，請先執行 `claude` 完成登入");
+            return Build(account, "not_configured", L(MessageKeys.ClaudeCredentialsNotFound));
 
         if (ClaudeAuthReader.IsExpired(token))
-            return Build(account, "expired", detail: "登入憑證已過期，請執行一次 `claude` 讓它自動刷新");
+            return Build(account, "expired", L(MessageKeys.ClaudeCredentialsExpiredLocal));
 
         try
         {
@@ -43,26 +43,29 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build(account, "expired", detail: "Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入");
+                return Build(account, "expired", L(MessageKeys.ClaudeCredentialsRejected));
 
             if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests)
-                return Build(account, "invalid", detail: "請求太頻繁被 Anthropic 限流（HTTP 429），稍後再按重新整理即可，不是憑證壞了");
+                return Build(account, "invalid", L(MessageKeys.RateLimited, ("provider", "Anthropic")));
 
             if (!response.IsSuccessStatusCode)
-                return Build(account, "invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}");
+                return Build(account, "invalid", L(MessageKeys.HttpError, ("status", ((int)response.StatusCode).ToString())));
 
             var body = await response.Content.ReadAsStringAsync(ct);
             var parsed = JsonSerializer.Deserialize<AnthropicUsageResponse>(body, JsonOptions);
             if (parsed is null)
-                return Build(account, "invalid", detail: $"用量端點回應內容無法解析：{Truncate(body)}");
+                return Build(account, "invalid", L(MessageKeys.ParseError, ("body", Truncate(body))));
 
             return BuildFromUsage(account, parsed, settings);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build(account, "invalid", detail: $"呼叫用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", L(MessageKeys.CallFailed, ("message", ex.Message)));
         }
     }
+
+    private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
+        new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
 
     private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings)
     {
@@ -74,8 +77,8 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
         // Each window's caption stays with that window's own row in the UI — no more merging
         // "5h resets at X ・ 7d resets at Y" into one line the user has to parse apart themselves.
-        string? fiveHourDetail = usage.FiveHour?.ResetsAt is { } h5Reset ? $"{FormatResetLocal(h5Reset)} 重置" : null;
-        string? sevenDayDetail = usage.SevenDay?.ResetsAt is { } d7Reset ? $"{FormatResetLocal(d7Reset)} 重置" : null;
+        LocalizedText? fiveHourDetail = usage.FiveHour?.ResetsAt is { } h5Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(h5Reset))) : null;
+        LocalizedText? sevenDayDetail = usage.SevenDay?.ResetsAt is { } d7Reset ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(d7Reset))) : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -87,10 +90,10 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             IsEstimated: false, // official Anthropic data now, not a local estimate — constitution R3/I3 only requires the badge for estimates
             AsOf: now,
             Detail: fiveHourDetail,
-            PercentUsedLabel: "5 小時",
+            PercentUsedLabel: L(MessageKeys.FiveHourLabel),
             SecondaryPercentUsed: sevenDayPct,
             SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
-            SecondaryPercentUsedLabel: "7 天",
+            SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: sevenDayDetail,
             AccountLabel: account.Label);
     }
@@ -115,7 +118,7 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         }
     }
 
-    private UsageSummary Build(TrackedAccount account, string connectionState, string detail) => new(
+    private UsageSummary Build(TrackedAccount account, string connectionState, LocalizedText detail) => new(
         Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,

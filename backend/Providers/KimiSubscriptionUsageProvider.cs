@@ -40,7 +40,7 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
     {
         var accessToken = KimiCliAuthReader.Read();
         if (accessToken is null)
-            return Build(account, "not_configured", detail: "找不到 Kimi Code 的登入憑證，請先在 Kimi Code CLI 裡執行 `/login`");
+            return Build(account, "not_configured", L(MessageKeys.KimiSubCredentialsNotFound));
 
         try
         {
@@ -50,26 +50,29 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
 
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                return Build(account, "expired", detail: "Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`");
+                return Build(account, "expired", L(MessageKeys.KimiSubCredentialsRejected));
 
             if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests)
-                return Build(account, "invalid", detail: "請求太頻繁被 Kimi 限流（HTTP 429），稍後再按重新整理即可，不是憑證壞了");
+                return Build(account, "invalid", L(MessageKeys.RateLimited, ("provider", "Kimi")));
 
             var body = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
-                return Build(account, "invalid", detail: $"用量端點回應錯誤：HTTP {(int)response.StatusCode}　{Truncate(body)}");
+                return Build(account, "invalid", L(MessageKeys.KimiSubHttpErrorWithBody, ("status", ((int)response.StatusCode).ToString()), ("body", Truncate(body))));
 
             var parsed = JsonSerializer.Deserialize<KimiManagedUsageResponse>(body, JsonOptions);
             if (parsed?.Usage is null || parsed.Usage.Limit <= 0)
-                return Build(account, "invalid", detail: $"用量端點回應內容無法解析（未驗證過的端點，第一次遇到請把這段回傳貼給開發者）：{Truncate(body)}");
+                return Build(account, "invalid", L(MessageKeys.KimiSubParseErrorUnverified, ("body", Truncate(body))));
 
             return BuildFromUsage(account, parsed, settings);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return Build(account, "invalid", detail: $"呼叫用量端點失敗：{ex.Message}");
+            return Build(account, "invalid", L(MessageKeys.CallFailed, ("message", ex.Message)));
         }
     }
+
+    private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
+        new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
 
     private UsageSummary BuildFromUsage(TrackedAccount account, KimiManagedUsageResponse parsed, AppSettings settings)
     {
@@ -77,7 +80,7 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
         var usage = parsed.Usage!;
         var percent = usage.Limit > 0 ? Math.Min(100.0, usage.Used / usage.Limit * 100.0) : (double?)null;
 
-        string? detail = usage.ResetTime is { } resetIso ? $"{FormatResetLocal(resetIso)} 重置" : null;
+        LocalizedText? detail = usage.ResetTime is { } resetIso ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(resetIso))) : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -112,7 +115,7 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
         }
     }
 
-    private UsageSummary Build(TrackedAccount account, string connectionState, string detail) => new(
+    private UsageSummary Build(TrackedAccount account, string connectionState, LocalizedText detail) => new(
         Source: account.AccountId,
         DisplayName: DisplayName,
         SourceType: SourceType,

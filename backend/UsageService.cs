@@ -180,7 +180,7 @@ public sealed class UsageService
                 ConnectionState: "invalid",
                 IsEstimated: true,
                 AsOf: DateTime.Now.ToString("HH:mm:ss"),
-                Detail: $"未預期的錯誤：{ex.Message}",
+                Detail: new LocalizedText(MessageKeys.UnexpectedError, new Dictionary<string, string> { ["message"] = ex.Message }),
                 AccountLabel: account.Label);
         }
     }
