@@ -1,5 +1,5 @@
 <Solution>
   <Folder Name="/backend/">
-    <Project Path="backend/UsageMonitor.Desktop.csproj" />
+    <Project Path="backend/SanringMonitor.csproj" />
   </Folder>
 </Solution>
