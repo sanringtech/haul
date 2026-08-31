@@ -6,6 +6,7 @@
     <!-- logo.svg 是 public/ 底下的真實檔案（build 時複製到 wwwroot/browser/logo.svg），不是內嵌
          一堆 <rect>——跟 index.html 的 favicon 用同一份圖，同一套相對路徑解析，不用另外處理。 -->
     <img src="logo.svg" [alt]="title()" class="h-5 w-auto shrink-0" />
+    <span class="text-[10px] text-[var(--sanring-muted)] font-mono shrink-0">{{ appVersion }}</span>
     <!-- info/語言/主題原本因為要幫文字標題騰空間而搬進設定頁，現在標題文字整個拿掉了，header 空間
          夠用，搬回來——不用為了進設定頁再多點一層。 -->
     <div class="flex-1"></div>
