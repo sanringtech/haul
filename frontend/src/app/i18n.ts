@@ -116,6 +116,11 @@ export interface Translations {
   retention7d: string;
   saveSettings: string;
   settingsSaved: string;
+
+  // ── 關閉顯示 / 取消追蹤（PRD M4）──
+  hideSource: string;
+  unhideSource: string;
+  hiddenSourcesTitle: string;
 }
 
 export const translations: Record<Lang, Translations> = {
@@ -216,6 +221,10 @@ export const translations: Record<Lang, Translations> = {
     retention7d: '7 天',
     saveSettings: '儲存',
     settingsSaved: '設定已儲存',
+
+    hideSource: '關閉顯示',
+    unhideSource: '顯示',
+    hiddenSourcesTitle: '已隱藏的來源',
   },
   en: {
     connectedDesktop: 'Connected to desktop shell',
@@ -314,5 +323,9 @@ export const translations: Record<Lang, Translations> = {
     retention7d: '7 days',
     saveSettings: 'Save',
     settingsSaved: 'Settings saved',
+
+    hideSource: 'Hide',
+    unhideSource: 'Show',
+    hiddenSourcesTitle: 'Hidden sources',
   },
 };

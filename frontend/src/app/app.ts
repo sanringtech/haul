@@ -5,6 +5,8 @@ import {
   LucideCheck,
   LucideCircleAlert,
   LucideCircleCheck,
+  LucideEye,
+  LucideEyeOff,
   LucideGripVertical,
   LucideMoon,
   LucidePlus,
@@ -23,7 +25,7 @@ import { SpinnerComponent } from './components/ui/spinner';
 import { SkeletonDirective } from './components/ui/skeleton';
 import { SANRING_TOOLTIP_IMPORTS } from './components/ui/tooltip';
 import { Lang, LANG_STORAGE_KEY, Translations, translations } from './i18n';
-import { ConnectionState, LocalizedMessage, SourceType, UsageState, UsageSummary } from './shared/wire-types';
+import { ConnectionState, HiddenAccountEntry, LocalizedMessage, SourceType, UsageState, UsageSummary } from './shared/wire-types';
 
 type Theme = 'dark' | 'light';
 const THEME_STORAGE_KEY = 'sanring-usage-monitor:theme';
@@ -73,6 +75,8 @@ interface CatalogEntry {
     LucideCheck,
     LucideCircleAlert,
     LucideCircleCheck,
+    LucideEye,
+    LucideEyeOff,
     LucideGripVertical,
     LucideMoon,
     LucidePlus,
@@ -129,6 +133,9 @@ export class App {
   protected readonly draftRetentionDays = signal<number | null>(3);
   protected readonly draftNearLimitThreshold = signal<number>(80);
   protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
+
+  /** 「已隱藏的來源」清單，設定頁打開時才有意義——見 openSettingsView()。 */
+  protected readonly hiddenAccounts = signal<HiddenAccountEntry[]>([]);
 
   // ── 主題 / 語言：跟 sanring-theme.css 的 data-theme 屬性同一套模式，signal 一改當場生效，
   //    不用重載視窗。兩者都存 localStorage，預設值刻意跟改功能前的既有行為一致（深色 + 繁中），
@@ -215,13 +222,15 @@ export class App {
     this.view.set('list');
   }
 
-  /** 草稿預填目前 active 的值——不用另外打一次 get-settings，啟動時已經抓過了（見建構子）。 */
+  /** 草稿預填目前 active 的值——不用另外打一次 get-settings，啟動時已經抓過了（見建構子）。
+   * 「已隱藏的來源」清單則每次打開都重抓，因為主畫面拖曳/改名等操作期間可能已經有變動。 */
   protected openSettingsView(): void {
     this.view.set('settings');
     this.settingsSaveStatus.set('idle');
     this.draftRefreshInterval.set(this.refreshIntervalMinutes());
     this.draftRetentionDays.set(this.retentionDays());
     this.draftNearLimitThreshold.set(this.nearLimitThresholdPercent());
+    this.send({ type: 'get-hidden-accounts' });
   }
 
   protected closeSettingsView(): void {
@@ -298,6 +307,22 @@ export class App {
 
   protected cancelRemove(): void {
     this.pendingRemoval.set(null);
+  }
+
+  /**
+   * 關閉顯示（憲法 §8）——跟「取消追蹤」是兩個獨立操作：資料/Keychain 憑證都不動，只是不再顯示。
+   * 可逆、非破壞性，所以不用像取消追蹤那樣二次確認。本地先把卡片拿掉（樂觀更新），後端只是純
+   * 設定異動，不觸發任何 provider 的即時 API（見 Program.cs 的 set-visibility case 註解）。
+   */
+  protected hideSource(accountId: string): void {
+    this.summaries.set(this.summaries().filter((item) => item.source !== accountId));
+    this.sendSilent({ type: 'set-visibility', source: accountId, visible: false });
+  }
+
+  /** 重新顯示：這張卡片沒有任何快取資料，要等後端整批刷新回來才會出現在主畫面，不是樂觀更新。 */
+  protected unhideSource(accountId: string): void {
+    this.hiddenAccounts.set(this.hiddenAccounts().filter((a) => a.accountId !== accountId));
+    this.send({ type: 'set-visibility', source: accountId, visible: true });
   }
 
   /** 點名稱進入編輯：預填畫面上目前顯示的文字（自訂標籤，沒有的話就是 displayName 本身，例如 "Codex"）。 */
@@ -458,11 +483,17 @@ export class App {
         data?: UsageSummary[];
         catalog?: CatalogEntry[];
         settings?: UserSettingsWire;
+        hiddenAccounts?: HiddenAccountEntry[];
         error?: string;
       };
 
       if (payload.type === 'catalog' && payload.catalog) {
         this.catalog.set(payload.catalog);
+        return;
+      }
+
+      if (payload.type === 'hidden-accounts' && payload.hiddenAccounts) {
+        this.hiddenAccounts.set(payload.hiddenAccounts);
         return;
       }
 

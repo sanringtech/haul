@@ -92,7 +92,20 @@ async void OnWebMessageReceived(object? sender, string message)
 
             case "set-visibility" when request.Source is not null && request.Visible is not null:
                 usageService.SetVisibility(request.Source, request.Visible.Value);
-                await RespondWithSummaries();
+                if (request.Visible.Value)
+                {
+                    // 重新顯示：這張卡片被隱藏期間從沒抓過資料，前端沒有任何快取可用，等同新增後
+                    // 第一次要資料——直接整批刷新最簡單可靠，這不是高頻動作，成本可以接受。
+                    await RespondWithSummaries();
+                }
+                else
+                {
+                    // 關閉顯示：純本地設定異動，不用為了「拿掉一張卡片」重打任何 provider 的即時
+                    // API（跟 rename-account/reorder-accounts 同一個理由，見那兩個 case 的註解）。
+                    host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("ack", null, null), jsonOptions));
+                }
+                // 不管顯示或隱藏，設定頁如果開著都要跟著更新「已隱藏的來源」清單。
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("hidden-accounts", null, null, HiddenAccounts: usageService.GetHiddenAccounts()), jsonOptions));
                 break;
 
             // 排序/改名是純本地資料異動，不該像 add/remove/visibility 一樣觸發 RespondWithSummaries()
@@ -107,6 +120,10 @@ async void OnWebMessageReceived(object? sender, string message)
             case "reorder-accounts" when request.Order is not null:
                 usageService.ReorderAccounts(request.Order);
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("ack", null, null), jsonOptions));
+                break;
+
+            case "get-hidden-accounts":
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("hidden-accounts", null, null, HiddenAccounts: usageService.GetHiddenAccounts()), jsonOptions));
                 break;
 
             case "get-settings":
@@ -157,4 +174,5 @@ file sealed record HostResponse(
     UsageSummary[]? Data,
     string? Error,
     SourceCatalogEntry[]? Catalog = null,
-    UserSettings? Settings = null);
+    UserSettings? Settings = null,
+    HiddenAccountEntry[]? HiddenAccounts = null);

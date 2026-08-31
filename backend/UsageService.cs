@@ -17,6 +17,12 @@ public sealed record SourceCatalogEntry(string SourceId, string DisplayName, str
 public sealed record UserSettings(int? RefreshIntervalMinutes, int? RetentionDays, int NearLimitThresholdPercent);
 
 /// <summary>
+/// 「已隱藏的來源」列表要顯示的最小資訊——關閉顯示（憲法 §8）之後，帳號從 GetSummariesAsync() 消失，
+/// 得靠這個另外查才找得回來重新顯示。故意不查即時用量（隱藏中不需要），只給足夠辨識帳號的資訊。
+/// </summary>
+public sealed record HiddenAccountEntry(string AccountId, string DisplayName, string? AccountLabel, string SourceType);
+
+/// <summary>
 /// Orchestrates all <see cref="IUsageProvider"/>s (constitution R1: Claude/Codex/DeepSeek/Kimi) across
 /// however many <see cref="TrackedAccount"/>s the user has added (constitution R5: multi-account —
 /// api_key-type sources like DeepSeek/Kimi can have several accounts; subscription-type sources
@@ -126,6 +132,19 @@ public sealed class UsageService
         var settings = SettingsStore.Load();
         var changed = visible ? settings.HiddenAccountIds.Remove(accountId) : EnsureHidden(settings, accountId);
         if (changed) SettingsStore.Save(settings);
+    }
+
+    /// <summary>設定頁「已隱藏的來源」清單——找回被關閉顯示、但沒被取消追蹤（沒被刪除）的帳號。</summary>
+    public HiddenAccountEntry[] GetHiddenAccounts()
+    {
+        var settings = SettingsStore.Load();
+        return [.. settings.TrackedAccounts
+            .Where(a => settings.HiddenAccountIds.Contains(a.AccountId))
+            .Select(a =>
+            {
+                var provider = FindProvider(a.SourceId);
+                return new HiddenAccountEntry(a.AccountId, provider.DisplayName, a.Label, provider.SourceType);
+            })];
     }
 
     /// <summary>使用者自訂這個帳號的標籤（不動 displayName——那是 AI 類型，同類型每個帳號都一樣）。空字串視同清除。</summary>

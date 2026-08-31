@@ -44,3 +44,11 @@ export interface UsageSummary {
   /** 帳號副標題（例如 "DeepSeek #2"）——null 時代表這個來源目前只有單一帳號，不用另外標示。 */
   accountLabel: string | null;
 }
+
+/** Mirrors backend/UsageService.cs's HiddenAccountEntry — 「已隱藏的來源」列表用，不含即時用量。 */
+export interface HiddenAccountEntry {
+  accountId: string;
+  displayName: string;
+  accountLabel: string | null;
+  sourceType: SourceType;
+}

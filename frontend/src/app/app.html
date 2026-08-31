@@ -178,16 +178,31 @@
                 <button sanringBtn type="button" size="sm" variant="ghost" (click)="cancelRemove()">{{ t('cancel') }}</button>
               </div>
             } @else {
-              <button
-                sanringBtn
-                type="button"
-                size="sm"
-                variant="ghost"
-                class="self-start text-xs text-[var(--sanring-error-50)]"
-                (click)="requestRemove(item.source)"
-              >
-                {{ t('removeSource') }}
-              </button>
+              <!-- 關閉顯示 vs 取消追蹤：兩個獨立操作（憲法 §8）。前者可逆、不用二次確認；
+                   後者是永久刪除，維持上面既有的二次確認流程，視覺上（灰 vs 紅）也刻意區隔開。 -->
+              <div class="flex items-center gap-2">
+                <button
+                  sanringBtn
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  class="self-start text-xs text-[var(--sanring-muted)] inline-flex items-center gap-1"
+                  (click)="hideSource(item.source)"
+                >
+                  <svg lucideEyeOff class="size-3.5"></svg>
+                  {{ t('hideSource') }}
+                </button>
+                <button
+                  sanringBtn
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  class="self-start text-xs text-[var(--sanring-error-50)]"
+                  (click)="requestRemove(item.source)"
+                >
+                  {{ t('removeSource') }}
+                </button>
+              </div>
             }
           </sanring-card-content>
         </sanring-card>
@@ -387,5 +402,26 @@
       }
       {{ settingsSaveStatus() === 'saved' ? t('settingsSaved') : t('saveSettings') }}
     </button>
+
+    <!-- 只有真的有隱藏帳號才顯示這個區塊——空的話不用另外講「目前沒有隱藏的來源」湊版面 -->
+    @if (hiddenAccounts().length > 0) {
+      <div class="flex flex-col gap-2 pt-2 border-t border-[var(--sanring-border)]">
+        <label class="text-sm font-semibold">{{ t('hiddenSourcesTitle') }}</label>
+        <div class="flex flex-col gap-2">
+          @for (item of hiddenAccounts(); track item.accountId) {
+            <div class="flex items-center gap-2 rounded-[var(--sanring-radius)] border border-[var(--sanring-border)] p-2">
+              <span class="text-sm flex-1 truncate">{{ item.accountLabel ?? item.displayName }}</span>
+              <span sanringBadge variant="outline" class="text-[10px] px-1.5 py-0 shrink-0">
+                {{ item.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}
+              </span>
+              <button sanringBtn type="button" size="sm" variant="ghost" class="text-xs inline-flex items-center gap-1" (click)="unhideSource(item.accountId)">
+                <svg lucideEye class="size-3.5"></svg>
+                {{ t('unhideSource') }}
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
   }
 </main>
