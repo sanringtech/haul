@@ -27,6 +27,6 @@ cp -R "$APP_DIR" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 
 rm -f "$OUT_DMG"
-hdiutil create -volname "SanRing Usage Monitor" -srcfolder "$STAGING" -ov -format UDZO "$OUT_DMG"
+hdiutil create -volname "sanring Haul" -srcfolder "$STAGING" -ov -format UDZO "$OUT_DMG"
 
 echo "==> Wrote $OUT_DMG"
