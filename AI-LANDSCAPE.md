@@ -30,6 +30,31 @@
 2. 實測 `GET /api/usage?user={userId}` 的真實回應格式（目前只查到「有這個欄位」，沒查到完整 schema，跟當初查 Claude/Codex 端點前一樣，要拿自己帳號實測過才能寫 parser）
 3. 確認 cookie 格式的 token 會不會過期/要不要 refresh（跟 Q1 討論的 Claude 多帳號 refresh 問題是同一類風險）
 
+## Claude 多帳號自實作（不依賴 cswap）——查證結果（2026-09-01）
+
+使用者問「能不能自己寫一套取代 cswap」，直接讀本機安裝的 `claude-swap` 0.25.0 原始碼（pipx 裝的，路徑
+`~/Library/Application Support/pipx/venvs/claude-swap/lib/python3.14/site-packages/claude_swap/`）查證：
+
+**OAuth refresh 端點是真的，協定已經完整挖出來**（`oauth.py` `try_refresh_oauth_credentials`）：
+
+```
+POST https://platform.claude.com/v1/oauth/token
+Content-Type: application/json
+
+{"grant_type": "refresh_token", "refresh_token": "<存起來的>", "client_id": "9d1c250a-e61b-44d9-88ed-5944d1962f5e"}
+```
+
+回應：`access_token` + `expires_in`（秒）+ 可能換新的 `refresh_token`。`client_id` 是 Claude Code CLI 自己的公開
+OAuth client id（cswap 反查出來的常數，不用另外申請）。錯誤要分三種：`invalid_grant`（token 死了，要求重新登入，
+永久性）／`invalid_client`（我們自己的 client_id 被拒，跟帳號無關，不算這個 slot 的錯）／其他都當暫時性、值得重試。
+
+**這比重造整個 cswap 好做，因為 app 不需要 cswap 的核心功能（切換帳號）**——`switcher.py` 一支檔案就 7000+ 行，
+大部分是「讓某組帳號變成 Claude Code CLI 目前使用中的那組」這個功能，app 完全用不到，只需要「唯讀輪詢 N 組
+存起來的憑證各自的用量」。拆解後要做的：① 多組憑證快照存 Keychain（沿用 DeepSeek/Kimi 現有的 per-account 存法）
+② 上面這支 refresh 邏輯 ③ 用量查詢（`ClaudeUsageProvider` 現有邏輯直接套用，不用重寫）④ 簡化版錯誤分類（不用
+cswap 那套 strike/quarantine 機制）⑤ 新增帳號的 UI 流程（使用者自己在終端機切換登入，app 端「擷取目前這組」存
+快照）。**結論**：技術上不再是黑盒子，但仍是實質工程量，還沒動手实作，是否值得做取決於多帳號使用者的比例。
+
 ## Sources
 
 - [How can I check my requests per day remaining? · google-gemini/gemini-cli Discussion #3096](https://github.com/google-gemini/gemini-cli/discussions/3096)
