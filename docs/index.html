@@ -139,6 +139,31 @@
     line-height: 1.7;
   }
 
+  .features {
+    margin-top: 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    max-width: 640px;
+    width: 100%;
+  }
+  @media (max-width: 640px) {
+    .features { grid-template-columns: 1fr; max-width: 340px; gap: 1.25rem; }
+  }
+  .feature-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .feature-desc {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
   .status-pill {
     margin-top: 2.25rem;
     font-family: var(--font-display);
@@ -201,6 +226,22 @@
     background: var(--accent);
     border-radius: 999px;
     padding: 0.12rem 0.5rem;
+    flex-shrink: 0;
+  }
+  .preview-balance {
+    flex: 1;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+  }
+  .preview-state {
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--bg);
+    background: var(--success);
+    border-radius: 999px;
+    padding: 0.12rem 0.6rem;
     flex-shrink: 0;
   }
 
@@ -298,8 +339,23 @@
     <rect x="13" y="14" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="14" y="14" width="1" height="1" fill="var(--accent)" opacity="0.35"/>
   </svg>
 
-  <h1>Claude、Codex、DeepSeek、Kimi、Grok 用量<br><span class="accent">一次看完</span>，不用切五個分頁</h1>
+  <h1>Claude、Codex、DeepSeek、Kimi、Grok 用量<br><span class="accent">一次撈起來</span>，不用切五個分頁</h1>
   <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，把好幾個帳號的剩餘額度、重置時間一次撈進同一個畫面。v0.1.0 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
+
+  <div class="features">
+    <div class="feature">
+      <p class="feature-title">多帳號一起追</p>
+      <p class="feature-desc">Claude 透過 cswap 可以同時掛好幾個帳號，不用一個一個切換登入</p>
+    </div>
+    <div class="feature">
+      <p class="feature-title">看得到重置時間</p>
+      <p class="feature-desc">5 小時／7 天用量視窗各自的倒數與重置時刻，不用自己猜</p>
+    </div>
+    <div class="feature">
+      <p class="feature-title">資料留在你電腦</p>
+      <p class="feature-desc">帳號、設定、憑證全部存在本機，不上傳到任何伺服器</p>
+    </div>
+  </div>
 
   <p class="status-pill">v0.1.0 · 未簽章，開啟需手動繞過安全性警告</p>
 
@@ -322,6 +378,23 @@
       </div>
     </div>
     <div class="fleet"><span>Codex</span><span>DeepSeek</span><span>Kimi</span><span>Grok</span></div>
+  </div>
+
+  <!-- 第二張卡片刻意用「絕對餘額」樣式，不是進度條——app 裡這兩種卡片長得不一樣：Claude/Codex
+       這種訂閱制有百分比概念，DeepSeek/Kimi 這種 API key 制是查真實美金餘額，不畫假進度條。
+       兩張放在一起，一次讓人看懂 app 裡兩種「存取類型」實際長什麼樣。 -->
+  <div class="preview" role="img" aria-label="用量卡片預覽：DeepSeek，剩餘額度 25.30 美金，狀態正常">
+    <div class="preview-head">
+      <span class="preview-dot"></span>
+      <span class="preview-name">DeepSeek</span>
+      <span class="preview-badge">API key 制</span>
+    </div>
+    <div class="preview-rows">
+      <div class="preview-row">
+        <span class="preview-balance">剩餘額度 $25.30</span>
+        <span class="preview-state">正常</span>
+      </div>
+    </div>
   </div>
 
   <div class="platforms">
