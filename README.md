@@ -61,3 +61,5 @@ brew install --cask haul
 ## 待辦 / 進度
 
 依 PRD 里程碑：M1–M4 已完成，M5（Windows 打包驗證、系統匣圖示）進行中。完整開發歷程 → [`CHANGELOG.md`](CHANGELOG.md)。
+
+要新增新的 AI 來源之前，先看 [`AI-LANDSCAPE.md`](AI-LANDSCAPE.md)——已查證哪些 AI 的個人 API key/訂閱制有辦法查到用量、哪些是死路，不要重複查證過的東西。
