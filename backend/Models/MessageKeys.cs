@@ -52,4 +52,9 @@ public static class MessageKeys
     public const string KimiSubCredentialsRejected = "kimiSubCredentialsRejected";
     public const string KimiSubHttpErrorWithBody = "kimiSubHttpErrorWithBody";
     public const string KimiSubParseErrorUnverified = "kimiSubParseErrorUnverified";
+
+    // ── CursorUsageProvider（2026-09-01 新增，已實測，見 AI-LANDSCAPE.md）───────
+    public const string CursorCredentialsNotFound = "cursorCredentialsNotFound";
+    public const string CursorCredentialsExpiredLocal = "cursorCredentialsExpiredLocal";
+    public const string CursorCredentialsRejected = "cursorCredentialsRejected";
 }

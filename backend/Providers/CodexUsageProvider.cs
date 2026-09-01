@@ -89,7 +89,8 @@ public sealed class CodexUsageProvider : IUsageProvider
             SecondaryUsageState: ClassifyState(secondaryPct, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: secondaryDetail,
-            AccountLabel: account.Label);
+            AccountLabel: account.Label,
+            PlanLabel: FormatPlanLabel(usage.PlanType));
     }
 
     private static string ClassifyState(double? percent, int threshold) => percent switch
@@ -99,6 +100,10 @@ public sealed class CodexUsageProvider : IUsageProvider
         var p when p >= threshold => "near_limit",
         _ => "normal",
     };
+
+    private static string? FormatPlanLabel(string? value) => string.IsNullOrWhiteSpace(value)
+        ? null
+        : char.ToUpperInvariant(value.Trim()[0]) + value.Trim()[1..].ToLowerInvariant();
 
     private static string FormatResetLocal(long unixSeconds)
     {
@@ -143,6 +148,9 @@ internal sealed class WhamUsageResponse
 {
     [JsonPropertyName("email")]
     public string? Email { get; set; }
+
+    [JsonPropertyName("plan_type")]
+    public string? PlanType { get; set; }
 
     [JsonPropertyName("rate_limit")]
     public WhamRateLimit? RateLimit { get; set; }

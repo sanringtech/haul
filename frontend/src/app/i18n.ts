@@ -26,6 +26,10 @@ export interface Translations {
   addSource: string;
   addSourceAria: string;
   removeSource: string;
+  removeSourceTitle: string;
+  removeApiKeyDescription: string;
+  removeSubscriptionDescription: string;
+  keepSource: string;
   confirmRemoveText: string;
   confirmDelete: string;
   cancel: string;
@@ -82,6 +86,9 @@ export interface Translations {
   claudeCredentialsRejected: string;
   codexCredentialsNotFound: string;
   codexCredentialsRejected: string;
+  cursorCredentialsNotFound: string;
+  cursorCredentialsExpiredLocal: string;
+  cursorCredentialsRejected: string;
   deepSeekInvalidKey: string;
   deepSeekHttpError: string;
   deepSeekParseError: string;
@@ -140,6 +147,8 @@ export interface Translations {
   infoKimiSubBody: string;
   infoGrokTitle: string;
   infoGrokBody: string;
+  infoCursorTitle: string;
+  infoCursorBody: string;
   infoDisclaimerTitle: string;
   infoDisclaimerBody: string;
 }
@@ -155,6 +164,10 @@ export const translations: Record<Lang, Translations> = {
     addSource: '新增來源',
     addSourceAria: '新增來源',
     removeSource: '取消追蹤',
+    removeSourceTitle: '取消追蹤 {name}？',
+    removeApiKeyDescription: '將從 Haul 的追蹤清單移除此帳號，並清除 Haul 儲存在系統鑰匙圈中的這把 API KEY。不會刪除服務商帳號或遠端資料。',
+    removeSubscriptionDescription: '將從 Haul 的追蹤清單移除此帳號。不會登出 CLI，也不會刪除服務商帳號或遠端資料。',
+    keepSource: '保留',
     confirmRemoveText: '確定要取消追蹤？本機的資料會被刪除，無法復原',
     confirmDelete: '確定刪除',
     cancel: '取消',
@@ -162,8 +175,8 @@ export const translations: Record<Lang, Translations> = {
     estimatedTooltip: '本機推算值，非官方即時精確數字',
     dragHandleTitle: '拖曳調整順序',
     renameTitle: '點一下改名',
-    subscriptionType: '訂閱制',
-    apiKeyType: 'API key 制',
+    subscriptionType: '訂閱',
+    apiKeyType: 'API KEY',
     windowUsageTooltip: '{label} 視窗內已用掉的比例',
     currentUsageTooltip: '目前用量狀態',
     noDataYet: '尚無資料',
@@ -178,13 +191,13 @@ export const translations: Record<Lang, Translations> = {
     apiKeySectionDesc: '可以新增多個帳號，各自獨立，不會互相覆蓋',
     tracked: '已追蹤',
     changeOne: '換一個',
-    pasteApiKey: '貼上 {name} API key',
+    pasteApiKey: '貼上 {name} API KEY',
     addBtn: '新增',
     noInputNeeded: '不需要輸入任何東西——按下面的按鈕，讓工具去讀本機的登入資訊。',
     detecting: '偵測中…',
     startDetect: '開始偵測',
     done: '完成，返回列表',
-    pleaseEnterApiKey: '請先輸入 API key',
+    pleaseEnterApiKey: '請先輸入 API KEY',
     unknownAddFailure: '新增失敗，原因不明',
     hostNotConnected: '未連接到桌面殼層（用 ng serve 純前端開發時無法呼叫 C# 後端）',
     addedSuccess: '已新增 {name}',
@@ -202,7 +215,7 @@ export const translations: Record<Lang, Translations> = {
     windowReset: '{time} 重置',
     fiveHourLabel: '5 小時',
     sevenDayLabel: '7 天',
-    apiKeyNotConfigured: '尚未設定 API key',
+    apiKeyNotConfigured: '尚未設定 API KEY',
     rateLimited: '請求太頻繁被 {provider} 限流（HTTP 429），稍後再按重新整理即可，不是憑證壞了',
     unexpectedError: '未預期的錯誤：{message}',
     claudeCredentialsNotFound: '找不到 Claude Code 的登入憑證，請先執行 `claude` 完成登入',
@@ -210,12 +223,15 @@ export const translations: Record<Lang, Translations> = {
     claudeCredentialsRejected: 'Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入',
     codexCredentialsNotFound: '找不到 Codex 的登入憑證，請先執行 `codex login` 完成登入',
     codexCredentialsRejected: 'ChatGPT 拒絕了目前的登入憑證，請執行一次 `codex login` 重新登入',
-    deepSeekInvalidKey: 'API key 被拒絕（撤銷或格式錯誤）',
+    cursorCredentialsNotFound: '找不到 Cursor 的登入 session，請先打開 Cursor 完成登入',
+    cursorCredentialsExpiredLocal: '登入憑證已過期，請打開 Cursor 讓它自動刷新',
+    cursorCredentialsRejected: 'Cursor 拒絕了目前的登入憑證，請重新打開 Cursor 登入',
+    deepSeekInvalidKey: 'API KEY 被拒絕（撤銷或格式錯誤）',
     deepSeekHttpError: 'DeepSeek 回應錯誤：HTTP {status}',
     deepSeekParseError: 'DeepSeek 回應內容無法解析：{body}',
     deepSeekBalance: '剩餘額度 {currency} {balance}',
     deepSeekCallFailed: '呼叫 DeepSeek 用量端點失敗：{message}',
-    kimiInvalidKey: 'API key 被拒絕（撤銷、格式錯誤，或這是 platform.kimi.ai 而非 moonshot.ai 發的 key）',
+    kimiInvalidKey: 'API KEY 被拒絕（撤銷、格式錯誤，或這是 platform.kimi.ai 而非 moonshot.ai 發的 API KEY）',
     kimiHttpError: 'Kimi 回應錯誤：HTTP {status}',
     kimiParseError: 'Kimi 回應內容無法解析或回報失敗：{body}',
     kimiBalance: '剩餘額度 {balance}',
@@ -237,7 +253,7 @@ export const translations: Record<Lang, Translations> = {
     refreshIntervalLabel: '自動刷新頻率',
     retentionLabel: '歷史資料保留期',
     retentionNote: '目前只會儲存這個值——這個 app 還沒有實際的歷史用量清除功能，設定了也不會有任何效果',
-    nearLimitLabel: '接近上限閾值',
+    nearLimitLabel: '用量達到多少時提醒',
     manualOnly: '純手動',
     interval5m: '5 分鐘',
     interval1h: '1 小時',
@@ -258,12 +274,14 @@ export const translations: Record<Lang, Translations> = {
     infoClaudeBody: '支援多帳號。有安裝選用工具 cswap（claude-swap）時，會自動偵測並同時追蹤所有登入的帳號；沒有安裝則只能看到目前登入中的那一個。',
     infoCodexTitle: 'Codex',
     infoCodexBody: '目前只支援單一帳號。官方 Codex CLI 還沒有多帳號功能（OpenAI 尚未實作，見官方 issue #4432）；市面上雖然有幾個第三方切換工具，但機制都是「切換目前登入的帳號」而非唯讀查詢多個帳號，牽涉的風險比 Claude 那邊高，目前沒有整合。',
-    infoApiKeyTitle: 'DeepSeek / Kimi（API key 制）',
-    infoApiKeyBody: '原生支援多個帳號，各自用獨立的 API key，互不影響，隨時可以新增。',
-    infoKimiSubTitle: 'Kimi（訂閱制）',
+    infoApiKeyTitle: 'DeepSeek / Kimi（API KEY）',
+    infoApiKeyBody: '原生支援多個帳號，各自用獨立的 API KEY，互不影響，隨時可以新增。',
+    infoKimiSubTitle: 'Kimi（訂閱）',
     infoKimiSubBody: '單一帳號，讀取本機 Kimi Code CLI 的登入 session。⚠️ 這條路徑目前尚未經過真實帳號驗證，第一次使用如果卡住請把錯誤訊息回報給開發者。',
     infoGrokTitle: 'Grok',
-    infoGrokBody: '目前不支援 API key 制（xAI 官方沒有對應的查詢端點）；訂閱制走本機估算（ccusage grok）。官方訂閱制端點雖然已經查到，但認證複雜、不確定性偏高，暫時沒有實作。',
+    infoGrokBody: '目前不支援 API KEY（xAI 官方沒有對應的查詢端點）；訂閱走本機估算（ccusage grok）。官方訂閱端點雖然已經查到，但認證複雜、不確定性偏高，暫時沒有實作。',
+    infoCursorTitle: 'Cursor',
+    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session（存在 SQLite，不是 Keychain）。已用真實帳號驗證過，用量百分比是「花費 / 方案額度」算出來的，不是直接顯示官方回應裡的原始欄位（那個欄位量的是別的東西）。',
     infoDisclaimerTitle: '關於非公開端點',
     infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
   },
@@ -277,6 +295,10 @@ export const translations: Record<Lang, Translations> = {
     addSource: 'Add source',
     addSourceAria: 'Add source',
     removeSource: 'Remove',
+    removeSourceTitle: 'Stop tracking {name}?',
+    removeApiKeyDescription: "This account will be removed from Haul's tracking list, and its API KEY will be removed from the system keychain. Your provider account and remote data will not be affected.",
+    removeSubscriptionDescription: "This account will be removed from Haul's tracking list. You will not be signed out of the CLI, and your provider account and remote data will not be affected.",
+    keepSource: 'Keep',
     confirmRemoveText: 'Remove this account? Local data will be deleted and cannot be recovered',
     confirmDelete: 'Confirm delete',
     cancel: 'Cancel',
@@ -285,7 +307,7 @@ export const translations: Record<Lang, Translations> = {
     dragHandleTitle: 'Drag to reorder',
     renameTitle: 'Click to rename',
     subscriptionType: 'Subscription',
-    apiKeyType: 'API key',
+    apiKeyType: 'API KEY',
     windowUsageTooltip: '{label} window usage percentage',
     currentUsageTooltip: 'Current usage status',
     noDataYet: 'No data yet',
@@ -300,13 +322,13 @@ export const translations: Record<Lang, Translations> = {
     apiKeySectionDesc: 'You can add several accounts, each independent — none overwrites another',
     tracked: 'Tracked',
     changeOne: 'Change',
-    pasteApiKey: 'Paste {name} API key',
+    pasteApiKey: 'Paste {name} API KEY',
     addBtn: 'Add',
     noInputNeeded: 'Nothing to type — press the button below and this tool will read your local login info.',
     detecting: 'Detecting…',
     startDetect: 'Start detecting',
     done: 'Done, back to list',
-    pleaseEnterApiKey: 'Please enter an API key first',
+    pleaseEnterApiKey: 'Please enter an API KEY first',
     unknownAddFailure: 'Failed to add, reason unknown',
     hostNotConnected: "Not connected to the desktop shell (can't reach the C# backend when running frontend-only via ng serve)",
     addedSuccess: 'Added {name}',
@@ -324,7 +346,7 @@ export const translations: Record<Lang, Translations> = {
     windowReset: 'Resets at {time}',
     fiveHourLabel: '5h',
     sevenDayLabel: '7d',
-    apiKeyNotConfigured: 'API key not configured yet',
+    apiKeyNotConfigured: 'API KEY not configured yet',
     rateLimited: "Too many requests — rate-limited by {provider} (HTTP 429). Just try refreshing again later, your credentials are fine.",
     unexpectedError: 'Unexpected error: {message}',
     claudeCredentialsNotFound: "Couldn't find Claude Code's login credentials — run `claude` to log in first",
@@ -332,12 +354,15 @@ export const translations: Record<Lang, Translations> = {
     claudeCredentialsRejected: 'Anthropic rejected the current login credentials — run `claude` once to log in again',
     codexCredentialsNotFound: "Couldn't find Codex's login credentials — run `codex login` to log in first",
     codexCredentialsRejected: 'ChatGPT rejected the current login credentials — run `codex login` once to log in again',
-    deepSeekInvalidKey: 'API key was rejected (revoked or malformed)',
+    cursorCredentialsNotFound: "Couldn't find a Cursor login session — open Cursor and log in first",
+    cursorCredentialsExpiredLocal: 'Login credentials have expired — open Cursor once to let it refresh automatically',
+    cursorCredentialsRejected: 'Cursor rejected the current login credentials — open Cursor and log in again',
+    deepSeekInvalidKey: 'API KEY was rejected (revoked or malformed)',
     deepSeekHttpError: 'DeepSeek returned an error: HTTP {status}',
     deepSeekParseError: "Could not parse DeepSeek's response: {body}",
     deepSeekBalance: 'Remaining balance {currency} {balance}',
     deepSeekCallFailed: "Failed to call DeepSeek's usage endpoint: {message}",
-    kimiInvalidKey: 'API key was rejected (revoked, malformed, or this is a platform.kimi.ai key rather than moonshot.ai)',
+    kimiInvalidKey: 'API KEY was rejected (revoked, malformed, or this is a platform.kimi.ai API KEY rather than moonshot.ai)',
     kimiHttpError: 'Kimi returned an error: HTTP {status}',
     kimiParseError: "Could not parse Kimi's response, or it reported failure: {body}",
     kimiBalance: 'Remaining balance {balance}',
@@ -359,7 +384,7 @@ export const translations: Record<Lang, Translations> = {
     refreshIntervalLabel: 'Auto-refresh interval',
     retentionLabel: 'History retention',
     retentionNote: "This is currently just stored — this app doesn't have an actual history-pruning feature yet, so setting it has no effect",
-    nearLimitLabel: 'Near-limit threshold',
+    nearLimitLabel: 'Warn when usage reaches',
     manualOnly: 'Manual only',
     interval5m: '5 min',
     interval1h: '1 hour',
@@ -380,12 +405,14 @@ export const translations: Record<Lang, Translations> = {
     infoClaudeBody: 'Supports multiple accounts. If the optional cswap (claude-swap) tool is installed, all logged-in accounts are detected and tracked automatically; otherwise only the currently logged-in one is shown.',
     infoCodexTitle: 'Codex',
     infoCodexBody: "Currently single-account only. The official Codex CLI has no multi-account support yet (OpenAI hasn't built this — see official issue #4432). A few third-party switcher tools exist, but they work by changing which account is actively logged in rather than reading multiple accounts non-destructively, carrying more risk than the Claude approach — not integrated for now.",
-    infoApiKeyTitle: 'DeepSeek / Kimi (API key)',
-    infoApiKeyBody: 'Natively supports multiple accounts, each with its own independent API key — add as many as you like.',
+    infoApiKeyTitle: 'DeepSeek / Kimi (API KEY)',
+    infoApiKeyBody: 'Natively supports multiple accounts, each with its own independent API KEY — add as many as you like.',
     infoKimiSubTitle: 'Kimi (Subscription)',
     infoKimiSubBody: "Single account, reads the local Kimi Code CLI's login session. ⚠️ This path hasn't been verified against a real account yet — if it gets stuck on first use, please report the error message to the developer.",
     infoGrokTitle: 'Grok',
-    infoGrokBody: "API key mode isn't supported (xAI has no corresponding query endpoint); subscription mode uses a local estimate (ccusage grok). An official subscription endpoint was found but its complexity/uncertainty is high, so it hasn't been implemented yet.",
+    infoGrokBody: "API KEY isn't supported (xAI has no corresponding query endpoint); subscription uses a local estimate (ccusage grok). An official subscription endpoint was found but its complexity/uncertainty is high, so it hasn't been implemented yet.",
+    infoCursorTitle: 'Cursor',
+    infoCursorBody: "Single account, reads the local Cursor login session (stored in SQLite, not the Keychain). Verified against a real account — the usage percentage is computed as spend / plan limit, not read directly from the response's own percentage field (which measures something else).",
     infoDisclaimerTitle: 'About undocumented endpoints',
     infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
   },

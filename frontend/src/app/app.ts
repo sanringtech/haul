@@ -17,6 +17,7 @@ import {
   LucideSave,
   LucideSettings,
   LucideSun,
+  LucideTrash2,
 } from '@lucide/angular';
 import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
@@ -25,6 +26,7 @@ import { InputDirective } from './components/ui/input';
 import { SliderComponent } from './components/ui/slider';
 import { SANRING_CARD_IMPORTS } from './components/ui/card';
 import { SANRING_ALERT_IMPORTS } from './components/ui/alert';
+import { SANRING_ALERT_DIALOG_IMPORTS } from './components/ui/alert-dialog';
 import { SpinnerComponent } from './components/ui/spinner';
 import { SkeletonDirective } from './components/ui/skeleton';
 import { SANRING_TOOLTIP_IMPORTS } from './components/ui/tooltip';
@@ -91,8 +93,10 @@ interface CatalogEntry {
     LucideSave,
     LucideSettings,
     LucideSun,
+    LucideTrash2,
     ...SANRING_CARD_IMPORTS,
     ...SANRING_ALERT_IMPORTS,
+    ...SANRING_ALERT_DIALOG_IMPORTS,
     ...SANRING_TOOLTIP_IMPORTS,
   ],
   styleUrl: './app.css',
@@ -110,9 +114,6 @@ export class App {
   protected readonly isLoading = signal(false);
   /** Shown once next to the refresh button instead of once per card — every card's `asOf` is effectively the same refresh instant. */
   protected readonly lastRefreshedAt = signal<string | null>(null);
-
-  /** Which source is mid "取消追蹤" confirmation (constitution §8: must be a deliberate 2-step action). */
-  protected readonly pendingRemoval = signal<string | null>(null);
 
   /** Which account's label is currently showing an edit input, and its in-progress value. */
   protected readonly editingLabelAccountId = signal<string | null>(null);
@@ -319,21 +320,13 @@ export class App {
     this.addStatus.set('pending');
     this.addResultMessage.set(null);
     const apiKey = entry.sourceType === 'api_key' ? this.addApiKey().trim() : undefined;
+    if (apiKey !== undefined) this.addApiKey.set(apiKey);
     this.send({ type: 'add-source', source: entry.sourceId, credential: apiKey ? { apiKey } : undefined });
   }
 
-  /** First click arms the confirmation, second click (on the same source) actually removes it. */
-  protected requestRemove(sourceId: string): void {
-    if (this.pendingRemoval() === sourceId) {
-      this.send({ type: 'remove-source', source: sourceId });
-      this.pendingRemoval.set(null);
-    } else {
-      this.pendingRemoval.set(sourceId);
-    }
-  }
-
-  protected cancelRemove(): void {
-    this.pendingRemoval.set(null);
+  /** Alert Dialog 已處理二次確認；只有彈窗的破壞性按鈕會呼叫這個方法。 */
+  protected removeSource(sourceId: string): void {
+    this.send({ type: 'remove-source', source: sourceId });
   }
 
   /**

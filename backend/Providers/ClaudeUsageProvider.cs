@@ -94,7 +94,7 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             if (parsed is null)
                 return Build(account, "invalid", L(MessageKeys.ParseError, ("body", Truncate(body))));
 
-            return BuildFromUsage(account, parsed, settings);
+            return BuildFromUsage(account, parsed, settings, FormatPlanLabel(token.SubscriptionType));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -199,7 +199,7 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             AccountLabel: account.Label);
     }
 
-    private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings)
+    private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings, string? planLabel = null)
     {
         var threshold = settings.NearLimitThresholdPercent;
         var now = DateTime.Now.ToString("HH:mm:ss");
@@ -229,7 +229,8 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: sevenDayDetail,
-            AccountLabel: account.Label);
+            AccountLabel: account.Label,
+            PlanLabel: planLabel);
     }
 
     private static string ClassifyState(double? percent, int threshold) => percent switch
@@ -239,6 +240,10 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         var p when p >= threshold => "near_limit",
         _ => "normal",
     };
+
+    private static string? FormatPlanLabel(string? value) => string.IsNullOrWhiteSpace(value)
+        ? null
+        : char.ToUpperInvariant(value.Trim()[0]) + value.Trim()[1..].ToLowerInvariant();
 
     private static string FormatResetLocal(string isoUtc)
     {

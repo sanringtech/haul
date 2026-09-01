@@ -143,6 +143,9 @@
             <span sanringBadge variant="outline" class="text-[9px] px-1 py-0 shrink-0">
               {{ item.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}
             </span>
+            @if (item.planLabel) {
+              <span sanringBadge variant="secondary" class="text-[9px] px-1 py-0 shrink-0">{{ item.planLabel }}</span>
+            }
             <button type="button" class="shrink-0 text-[var(--sanring-muted)] hover:text-[var(--sanring-foreground)]" [title]="t('widgetQuit')" (click)="quit()">
               <svg lucideX class="size-3.5"></svg>
             </button>

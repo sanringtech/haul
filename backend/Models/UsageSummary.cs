@@ -26,5 +26,6 @@ public sealed record UsageSummary(
     string? SecondaryUsageState = null,
     LocalizedText? SecondaryPercentUsedLabel = null,
     LocalizedText? SecondaryDetail = null,       // caption for the SECONDARY window — kept separate from Detail so the UI can put each window's caption under its own progress bar instead of one merged line
-    string? AccountLabel = null           // 帳號副標題（例如 "DeepSeek #2"）— null 時前端不顯示副標題列，維持單帳號來源原本的乾淨畫面
+    string? AccountLabel = null,          // 帳號副標題（例如 "DeepSeek #2"）— null 時前端不顯示副標題列，維持單帳號來源原本的乾淨畫面
+    string? PlanLabel = null              // 只放簡短方案名（Max / Pro / Plus）；無法可靠偵測時為 null，不猜測
 );

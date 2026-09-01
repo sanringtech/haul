@@ -148,10 +148,13 @@
                 }
               </div>
               <!-- 存取類型 badge：純顯示、不可點擊改字，跟上面可改名的標題分開——同一個 AI 類型
-                   可能同時有訂閱制+API key 制兩張卡（例如兩個都叫 "Kimi"），靠這個分辨是哪一種 -->
+                   可能同時有訂閱+API KEY 兩張卡（例如兩個都叫 "Kimi"），靠這個分辨是哪一種 -->
               <span sanringBadge variant="outline" class="text-[10px] px-1.5 py-0 shrink-0">
                 {{ sourceTypeLabel(item.sourceType) }}
               </span>
+              @if (item.planLabel) {
+                <span sanringBadge variant="secondary" class="text-[10px] px-1.5 py-0 shrink-0">{{ item.planLabel }}</span>
+              }
               @if (item.isEstimated) {
                 <sanring-tooltip>
                   <span sanringTooltipTrigger sanringBadge variant="outline" class="text-[10px] px-1.5 py-0">{{ t('estimated') }}</span>
@@ -198,40 +201,60 @@
               </div>
             }
 
-            @if (pendingRemoval() === item.source) {
-              <!-- 取消追蹤二次確認：憲法 §8 — 會整個刪除本機的 key/歷史資料，不可逆 -->
-              <div class="flex items-center gap-2 pt-1 text-xs">
-                <span class="text-[var(--sanring-error-50)] flex-1">{{ t('confirmRemoveText') }}</span>
-                <button sanringBtn type="button" size="sm" variant="destructive" (click)="requestRemove(item.source)">{{ t('confirmDelete') }}</button>
-                <button sanringBtn type="button" size="sm" variant="ghost" (click)="cancelRemove()">{{ t('cancel') }}</button>
-              </div>
-            } @else {
-              <!-- 關閉顯示 vs 取消追蹤：兩個獨立操作（憲法 §8）。前者可逆、不用二次確認；
-                   後者是永久刪除，維持上面既有的二次確認流程，視覺上（灰 vs 紅）也刻意區隔開。 -->
-              <div class="flex items-center gap-2">
+            <!-- 操作區維持原本在卡片內容底部的位置，只將文字按鈕改成 icon + tooltip。 -->
+            <div class="flex items-center gap-2">
+              <sanring-tooltip>
                 <button
                   sanringBtn
+                  sanringTooltipTrigger
                   type="button"
                   size="sm"
                   variant="ghost"
-                  class="self-start text-xs text-[var(--sanring-muted)] inline-flex items-center gap-1"
+                  class="h-9 w-9 shrink-0 p-0 text-[var(--sanring-muted)]"
+                  [attr.aria-label]="t('hideSource')"
                   (click)="hideSource(item.source)"
                 >
-                  <svg lucideEyeOff class="size-3.5"></svg>
-                  {{ t('hideSource') }}
+                  <svg lucideEyeOff class="size-4"></svg>
                 </button>
+                <sanring-tooltip-content>{{ t('hideSource') }}</sanring-tooltip-content>
+              </sanring-tooltip>
+              <sanring-tooltip>
                 <button
                   sanringBtn
+                  sanringTooltipTrigger
                   type="button"
                   size="sm"
                   variant="ghost"
-                  class="self-start text-xs text-[var(--sanring-error-50)]"
-                  (click)="requestRemove(item.source)"
+                  class="h-9 w-9 shrink-0 p-0 text-[var(--sanring-muted)] hover:text-[var(--sanring-error-50)] focus-visible:text-[var(--sanring-error-50)]"
+                  [attr.aria-label]="t('removeSource')"
+                  [sanringAlertDialogTrigger]="removeDialog"
                 >
-                  {{ t('removeSource') }}
+                  <svg lucideTrash2 class="size-4"></svg>
                 </button>
-              </div>
-            }
+                <sanring-tooltip-content>{{ t('removeSource') }}</sanring-tooltip-content>
+              </sanring-tooltip>
+            </div>
+
+            <ng-template #removeDialog>
+              <sanring-alert-dialog-content>
+                <sanring-dialog-header>
+                  <h2 sanringDialogTitle>{{ t('removeSourceTitle', { name: item.accountLabel ?? item.displayName }) }}</h2>
+                  <p sanringDialogDescription>
+                    {{ t(item.sourceType === 'api_key' ? 'removeApiKeyDescription' : 'removeSubscriptionDescription') }}
+                  </p>
+                </sanring-dialog-header>
+                <sanring-dialog-footer>
+                  <button sanringBtn type="button" variant="secondary" sanringAlertDialogCancel>{{ t('keepSource') }}</button>
+                  <button
+                    sanringBtn
+                    type="button"
+                    variant="destructive"
+                    sanringAlertDialogAction
+                    (click)="removeSource(item.source)"
+                  >{{ t('removeSource') }}</button>
+                </sanring-dialog-footer>
+              </sanring-alert-dialog-content>
+            </ng-template>
           </sanring-card-content>
         </sanring-card>
       } @empty {
@@ -304,7 +327,7 @@
     </div>
 
     @if (!addSelectedSourceId()) {
-      <!-- 第一層：選 AI 類型，依存取類型分兩區——同一個 AI 之後如果同時有訂閱制+API key 制
+      <!-- 第一層：選 AI 類型，依存取類型分兩區——同一個 AI 之後如果同時有訂閱+API KEY
            （例如 Claude），會分別出現在兩區裡，不是同一顆按鈕。每區用邊框卡起來加強分區感。 -->
       @if (catalog().length === 0) {
         <p class="text-xs text-[var(--sanring-muted)]">{{ t('loadingEllipsis') }}</p>
@@ -351,7 +374,7 @@
       }
     } @else {
       <!-- 第二層：存取類型（目前每個 AI 類型都只對到一種，先顯示唯讀資訊，不是真的可選的下拉選單——
-           等多帳號重構做完、同一 AI 類型可能同時有訂閱制+API key 制時，這裡才會變成真的選單 -->
+           等多帳號重構做完、同一 AI 類型可能同時有訂閱+API KEY 時，這裡才會變成真的選單 -->
       <div class="flex items-center gap-2 text-xs text-[var(--sanring-muted)]">
         <span>{{ addSelectedEntry()?.displayName }}</span>
         <span>·</span>
@@ -362,7 +385,7 @@
       </div>
 
       @if (addSelectedEntry()?.sourceType === 'api_key') {
-        <!-- API key 制：輸入框很單純 -->
+        <!-- API KEY：輸入框很單純 -->
         <div class="flex flex-col gap-2">
           <input
             sanringInput
@@ -381,7 +404,7 @@
           </button>
         </div>
       } @else {
-        <!-- 訂閱制：沒有東西好打，只能請後端去偵測本機有沒有登入過 -->
+        <!-- 訂閱：沒有東西好打，只能請後端去偵測本機有沒有登入過 -->
         <div class="flex flex-col gap-2">
           <p class="text-xs text-[var(--sanring-muted)]">
             {{ t('noInputNeeded') }}
@@ -412,39 +435,38 @@
     }
   } @else if (view() === 'settings') {
     <!-- ── 設定頁（PRD M3）─────────────────────────────────────────── -->
-    <div class="flex flex-col gap-1">
-      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeSettingsView()">
+    <div class="flex flex-col gap-4 mb-1">
+      <button sanringBtn type="button" size="sm" variant="secondary" class="self-start inline-flex items-center gap-1.5" (click)="closeSettingsView()">
         <svg lucideArrowLeft class="size-4"></svg>
         {{ t('back') }}
       </button>
       <h2 class="text-lg font-semibold">{{ t('settingsTitle') }}</h2>
     </div>
 
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <label class="text-sm font-semibold">{{ t('refreshIntervalLabel') }}</label>
       <div class="flex flex-wrap gap-2">
-        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 5 ? 'default' : 'outline'" (click)="selectRefreshInterval(5)">{{ t('interval5m') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 60 ? 'default' : 'outline'" (click)="selectRefreshInterval(60)">{{ t('interval1h') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 120 ? 'default' : 'outline'" (click)="selectRefreshInterval(120)">{{ t('interval2h') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === null ? 'default' : 'outline'" (click)="selectRefreshInterval(null)">{{ t('manualOnly') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 5 ? 'default' : 'secondary'" (click)="selectRefreshInterval(5)">{{ t('interval5m') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 60 ? 'default' : 'secondary'" (click)="selectRefreshInterval(60)">{{ t('interval1h') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === 120 ? 'default' : 'secondary'" (click)="selectRefreshInterval(120)">{{ t('interval2h') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRefreshInterval() === null ? 'default' : 'secondary'" (click)="selectRefreshInterval(null)">{{ t('manualOnly') }}</button>
       </div>
     </div>
 
-    <!-- pt-4 + border-t：三組設定分屬不同關注點，光靠外層 gap-4 擠在一起分不太出來是三組，
-         加一條分隔線讓「組跟組之間」明顯比「組內標籤跟按鈕之間」寬，看起來才不會太擁擠 -->
-    <div class="flex flex-col gap-2 pt-4 border-t border-[var(--sanring-border)]">
+    <!-- 每組設定都是獨立 surface：背景、邊框與內距共同建立區域性，不只靠分隔線。 -->
+    <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <label class="text-sm font-semibold">{{ t('retentionLabel') }}</label>
       <div class="flex flex-wrap gap-2">
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 3 ? 'default' : 'outline'" (click)="selectRetentionDays(3)">{{ t('retention3d') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 5 ? 'default' : 'outline'" (click)="selectRetentionDays(5)">{{ t('retention5d') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 7 ? 'default' : 'outline'" (click)="selectRetentionDays(7)">{{ t('retention7d') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === null ? 'default' : 'outline'" (click)="selectRetentionDays(null)">{{ t('manualOnly') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 3 ? 'default' : 'secondary'" (click)="selectRetentionDays(3)">{{ t('retention3d') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 5 ? 'default' : 'secondary'" (click)="selectRetentionDays(5)">{{ t('retention5d') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 7 ? 'default' : 'secondary'" (click)="selectRetentionDays(7)">{{ t('retention7d') }}</button>
+        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === null ? 'default' : 'secondary'" (click)="selectRetentionDays(null)">{{ t('manualOnly') }}</button>
       </div>
       <!-- 誠實揭露：這個 app 目前沒有歷史用量序列可以清除，這個設定存了但沒有任何實際效果 -->
       <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('retentionNote') }}</p>
     </div>
 
-    <div class="flex flex-col gap-2 pt-4 border-t border-[var(--sanring-border)]">
+    <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <div class="flex items-center justify-between">
         <label class="text-sm font-semibold">{{ t('nearLimitLabel') }}</label>
         <span sanringBadge variant="outline" class="text-xs">{{ draftNearLimitThreshold() }}%</span>
@@ -458,7 +480,7 @@
       />
     </div>
 
-    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="mt-2 inline-flex items-center justify-center gap-2" (click)="saveSettings()">
+    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="mt-3 inline-flex items-center justify-center gap-2 shadow-sm" (click)="saveSettings()">
       @if (settingsSaveStatus() === 'saving') {
         <sanring-spinner size="sm" />
       } @else if (settingsSaveStatus() === 'saved') {
@@ -498,6 +520,10 @@
       <div class="flex flex-col gap-1">
         <h3 class="font-semibold">{{ t('infoGrokTitle') }}</h3>
         <p class="text-[var(--sanring-muted)]">{{ t('infoGrokBody') }}</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <h3 class="font-semibold">{{ t('infoCursorTitle') }}</h3>
+        <p class="text-[var(--sanring-muted)]">{{ t('infoCursorBody') }}</p>
       </div>
 
       <sanring-alert class="text-xs">

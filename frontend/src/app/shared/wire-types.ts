@@ -43,6 +43,8 @@ export interface UsageSummary {
   secondaryDetail: LocalizedMessage | null;
   /** 帳號副標題（例如 "DeepSeek #2"）——null 時代表這個來源目前只有單一帳號，不用另外標示。 */
   accountLabel: string | null;
+  /** Short plan name only (Max / Pro / Plus); null when the provider cannot detect it reliably. */
+  planLabel: string | null;
 }
 
 /** Mirrors backend/UsageService.cs's HiddenAccountEntry — 「已隱藏的來源」列表用，不含即時用量。 */

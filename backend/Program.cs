@@ -26,6 +26,7 @@ if (args.Contains("--print-usage"))
     return;
 }
 
+
 var window = new PhotinoWindow()
     .SetTitle("sanring Haul")
     .SetUseOsDefaultSize(false)

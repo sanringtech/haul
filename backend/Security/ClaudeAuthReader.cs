@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace UsageMonitor.Desktop.Security;
 
-public sealed record ClaudeAuthToken(string AccessToken, long? ExpiresAtMs);
+public sealed record ClaudeAuthToken(string AccessToken, long? ExpiresAtMs, string? SubscriptionType);
 
 /// <summary>
 /// Reads Claude Code's own OAuth session — the same one `claude` itself uses — so
@@ -36,7 +36,8 @@ public static class ClaudeAuthReader
             if (string.IsNullOrEmpty(accessToken)) return null;
 
             long? expiresAt = oauth.TryGetProperty("expiresAt", out var exp) && exp.TryGetInt64(out var v) ? v : null;
-            return new ClaudeAuthToken(accessToken, expiresAt);
+            var subscriptionType = oauth.TryGetProperty("subscriptionType", out var sub) ? sub.GetString() : null;
+            return new ClaudeAuthToken(accessToken, expiresAt, subscriptionType);
         }
         catch (JsonException)
         {

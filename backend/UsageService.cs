@@ -43,6 +43,7 @@ public sealed class UsageService
             new DeepSeekUsageProvider(_secretStore),
             new KimiUsageProvider(_secretStore),        // api_key 制（既有）
             new KimiSubscriptionUsageProvider(),         // 訂閱制（2026-08-31 新增，未實測，見該檔案註解）
+            new CursorUsageProvider(),                   // 訂閱制（2026-09-01 新增，已實測，見 AI-LANDSCAPE.md）
         ];
         _providersBySourceId = providers.ToDictionary(p => p.SourceId);
     }
