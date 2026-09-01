@@ -172,6 +172,7 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
     private UsageSummary BuildFromCswapUsage(TrackedAccount account, CswapAccount cswapAccount, AppSettings settings)
     {
+        var attentionThreshold = settings.AttentionThresholdPercent;
         var threshold = settings.NearLimitThresholdPercent;
         var now = DateTime.Now.ToString("HH:mm:ss");
 
@@ -186,14 +187,14 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: fiveHourPct,
-            UsageState: ClassifyState(fiveHourPct, threshold),
+            UsageState: ClassifyState(fiveHourPct, attentionThreshold, threshold),
             ConnectionState: "valid",
             IsEstimated: false, // cswap 直接轉述官方 API 的數字，不是本機估算
             AsOf: now,
             Detail: fiveHourDetail,
             PercentUsedLabel: L(MessageKeys.FiveHourLabel),
             SecondaryPercentUsed: sevenDayPct,
-            SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
+            SecondaryUsageState: ClassifyState(sevenDayPct, attentionThreshold, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: sevenDayDetail,
             AccountLabel: account.Label,
@@ -240,6 +241,7 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
     private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings, string? planLabel = null)
     {
+        var attentionThreshold = settings.AttentionThresholdPercent;
         var threshold = settings.NearLimitThresholdPercent;
         var now = DateTime.Now.ToString("HH:mm:ss");
 
@@ -258,25 +260,26 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: fiveHourPct,
-            UsageState: ClassifyState(fiveHourPct, threshold),
+            UsageState: ClassifyState(fiveHourPct, attentionThreshold, threshold),
             ConnectionState: "valid",
             IsEstimated: false, // official Anthropic data now, not a local estimate — constitution R3/I3 only requires the badge for estimates
             AsOf: now,
             Detail: fiveHourDetail,
             PercentUsedLabel: L(MessageKeys.FiveHourLabel),
             SecondaryPercentUsed: sevenDayPct,
-            SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
+            SecondaryUsageState: ClassifyState(sevenDayPct, attentionThreshold, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: sevenDayDetail,
             AccountLabel: account.Label,
             PlanLabel: planLabel);
     }
 
-    private static string ClassifyState(double? percent, int threshold) => percent switch
+    private static string ClassifyState(double? percent, int attentionThreshold, int nearLimitThreshold) => percent switch
     {
         null => "unknown",
         >= 100 => "exceeded",
-        var p when p >= threshold => "near_limit",
+        var p when p >= nearLimitThreshold => "near_limit",
+        var p when p >= attentionThreshold => "attention",
         _ => "normal",
     };
 

@@ -9,12 +9,23 @@ namespace UsageMonitor.Desktop;
 public sealed record SourceCatalogEntry(string SourceId, string DisplayName, string SourceType, bool IsTracked);
 
 /// <summary>
-/// 設定頁（PRD M3）看得到、改得到的子集——AppSettings 裡跟帳號無關的全域設定。RetentionDays
-/// 目前只會被存起來，不會有任何實際效果：這個 app 從來沒有「歷史用量序列」這種資料可以清除，
-/// 每次刷新都是即時查詢、不落地存歷史（PRD Story 6 假設的清除對象目前不存在）。前端 UI 上會誠實
-/// 標註這件事，不要假裝這個欄位有在運作。
+/// 設定頁（PRD M3）看得到、改得到的子集——AppSettings 裡跟帳號無關的全域設定。
+///
+/// 2026-09-01：原本這裡還有 RetentionDays（歷史資料保留期），已經移除——PRD Story 6 假設這個 app
+/// 會存一份本機用量歷史序列（隨時間累積的時間序列，可以回頭看用量趨勢），保留期是控制這份歷史存
+/// 幾天、超過自動清掉，概念上像 log rotation。但這個歷史紀錄功能從來沒有真的做出來：現在每次刷新
+/// 都是純即時查詢，不落地存歷史，沒有任何時間序列資料存在，保留期自然沒有東西可以清。與其留一個
+/// 「存得下去但完全沒作用」的裝飾性設定，直接拿掉；要不要真的做歷史紀錄/趨勢圖是另一個功能，見
+/// AI-LANDSCAPE.md 或之後另外開的 issue。
 /// </summary>
-public sealed record UserSettings(int? RefreshIntervalMinutes, int? RetentionDays, int NearLimitThresholdPercent);
+public sealed record UserSettings(
+    int? RefreshIntervalMinutes,
+    int AttentionThresholdPercent,
+    int NearLimitThresholdPercent,
+    double? DeepSeekAttentionBalanceThresholdUsd,
+    double? DeepSeekLowBalanceThresholdUsd,
+    double? KimiAttentionBalanceThresholdUsd,
+    double? KimiLowBalanceThresholdUsd);
 
 /// <summary>
 /// 「已隱藏的來源」列表要顯示的最小資訊——關閉顯示（憲法 §8）之後，帳號從 GetSummariesAsync() 消失，
@@ -244,18 +255,49 @@ public sealed class UsageService
     public UserSettings GetSettings()
     {
         var settings = SettingsStore.Load();
-        return new UserSettings(settings.RefreshIntervalMinutes, settings.RetentionDays, settings.NearLimitThresholdPercent);
+        return new UserSettings(
+            settings.RefreshIntervalMinutes,
+            settings.AttentionThresholdPercent,
+            settings.NearLimitThresholdPercent,
+            settings.DeepSeekAttentionBalanceThresholdUsd,
+            settings.DeepSeekLowBalanceThresholdUsd,
+            settings.KimiAttentionBalanceThresholdUsd,
+            settings.KimiLowBalanceThresholdUsd);
     }
 
     /// <summary>設定頁儲存（PRD：即時儲存即時生效）。閾值 clamp 在 50-95（憲法 §4 三態顏色的定義範圍）。</summary>
-    public UserSettings UpdateSettings(int? refreshIntervalMinutes, int? retentionDays, int nearLimitThresholdPercent)
+    public UserSettings UpdateSettings(
+        int? refreshIntervalMinutes,
+        int attentionThresholdPercent,
+        int nearLimitThresholdPercent,
+        double? deepSeekAttentionBalanceThresholdUsd,
+        double? deepSeekLowBalanceThresholdUsd,
+        double? kimiAttentionBalanceThresholdUsd,
+        double? kimiLowBalanceThresholdUsd)
     {
         var settings = SettingsStore.Load();
         settings.RefreshIntervalMinutes = refreshIntervalMinutes;
-        settings.RetentionDays = retentionDays;
         settings.NearLimitThresholdPercent = Math.Clamp(nearLimitThresholdPercent, 50, 95);
+        settings.AttentionThresholdPercent = Math.Clamp(attentionThresholdPercent, 50, settings.NearLimitThresholdPercent);
+        (settings.DeepSeekAttentionBalanceThresholdUsd, settings.DeepSeekLowBalanceThresholdUsd) =
+            NormalizeBalanceThresholds(deepSeekAttentionBalanceThresholdUsd, deepSeekLowBalanceThresholdUsd);
+        (settings.KimiAttentionBalanceThresholdUsd, settings.KimiLowBalanceThresholdUsd) =
+            NormalizeBalanceThresholds(kimiAttentionBalanceThresholdUsd, kimiLowBalanceThresholdUsd);
         SettingsStore.Save(settings);
         return GetSettings();
+    }
+
+    private static double? NormalizeBalanceThreshold(double? value) => value is { } amount
+        ? Math.Round(Math.Max(0, amount), 2)
+        : null;
+
+    private static (double? Attention, double? Critical) NormalizeBalanceThresholds(double? attention, double? critical)
+    {
+        var normalizedAttention = NormalizeBalanceThreshold(attention);
+        var normalizedCritical = NormalizeBalanceThreshold(critical);
+        if (normalizedAttention is { } a && normalizedCritical is { } c && c >= a)
+            normalizedCritical = Math.Max(0, a - 0.01);
+        return (normalizedAttention, normalizedCritical);
     }
 
     /// <summary>拖曳排序（前端送整批新順序的 accountId）。列表順序即顯示順序，沒有另外的 SortOrder 欄位。</summary>

@@ -9,11 +9,11 @@ public sealed class AppSettings
     /// <summary>Minutes between automatic refreshes. Null = manual only (constitution §9).</summary>
     public int? RefreshIntervalMinutes { get; set; } = 60;
 
-    /// <summary>Days to keep usage history before pruning. Null = keep until manually cleared (constitution §9).</summary>
-    public int? RetentionDays { get; set; } = 3;
+    /// <summary>Yellow "attention" threshold. May equal NearLimit; orange wins when equal.</summary>
+    public int AttentionThresholdPercent { get; set; } = 70;
 
-    /// <summary>"Near limit" threshold, 50-95, default 80 (constitution §4).</summary>
-    public int NearLimitThresholdPercent { get; set; } = 80;
+    /// <summary>Orange "near limit" threshold, 50-95. Must not be lower than Attention.</summary>
+    public int NearLimitThresholdPercent { get; set; } = 85;
 
     /// <summary>
     /// Token ceiling for the active Claude 5-hour block, used to compute PercentUsed via `ccusage --token-limit`.
@@ -28,7 +28,11 @@ public sealed class AppSettings
     /// </summary>
     public double? DeepSeekLowBalanceThresholdUsd { get; set; }
 
+    public double? DeepSeekAttentionBalanceThresholdUsd { get; set; }
+
     public double? KimiLowBalanceThresholdUsd { get; set; }
+
+    public double? KimiAttentionBalanceThresholdUsd { get; set; }
 
     /// <summary>Account ids the user has hidden (constitution §8 "關閉顯示") — data/keys stay, just not shown.</summary>
     public List<string> HiddenAccountIds { get; set; } = [];

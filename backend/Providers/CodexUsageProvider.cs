@@ -63,6 +63,7 @@ public sealed class CodexUsageProvider : IUsageProvider
 
     private UsageSummary BuildFromUsage(TrackedAccount account, WhamUsageResponse usage, AppSettings settings)
     {
+        var attentionThreshold = settings.AttentionThresholdPercent;
         var threshold = settings.NearLimitThresholdPercent;
         var now = DateTime.Now.ToString("HH:mm:ss");
 
@@ -79,25 +80,26 @@ public sealed class CodexUsageProvider : IUsageProvider
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: primaryPct,
-            UsageState: ClassifyState(primaryPct, threshold),
+            UsageState: ClassifyState(primaryPct, attentionThreshold, threshold),
             ConnectionState: "valid",
             IsEstimated: false, // official ChatGPT backend data now, not a local ccusage estimate
             AsOf: now,
             Detail: primaryDetail,
             PercentUsedLabel: L(MessageKeys.FiveHourLabel),
             SecondaryPercentUsed: secondaryPct,
-            SecondaryUsageState: ClassifyState(secondaryPct, threshold),
+            SecondaryUsageState: ClassifyState(secondaryPct, attentionThreshold, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: secondaryDetail,
             AccountLabel: account.Label,
             PlanLabel: FormatPlanLabel(usage.PlanType));
     }
 
-    private static string ClassifyState(double? percent, int threshold) => percent switch
+    private static string ClassifyState(double? percent, int attentionThreshold, int nearLimitThreshold) => percent switch
     {
         null => "unknown",
         >= 100 => "exceeded",
-        var p when p >= threshold => "near_limit",
+        var p when p >= nearLimitThreshold => "near_limit",
+        var p when p >= attentionThreshold => "attention",
         _ => "normal",
     };
 

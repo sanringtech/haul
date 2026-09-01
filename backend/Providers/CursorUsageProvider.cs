@@ -79,6 +79,7 @@ public sealed class CursorUsageProvider : IUsageProvider
 
     private UsageSummary BuildFromUsage(TrackedAccount account, CursorUsageResponse parsed, AppSettings settings, string? planLabel)
     {
+        var attentionThreshold = settings.AttentionThresholdPercent;
         var threshold = settings.NearLimitThresholdPercent;
         var plan = parsed.PlanUsage!;
         var percent = Math.Min(100.0, plan.TotalSpend / plan.Limit * 100.0);
@@ -92,7 +93,7 @@ public sealed class CursorUsageProvider : IUsageProvider
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: percent,
-            UsageState: ClassifyState(percent, threshold),
+            UsageState: ClassifyState(percent, attentionThreshold, threshold),
             ConnectionState: "valid",
             IsEstimated: false, // official Cursor dashboard data, not a local estimate
             AsOf: DateTime.Now.ToString("HH:mm:ss"),
@@ -101,11 +102,12 @@ public sealed class CursorUsageProvider : IUsageProvider
             PlanLabel: planLabel);
     }
 
-    private static string ClassifyState(double? percent, int threshold) => percent switch
+    private static string ClassifyState(double? percent, int attentionThreshold, int nearLimitThreshold) => percent switch
     {
         null => "unknown",
         >= 100 => "exceeded",
-        var p when p >= threshold => "near_limit",
+        var p when p >= nearLimitThreshold => "near_limit",
+        var p when p >= attentionThreshold => "attention",
         _ => "normal",
     };
 

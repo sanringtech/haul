@@ -95,6 +95,10 @@
   --sanring-warn-80: #664e19;
   --sanring-warn-90: #33270c;
 
+  /* 用量的第二階段警示：warn 是黃色、caution 是橘色，error 仍是紅色。 */
+  --sanring-caution-50: #f59e0b;
+  --sanring-caution-90: #451a03;
+
   --sanring-error-10: #fae3e3;
   --sanring-error-20: #f5c6c6;
   --sanring-error-30: #f0a9a9;

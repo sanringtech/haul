@@ -16,7 +16,7 @@ public sealed record UsageSummary(
     string DisplayName,          // AI 類型顯示名稱（例如 "DeepSeek"）— shared by every account of that type
     string SourceType,          // "subscription" | "api_key"
     double? PercentUsed,        // null when there's no known quota to divide by
-    string UsageState,          // "normal" | "near_limit" | "exceeded" | "unknown"
+    string UsageState,          // "normal" | "attention" | "near_limit" | "exceeded" | "unknown"
     string ConnectionState,     // "not_configured" | "valid" | "invalid" | "expired"
     bool IsEstimated,
     string AsOf,

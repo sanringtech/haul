@@ -1,4 +1,26 @@
 <main class="flex flex-col gap-4 p-6 pb-20 bg-[var(--sanring-background)] text-[var(--sanring-foreground)] min-h-screen relative">
+  <!-- 首次開啟的本機資料揭露：App.ngAfterViewInit 判斷 localStorage 沒看過就自動開，跟取消追蹤
+       共用同一套 alert-dialog（disableClose 鎖住，不能點背景/按 Esc 關掉，一定要按下面「了解」）。
+       擺在 <main> 最外層、不包在任何 @if 裡——ViewChild 要不管目前在哪個 view() 都能拿到範本。 -->
+  <ng-template #disclosureDialog>
+    <sanring-alert-dialog-content>
+      <sanring-dialog-header class="items-center text-center">
+        <div class="flex items-center justify-center gap-2">
+          <svg lucideCircleAlert class="size-5 text-[var(--sanring-warn-50)] shrink-0"></svg>
+          <h2 sanringDialogTitle>{{ t('disclosureTitle') }}</h2>
+        </div>
+        <p sanringDialogDescription class="text-center">{{ t('disclosureBody') }}</p>
+        <p class="flex items-center justify-center gap-1 text-xs text-[var(--sanring-muted)]">
+          <svg lucideInfo class="size-3.5 shrink-0"></svg>
+          {{ t('disclosureInfoHint') }}
+        </p>
+      </sanring-dialog-header>
+      <sanring-dialog-footer>
+        <button sanringBtn type="button" class="w-full" sanringAlertDialogAction>{{ t('disclosureAck') }}</button>
+      </sanring-dialog-footer>
+    </sanring-alert-dialog-content>
+  </ng-template>
+
   <!-- 文字標題拿掉了——視窗標題列本身已經有「sanring Haul」，這裡再重複一次是多餘的，
        logo 圖示自己就夠識別。title() signal 沒消失，改當這個 header 的 aria-label，畫面上看不到
        文字不代表螢幕報讀器也不用知道這是什麼。 -->
@@ -454,33 +476,115 @@
     </div>
 
     <!-- 每組設定都是獨立 surface：背景、邊框與內距共同建立區域性，不只靠分隔線。 -->
-    <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
-      <label class="text-sm font-semibold">{{ t('retentionLabel') }}</label>
-      <div class="flex flex-wrap gap-2">
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 3 ? 'default' : 'secondary'" (click)="selectRetentionDays(3)">{{ t('retention3d') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 5 ? 'default' : 'secondary'" (click)="selectRetentionDays(5)">{{ t('retention5d') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === 7 ? 'default' : 'secondary'" (click)="selectRetentionDays(7)">{{ t('retention7d') }}</button>
-        <button sanringBtn type="button" size="sm" [variant]="draftRetentionDays() === null ? 'default' : 'secondary'" (click)="selectRetentionDays(null)">{{ t('manualOnly') }}</button>
+    <div class="flex flex-col gap-4 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
+      <h3 class="text-sm font-semibold">{{ t('usageAlertTitle') }}</h3>
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <span class="size-2.5 rounded-full bg-[var(--sanring-warn-50)]"></span>
+          <span class="flex-1 text-xs">{{ t('attentionAlertLabel') }}</span>
+          <span sanringBadge variant="outline" class="text-xs">{{ draftAttentionThreshold() }}%</span>
+        </div>
+        <sanring-slider
+          [min]="50"
+          [max]="95"
+          [allowedMax]="draftNearLimitThreshold()"
+          [step]="5"
+          [value]="draftAttentionThreshold()"
+          (valueChange)="onAttentionThresholdChange($event)"
+        />
       </div>
-      <!-- 誠實揭露：這個 app 目前沒有歷史用量序列可以清除，這個設定存了但沒有任何實際效果 -->
-      <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('retentionNote') }}</p>
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <span class="size-2.5 rounded-full bg-[var(--sanring-caution-50)]"></span>
+          <span class="flex-1 text-xs">{{ t('nearLimitAlertLabel') }}</span>
+          <span sanringBadge variant="outline" class="text-xs">{{ draftNearLimitThreshold() }}%</span>
+        </div>
+        <sanring-slider
+          [min]="50"
+          [max]="95"
+          [allowedMin]="draftAttentionThreshold()"
+          [step]="5"
+          [value]="draftNearLimitThreshold()"
+          (valueChange)="onNearLimitThresholdChange($event)"
+        />
+      </div>
+      <div class="flex items-center gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] px-3 py-2">
+        <span class="size-2.5 rounded-full bg-[var(--sanring-error-50)]"></span>
+        <span class="flex-1 text-xs">{{ t('exhaustedAlertLabel') }}</span>
+        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('fixedLabel') }}</span>
+        <span sanringBadge variant="outline" class="text-xs">100%</span>
+      </div>
+      <p class="text-[10px] text-[var(--sanring-muted)]">
+        {{ t('usageAlertSummary', { attention: draftAttentionThreshold().toString(), nearLimit: draftNearLimitThreshold().toString() }) }}
+      </p>
     </div>
 
     <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
-      <div class="flex items-center justify-between">
-        <label class="text-sm font-semibold">{{ t('nearLimitLabel') }}</label>
-        <span sanringBadge variant="outline" class="text-xs">{{ draftNearLimitThreshold() }}%</span>
+      <h3 class="text-sm font-semibold">{{ t('apiKeyBalanceAlertTitle') }}</h3>
+      <div class="flex flex-col gap-1">
+        <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('apiKeyBalanceAlertDescription') }}</p>
       </div>
-      <sanring-slider
-        [min]="50"
-        [max]="95"
-        [step]="5"
-        [value]="draftNearLimitThreshold()"
-        (valueChange)="onNearLimitThresholdChange($event)"
-      />
+      <div class="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-end gap-2 text-xs">
+        <span></span>
+        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('balanceAttentionLabel') }}</span>
+        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('balanceCriticalLabel') }}</span>
+      </div>
+      <div class="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-center gap-2 text-xs">
+        <span>DeepSeek</span>
+        <input
+          sanringInput
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          class="h-9 text-right"
+          [placeholder]="t('lowBalancePlaceholder')"
+          [value]="draftDeepSeekAttentionBalance() ?? ''"
+          (input)="onLowBalanceInput('deepseek', 'attention', $event)"
+        />
+        <input
+          sanringInput
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          class="h-9 text-right"
+          [placeholder]="t('lowBalancePlaceholder')"
+          [value]="draftDeepSeekLowBalance() ?? ''"
+          (input)="onLowBalanceInput('deepseek', 'critical', $event)"
+        />
+      </div>
+      <div class="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-center gap-2 text-xs">
+        <span>Kimi</span>
+        <input
+          sanringInput
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          class="h-9 text-right"
+          [placeholder]="t('lowBalancePlaceholder')"
+          [value]="draftKimiAttentionBalance() ?? ''"
+          (input)="onLowBalanceInput('kimi', 'attention', $event)"
+        />
+        <input
+          sanringInput
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          class="h-9 text-right"
+          [placeholder]="t('lowBalancePlaceholder')"
+          [value]="draftKimiLowBalance() ?? ''"
+          (input)="onLowBalanceInput('kimi', 'critical', $event)"
+        />
+      </div>
+      @if (hasInvalidBalanceThresholds()) {
+        <p class="text-xs text-[var(--sanring-error-50)]">{{ t('balanceOrderError') }}</p>
+      }
     </div>
 
-    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="mt-3 inline-flex items-center justify-center gap-2 shadow-sm" (click)="saveSettings()">
+    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving' || hasInvalidBalanceThresholds()" class="mt-3 inline-flex items-center justify-center gap-2 shadow-sm" (click)="saveSettings()">
       @if (settingsSaveStatus() === 'saving') {
         <sanring-spinner size="sm" />
       } @else if (settingsSaveStatus() === 'saved') {

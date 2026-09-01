@@ -136,7 +136,8 @@ export class WidgetApp {
     return (
       {
         normal: 'border-transparent bg-[var(--sanring-success-50)] text-white',
-        near_limit: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
+        attention: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
+        near_limit: 'border-transparent bg-[var(--sanring-caution-50)] text-[var(--sanring-caution-90)]',
         exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-white',
         unknown: 'border-transparent bg-[var(--sanring-neutral-30)] text-[var(--sanring-neutral-90)]',
       } satisfies Record<UsageState, string>
@@ -147,7 +148,8 @@ export class WidgetApp {
     return (
       {
         normal: 'bg-[var(--sanring-success-50)]',
-        near_limit: 'bg-[var(--sanring-warn-50)]',
+        attention: 'bg-[var(--sanring-warn-50)]',
+        near_limit: 'bg-[var(--sanring-caution-50)]',
         exceeded: 'bg-[var(--sanring-error-50)]',
         unknown: 'bg-[var(--sanring-neutral-40)]',
       } satisfies Record<UsageState, string>

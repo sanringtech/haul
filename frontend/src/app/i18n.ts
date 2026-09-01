@@ -43,6 +43,7 @@ export interface Translations {
   currentUsageTooltip: string;
   noDataYet: string;
   stateNormal: string;
+  stateAttention: string;
   stateNearLimit: string;
   stateExceeded: string;
   stateUnknown: string;
@@ -116,16 +117,23 @@ export interface Translations {
   settingsTitle: string;
   settingsAria: string;
   refreshIntervalLabel: string;
-  retentionLabel: string;
-  retentionNote: string;
   nearLimitLabel: string;
+  usageAlertTitle: string;
+  attentionAlertLabel: string;
+  nearLimitAlertLabel: string;
+  exhaustedAlertLabel: string;
+  fixedLabel: string;
+  usageAlertSummary: string;
+  apiKeyBalanceAlertTitle: string;
+  apiKeyBalanceAlertDescription: string;
+  lowBalancePlaceholder: string;
+  balanceAttentionLabel: string;
+  balanceCriticalLabel: string;
+  balanceOrderError: string;
   manualOnly: string;
   interval5m: string;
   interval1h: string;
   interval2h: string;
-  retention3d: string;
-  retention5d: string;
-  retention7d: string;
   saveSettings: string;
   settingsSaved: string;
 
@@ -151,6 +159,12 @@ export interface Translations {
   infoCursorBody: string;
   infoDisclaimerTitle: string;
   infoDisclaimerBody: string;
+
+  // ── 首次開啟的本機資料揭露彈窗（2026-09-01 新增）──
+  disclosureTitle: string;
+  disclosureBody: string;
+  disclosureInfoHint: string;
+  disclosureAck: string;
 }
 
 export const translations: Record<Lang, Translations> = {
@@ -181,7 +195,8 @@ export const translations: Record<Lang, Translations> = {
     currentUsageTooltip: '目前用量狀態',
     noDataYet: '尚無資料',
     stateNormal: '正常',
-    stateNearLimit: '偏低',
+    stateAttention: '注意',
+    stateNearLimit: '接近用盡',
     stateExceeded: '已用盡',
     stateUnknown: '—',
     back: '返回',
@@ -251,16 +266,23 @@ export const translations: Record<Lang, Translations> = {
     settingsTitle: '設定',
     settingsAria: '設定',
     refreshIntervalLabel: '自動刷新頻率',
-    retentionLabel: '歷史資料保留期',
-    retentionNote: '目前只會儲存這個值——這個 app 還沒有實際的歷史用量清除功能，設定了也不會有任何效果',
     nearLimitLabel: '用量達到多少時提醒',
+    usageAlertTitle: '訂閱用量提醒',
+    attentionAlertLabel: '注意',
+    nearLimitAlertLabel: '接近上限',
+    exhaustedAlertLabel: '已用盡',
+    fixedLabel: '固定',
+    usageAlertSummary: '{attention}% 顯示黃色、{nearLimit}% 顯示橘色、100% 顯示紅色。',
+    apiKeyBalanceAlertTitle: 'API KEY 餘額提醒',
+    apiKeyBalanceAlertDescription: '可分別設定黃色注意與橘色接近用盡金額；留空代表不提醒。',
+    lowBalancePlaceholder: '不提醒',
+    balanceAttentionLabel: '注意（黃）',
+    balanceCriticalLabel: '接近用盡（橘）',
+    balanceOrderError: '橘色金額必須低於黃色金額。',
     manualOnly: '純手動',
     interval5m: '5 分鐘',
     interval1h: '1 小時',
     interval2h: '2 小時',
-    retention3d: '3 天',
-    retention5d: '5 天',
-    retention7d: '7 天',
     saveSettings: '儲存',
     settingsSaved: '設定已儲存',
 
@@ -284,6 +306,11 @@ export const translations: Record<Lang, Translations> = {
     infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session（存在 SQLite，不是 Keychain）。已用真實帳號驗證過，用量百分比是「花費 / 方案額度」算出來的，不是直接顯示官方回應裡的原始欄位（那個欄位量的是別的東西）。',
     infoDisclaimerTitle: '關於非公開端點',
     infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
+
+    disclosureTitle: '本機資料存取聲明',
+    disclosureBody: '本 App 僅讀取各 AI 官方 CLI 的本機登入資訊，以及您提供的 API KEY，皆不會外傳。',
+    disclosureInfoHint: '完整用量來源說明請點選右上角圖示查看',
+    disclosureAck: '了解',
   },
   en: {
     connectedDesktop: 'Connected to desktop shell',
@@ -312,7 +339,8 @@ export const translations: Record<Lang, Translations> = {
     currentUsageTooltip: 'Current usage status',
     noDataYet: 'No data yet',
     stateNormal: 'Normal',
-    stateNearLimit: 'Low',
+    stateAttention: 'Attention',
+    stateNearLimit: 'Near empty',
     stateExceeded: 'Exhausted',
     stateUnknown: '—',
     back: 'Back',
@@ -382,16 +410,23 @@ export const translations: Record<Lang, Translations> = {
     settingsTitle: 'Settings',
     settingsAria: 'Settings',
     refreshIntervalLabel: 'Auto-refresh interval',
-    retentionLabel: 'History retention',
-    retentionNote: "This is currently just stored — this app doesn't have an actual history-pruning feature yet, so setting it has no effect",
     nearLimitLabel: 'Warn when usage reaches',
+    usageAlertTitle: 'Subscription usage alerts',
+    attentionAlertLabel: 'Attention',
+    nearLimitAlertLabel: 'Near limit',
+    exhaustedAlertLabel: 'Exhausted',
+    fixedLabel: 'Fixed',
+    usageAlertSummary: 'Yellow at {attention}%, orange at {nearLimit}%, and red at 100%.',
+    apiKeyBalanceAlertTitle: 'API KEY balance alerts',
+    apiKeyBalanceAlertDescription: 'Set yellow attention and orange near-empty amounts separately; leave blank to disable.',
+    lowBalancePlaceholder: 'No alert',
+    balanceAttentionLabel: 'Attention (yellow)',
+    balanceCriticalLabel: 'Near empty (orange)',
+    balanceOrderError: 'The orange amount must be lower than the yellow amount.',
     manualOnly: 'Manual only',
     interval5m: '5 min',
     interval1h: '1 hour',
     interval2h: '2 hours',
-    retention3d: '3 days',
-    retention5d: '5 days',
-    retention7d: '7 days',
     saveSettings: 'Save',
     settingsSaved: 'Settings saved',
 
@@ -415,5 +450,10 @@ export const translations: Record<Lang, Translations> = {
     infoCursorBody: "Single account, reads the local Cursor login session (stored in SQLite, not the Keychain). Verified against a real account — the usage percentage is computed as spend / plan limit, not read directly from the response's own percentage field (which measures something else).",
     infoDisclaimerTitle: 'About undocumented endpoints',
     infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
+
+    disclosureTitle: 'Local data access notice',
+    disclosureBody: "This app only reads local login info from each AI's official CLI, and any API keys you provide — none of it is ever sent elsewhere.",
+    disclosureInfoHint: 'For the full explanation, tap the icon in the top-right corner',
+    disclosureAck: 'Got it',
   },
 };

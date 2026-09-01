@@ -76,6 +76,7 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
 
     private UsageSummary BuildFromUsage(TrackedAccount account, KimiManagedUsageResponse parsed, AppSettings settings)
     {
+        var attentionThreshold = settings.AttentionThresholdPercent;
         var threshold = settings.NearLimitThresholdPercent;
         var usage = parsed.Usage!;
         var percent = usage.Limit > 0 ? Math.Min(100.0, usage.Used / usage.Limit * 100.0) : (double?)null;
@@ -87,7 +88,7 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
             DisplayName: DisplayName,
             SourceType: SourceType,
             PercentUsed: percent,
-            UsageState: ClassifyState(percent, threshold),
+            UsageState: ClassifyState(percent, attentionThreshold, threshold),
             ConnectionState: "valid",
             IsEstimated: false, // official Kimi Code data, not a local estimate — assuming the schema guess above holds
             AsOf: DateTime.Now.ToString("HH:mm:ss"),
@@ -95,11 +96,12 @@ public sealed class KimiSubscriptionUsageProvider : IUsageProvider
             AccountLabel: account.Label);
     }
 
-    private static string ClassifyState(double? percent, int threshold) => percent switch
+    private static string ClassifyState(double? percent, int attentionThreshold, int nearLimitThreshold) => percent switch
     {
         null => "unknown",
         >= 100 => "exceeded",
-        var p when p >= threshold => "near_limit",
+        var p when p >= nearLimitThreshold => "near_limit",
+        var p when p >= attentionThreshold => "attention",
         _ => "normal",
     };
 

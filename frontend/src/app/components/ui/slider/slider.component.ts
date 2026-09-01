@@ -41,8 +41,8 @@ import { FieldType, SANRING_FIELD_CONTROL } from '../field/field.type';
     '[class]': 'hostClass()',
     '[attr.role]': '"slider"',
     '[attr.id]': 'id()',
-    '[attr.aria-valuemin]': 'minValue()',
-    '[attr.aria-valuemax]': 'maxValue()',
+    '[attr.aria-valuemin]': 'allowedMinValue()',
+    '[attr.aria-valuemax]': 'allowedMaxValue()',
     '[attr.aria-valuenow]': 'valueSignal()',
     '[attr.aria-valuetext]': 'ariaValueText()',
     '[attr.aria-label]': 'ariaLabel()',
@@ -82,6 +82,9 @@ export class SliderComponent extends SanringCvaBase<number> {
   readonly max = input(100, { transform: numberAttribute });
   readonly step = input(1, { transform: numberAttribute });
   readonly value = input(50, { transform: numberAttribute });
+  /** Constrain selectable values without changing the visual scale defined by min/max. */
+  readonly allowedMin = input<number | undefined>(undefined);
+  readonly allowedMax = input<number | undefined>(undefined);
   readonly disabled = input(false, { transform: booleanAttribute });
   readonly tabIndex = input(0, { transform: numberAttribute });
   readonly ariaLabel = input<string | undefined>();
@@ -94,6 +97,12 @@ export class SliderComponent extends SanringCvaBase<number> {
   protected readonly valueSignal = signal(50);
   protected readonly minValue = computed(() => Math.min(this.min(), this.max()));
   protected readonly maxValue = computed(() => Math.max(this.min(), this.max()));
+  protected readonly allowedMinValue = computed(() =>
+    Math.min(this.maxValue(), Math.max(this.minValue(), this.allowedMin() ?? this.minValue())),
+  );
+  protected readonly allowedMaxValue = computed(() =>
+    Math.max(this.allowedMinValue(), Math.min(this.maxValue(), this.allowedMax() ?? this.maxValue())),
+  );
   protected readonly isDisabled = computed(() => this.disabled() || this.disabledState());
 
   protected readonly percentage = computed(() => {
@@ -148,6 +157,8 @@ export class SliderComponent extends SanringCvaBase<number> {
       this.min();
       this.max();
       this.step();
+      this.allowedMin();
+      this.allowedMax();
       untracked(() => this.setValue(value, false));
     });
   }
@@ -179,10 +190,10 @@ export class SliderComponent extends SanringCvaBase<number> {
         nextValue = this.valueSignal() - pageStep;
         break;
       case 'Home':
-        nextValue = this.minValue();
+        nextValue = this.allowedMinValue();
         break;
       case 'End':
-        nextValue = this.maxValue();
+        nextValue = this.allowedMaxValue();
         break;
     }
 
@@ -246,8 +257,8 @@ export class SliderComponent extends SanringCvaBase<number> {
   }
 
   private normalizeValue(value: number): number {
-    const min = this.minValue();
-    const max = this.maxValue();
+    const min = this.allowedMinValue();
+    const max = this.allowedMaxValue();
     const step = this.normalizedStep();
     const clamped = Math.min(Math.max(value, min), max);
     const stepped = Math.round((clamped - min) / step) * step + min;

@@ -135,7 +135,14 @@ async void OnWebMessageReceived(object? sender, string message)
                 break;
 
             case "update-settings" when request.NearLimitThresholdPercent is not null:
-                var updated = usageService.UpdateSettings(request.RefreshIntervalMinutes, request.RetentionDays, request.NearLimitThresholdPercent.Value);
+                var updated = usageService.UpdateSettings(
+                    request.RefreshIntervalMinutes,
+                    request.AttentionThresholdPercent ?? 70,
+                    request.NearLimitThresholdPercent.Value,
+                    request.DeepSeekAttentionBalanceThresholdUsd,
+                    request.DeepSeekLowBalanceThresholdUsd,
+                    request.KimiAttentionBalanceThresholdUsd,
+                    request.KimiLowBalanceThresholdUsd);
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("settings", null, null, Settings: updated), jsonOptions));
                 // 閾值一變，現有卡片的 usageState（正常/接近上限/已用盡）馬上就不準了——PRD 說設定要
                 // 「即時儲存即時生效」，補一次完整刷新才會反映在畫面上，不是只存進設定檔就算了。
@@ -167,8 +174,12 @@ file sealed record HostRequest(
     string? Label = null,
     string[]? Order = null,
     int? RefreshIntervalMinutes = null,
-    int? RetentionDays = null,
-    int? NearLimitThresholdPercent = null);
+    int? AttentionThresholdPercent = null,
+    int? NearLimitThresholdPercent = null,
+    double? DeepSeekAttentionBalanceThresholdUsd = null,
+    double? DeepSeekLowBalanceThresholdUsd = null,
+    double? KimiAttentionBalanceThresholdUsd = null,
+    double? KimiLowBalanceThresholdUsd = null);
 
 file sealed record HostCredential(string? ApiKey);
 

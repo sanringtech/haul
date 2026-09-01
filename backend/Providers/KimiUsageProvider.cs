@@ -45,9 +45,11 @@ public sealed class KimiUsageProvider(ISecretStore secretStore) : IUsageProvider
                 return Build(account, "invalid", null, L(MessageKeys.KimiParseError, ("body", Truncate(body))));
 
             var balance = parsed.Data.AvailableBalance;
+            var attentionThreshold = settings.KimiAttentionBalanceThresholdUsd;
             var threshold = settings.KimiLowBalanceThresholdUsd;
             var usageState = balance <= 0 ? "exceeded"
                 : threshold is { } t && balance <= t ? "near_limit"
+                : attentionThreshold is { } a && balance <= a ? "attention"
                 : "normal";
 
             return Build(account, "valid", usageState, L(MessageKeys.KimiBalance, ("balance", balance.ToString("N2"))), isEstimated: false);

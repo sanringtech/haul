@@ -13,7 +13,7 @@ declare global {
 }
 
 export type SourceType = 'subscription' | 'api_key';
-export type UsageState = 'normal' | 'near_limit' | 'exceeded' | 'unknown';
+export type UsageState = 'normal' | 'attention' | 'near_limit' | 'exceeded' | 'unknown';
 export type ConnectionState = 'not_configured' | 'valid' | 'invalid' | 'expired';
 
 /** Mirrors backend/Models/LocalizedText.cs — a message key + interpolation params, rendered via t(). */

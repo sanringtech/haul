@@ -47,9 +47,11 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
                 // way to actually debug a future schema mismatch without guessing again.
                 return Build(account, "invalid", null, null, L(MessageKeys.DeepSeekParseError, ("body", Truncate(body))));
 
+            var attentionThreshold = settings.DeepSeekAttentionBalanceThresholdUsd;
             var threshold = settings.DeepSeekLowBalanceThresholdUsd;
             var usageState = !parsed!.IsAvailable ? "exceeded"
                 : threshold is { } t && balance <= t ? "near_limit"
+                : attentionThreshold is { } a && balance <= a ? "attention"
                 : "normal";
 
             return Build(account, "valid", usageState, null, L(MessageKeys.DeepSeekBalance, ("currency", info.Currency), ("balance", balance.ToString("N2"))));

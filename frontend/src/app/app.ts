@@ -1,4 +1,4 @@
-import { Component, computed, effect, signal } from '@angular/core';
+import { AfterViewInit, Component, TemplateRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   LucideArrowLeft,
@@ -26,7 +26,7 @@ import { InputDirective } from './components/ui/input';
 import { SliderComponent } from './components/ui/slider';
 import { SANRING_CARD_IMPORTS } from './components/ui/card';
 import { SANRING_ALERT_IMPORTS } from './components/ui/alert';
-import { SANRING_ALERT_DIALOG_IMPORTS } from './components/ui/alert-dialog';
+import { AlertDialogService, SANRING_ALERT_DIALOG_IMPORTS } from './components/ui/alert-dialog';
 import { SpinnerComponent } from './components/ui/spinner';
 import { SkeletonDirective } from './components/ui/skeleton';
 import { SANRING_TOOLTIP_IMPORTS } from './components/ui/tooltip';
@@ -35,6 +35,9 @@ import { ConnectionState, HiddenAccountEntry, LocalizedMessage, SourceType, Usag
 
 type Theme = 'dark' | 'light';
 const THEME_STORAGE_KEY = 'sanring-usage-monitor:theme';
+// 新 key 用改名後的品牌前綴——舊的 sanring-usage-monitor:* 是既有 key，維持不動避免使用者現有
+// 偏好設定憑空消失（見 RELEASE-PLAN.md「改名」那節），但這個 key 是這次才新增的，沒有這個包袱。
+const DISCLOSURE_SEEN_KEY = 'sanring-haul:disclosure-seen';
 
 type View = 'list' | 'add' | 'settings' | 'info';
 type AddStatus = 'idle' | 'pending' | 'success' | 'error';
@@ -43,8 +46,12 @@ type SaveStatus = 'idle' | 'saving' | 'saved';
 /** Mirrors backend's UsageService.UserSettings (camelCase on the wire). */
 interface UserSettingsWire {
   refreshIntervalMinutes: number | null;
-  retentionDays: number | null;
+  attentionThresholdPercent: number;
   nearLimitThresholdPercent: number;
+  deepSeekAttentionBalanceThresholdUsd: number | null;
+  deepSeekLowBalanceThresholdUsd: number | null;
+  kimiAttentionBalanceThresholdUsd: number | null;
+  kimiLowBalanceThresholdUsd: number | null;
 }
 
 /** One progress row's worth of data, built from either the primary or secondary window fields. */
@@ -102,7 +109,9 @@ interface CatalogEntry {
   styleUrl: './app.css',
   templateUrl: './app.html',
 })
-export class App {
+export class App implements AfterViewInit {
+  private readonly alertDialogService = inject(AlertDialogService);
+  @ViewChild('disclosureDialog') private readonly disclosureDialog?: TemplateRef<unknown>;
   protected readonly title = signal('sanring Haul');
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
@@ -140,12 +149,24 @@ export class App {
   // Draft＝設定頁表單編輯中的值，按「儲存」才覆蓋 active（跟 add-source 畫面同一種「先在草稿改，
   // 送出才生效」模式，不是像主題/語言那種點一下就立即生效——這裡有滑桿，逐 pixel 就送出會洗版）。
   protected readonly refreshIntervalMinutes = signal<number | null>(60);
-  protected readonly retentionDays = signal<number | null>(3);
-  protected readonly nearLimitThresholdPercent = signal<number>(80);
+  protected readonly attentionThresholdPercent = signal<number>(70);
+  protected readonly nearLimitThresholdPercent = signal<number>(85);
+  protected readonly deepSeekAttentionBalanceThresholdUsd = signal<number | null>(null);
+  protected readonly deepSeekLowBalanceThresholdUsd = signal<number | null>(null);
+  protected readonly kimiAttentionBalanceThresholdUsd = signal<number | null>(null);
+  protected readonly kimiLowBalanceThresholdUsd = signal<number | null>(null);
   protected readonly draftRefreshInterval = signal<number | null>(60);
-  protected readonly draftRetentionDays = signal<number | null>(3);
-  protected readonly draftNearLimitThreshold = signal<number>(80);
+  protected readonly draftAttentionThreshold = signal<number>(70);
+  protected readonly draftNearLimitThreshold = signal<number>(85);
+  protected readonly draftDeepSeekAttentionBalance = signal<number | null>(null);
+  protected readonly draftDeepSeekLowBalance = signal<number | null>(null);
+  protected readonly draftKimiAttentionBalance = signal<number | null>(null);
+  protected readonly draftKimiLowBalance = signal<number | null>(null);
   protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
+  protected readonly hasInvalidBalanceThresholds = computed(() =>
+    this.isInvalidBalancePair(this.draftDeepSeekAttentionBalance(), this.draftDeepSeekLowBalance()) ||
+    this.isInvalidBalancePair(this.draftKimiAttentionBalance(), this.draftKimiLowBalance()),
+  );
 
   /** 「已隱藏的來源」清單——放在主畫面清單底部（跟卡片同一個畫面，不是設定頁），預設收合。 */
   protected readonly hiddenAccounts = signal<HiddenAccountEntry[]>([]);
@@ -194,6 +215,18 @@ export class App {
     // ——開機那段空窗期畫面顯示的是「還沒有追蹤任何來源」，明明有追蹤只是還沒抓，會誤導使用者。
     // 開機時主動打一次，跟按重新整理按鈕走同一條路（isLoading 一樣會亮，骨架屏正常顯示）。
     this.refresh();
+  }
+
+  // ViewChild 只有在畫面初始化完才拿得到 TemplateRef，不能在 constructor 裡就開——跟主要的資料
+  // 抓取（get-settings/get-usage-summary 那些）不同層級的時機限制，所以分開放。
+  ngAfterViewInit(): void {
+    if (loadFromStorage(DISCLOSURE_SEEN_KEY, '0', ['0', '1']) === '1') return;
+    if (!this.disclosureDialog) return;
+    // 強制先看過才能用——AlertDialogService 內部鎖 disableClose，不能點背景/按 Esc 跳過，
+    // 一定要按下面那顆「了解」，不能在同意之前就進到主畫面。
+    this.alertDialogService.open(this.disclosureDialog).closed.subscribe(() => {
+      saveToStorage(DISCLOSURE_SEEN_KEY, '1');
+    });
   }
 
   protected toggleTheme(): void {
@@ -248,8 +281,12 @@ export class App {
     this.view.set('settings');
     this.settingsSaveStatus.set('idle');
     this.draftRefreshInterval.set(this.refreshIntervalMinutes());
-    this.draftRetentionDays.set(this.retentionDays());
+    this.draftAttentionThreshold.set(this.attentionThresholdPercent());
     this.draftNearLimitThreshold.set(this.nearLimitThresholdPercent());
+    this.draftDeepSeekAttentionBalance.set(this.deepSeekAttentionBalanceThresholdUsd());
+    this.draftDeepSeekLowBalance.set(this.deepSeekLowBalanceThresholdUsd());
+    this.draftKimiAttentionBalance.set(this.kimiAttentionBalanceThresholdUsd());
+    this.draftKimiLowBalance.set(this.kimiLowBalanceThresholdUsd());
   }
 
   protected toggleHiddenList(): void {
@@ -273,24 +310,43 @@ export class App {
     this.draftRefreshInterval.set(minutes);
   }
 
-  protected selectRetentionDays(days: number | null): void {
-    this.draftRetentionDays.set(days);
+  protected onAttentionThresholdChange(value: number): void {
+    this.draftAttentionThreshold.set(Math.min(value, this.draftNearLimitThreshold()));
   }
 
   protected onNearLimitThresholdChange(value: number): void {
-    this.draftNearLimitThreshold.set(value);
+    this.draftNearLimitThreshold.set(Math.max(value, this.draftAttentionThreshold()));
+  }
+
+  protected onLowBalanceInput(provider: 'deepseek' | 'kimi', stage: 'attention' | 'critical', event: Event): void {
+    const raw = (event.target as HTMLInputElement).value.trim();
+    const parsed = raw === '' ? null : Number(raw);
+    const value = parsed !== null && Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+    if (provider === 'deepseek' && stage === 'attention') this.draftDeepSeekAttentionBalance.set(value);
+    else if (provider === 'deepseek') this.draftDeepSeekLowBalance.set(value);
+    else if (stage === 'attention') this.draftKimiAttentionBalance.set(value);
+    else this.draftKimiLowBalance.set(value);
   }
 
   /** 存檔回應（'settings' 訊息）到達時才真的覆蓋 active 值，見 onHostMessage——不是這裡樂觀更新，
    * 因為閾值變動會連動一次完整刷新（見 Program.cs），active 值要跟後端回傳的卡片資料同步生效。 */
   protected saveSettings(): void {
+    if (this.hasInvalidBalanceThresholds()) return;
     this.settingsSaveStatus.set('saving');
     this.send({
       type: 'update-settings',
       refreshIntervalMinutes: this.draftRefreshInterval(),
-      retentionDays: this.draftRetentionDays(),
+      attentionThresholdPercent: this.draftAttentionThreshold(),
       nearLimitThresholdPercent: this.draftNearLimitThreshold(),
+      deepSeekAttentionBalanceThresholdUsd: this.draftDeepSeekAttentionBalance(),
+      deepSeekLowBalanceThresholdUsd: this.draftDeepSeekLowBalance(),
+      kimiAttentionBalanceThresholdUsd: this.draftKimiAttentionBalance(),
+      kimiLowBalanceThresholdUsd: this.draftKimiLowBalance(),
     });
+  }
+
+  private isInvalidBalancePair(attention: number | null, critical: number | null): boolean {
+    return attention !== null && critical !== null && critical >= attention;
   }
 
   protected selectAddSource(sourceId: string): void {
@@ -422,7 +478,8 @@ export class App {
     return (
       {
         normal: 'border-transparent bg-[var(--sanring-success-50)] text-white',
-        near_limit: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
+        attention: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
+        near_limit: 'border-transparent bg-[var(--sanring-caution-50)] text-[var(--sanring-caution-90)]',
         exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-white',
         unknown: 'border-transparent bg-[var(--sanring-neutral-30)] text-[var(--sanring-neutral-90)]',
       } satisfies Record<UsageState, string>
@@ -439,6 +496,7 @@ export class App {
     return (
       {
         normal: this.t('stateNormal'),
+        attention: this.t('stateAttention'),
         near_limit: this.t('stateNearLimit'),
         exceeded: this.t('stateExceeded'),
         unknown: this.t('stateUnknown'),
@@ -451,7 +509,8 @@ export class App {
     return (
       {
         normal: 'bg-[var(--sanring-success-50)]',
-        near_limit: 'bg-[var(--sanring-warn-50)]',
+        attention: 'bg-[var(--sanring-warn-50)]',
+        near_limit: 'bg-[var(--sanring-caution-50)]',
         exceeded: 'bg-[var(--sanring-error-50)]',
         unknown: 'bg-[var(--sanring-neutral-40)]',
       } satisfies Record<UsageState, string>
@@ -525,8 +584,12 @@ export class App {
       // 的短暫確認提示，前者純粹是把 active 值填進來。
       if (payload.type === 'settings' && payload.settings) {
         this.refreshIntervalMinutes.set(payload.settings.refreshIntervalMinutes);
-        this.retentionDays.set(payload.settings.retentionDays);
+        this.attentionThresholdPercent.set(payload.settings.attentionThresholdPercent);
         this.nearLimitThresholdPercent.set(payload.settings.nearLimitThresholdPercent);
+        this.deepSeekAttentionBalanceThresholdUsd.set(payload.settings.deepSeekAttentionBalanceThresholdUsd);
+        this.deepSeekLowBalanceThresholdUsd.set(payload.settings.deepSeekLowBalanceThresholdUsd);
+        this.kimiAttentionBalanceThresholdUsd.set(payload.settings.kimiAttentionBalanceThresholdUsd);
+        this.kimiLowBalanceThresholdUsd.set(payload.settings.kimiLowBalanceThresholdUsd);
         if (this.settingsSaveStatus() === 'saving') {
           this.settingsSaveStatus.set('saved');
           setTimeout(() => this.settingsSaveStatus.set('idle'), 1500);
