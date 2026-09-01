@@ -53,7 +53,10 @@ export class InputDirective implements SanringFieldControl<string>, DoCheck, OnD
       'file:border-0 file:bg-transparent file:text-sm file:font-medium',
       'placeholder:text-[var(--sanring-muted)]',
       'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]',
-      'disabled:cursor-not-allowed disabled:opacity-50',
+      // transition-opacity 是配合旁邊常見的「開關連動這顆輸入框的 disabled」這種模式補的——
+      // 沒有這行，開關本身的滑動有過渡動畫，但輸入框的變暗/變亮是瞬間跳一下，兩邊對不上，
+      // 使用者會覺得「這顆開關的動畫效果」不完整（其實是壞在旁邊的輸入框，不是開關本身）。
+      'transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-50',
       // 當驗證失敗時，覆蓋原有的 border 與 ring 顏色
       this.errorState && 'border-[var(--sanring-error-50)] focus-visible:ring-[var(--sanring-error-40)]',
       this.class(),

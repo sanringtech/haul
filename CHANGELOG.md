@@ -2,6 +2,32 @@
 
 開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
 
+## v0.3.0（2026-09-01）：用量歷史折線圖、設定頁互動打磨
+
+- **用量歷史折線圖**（手畫輕量 SVG，不引入圖表庫——資料型態單純、bundle 已經超過 `angular.json` 的 500kB 警告門檻，不想再加重）：
+  - 5 小時（短週期／突發額度）跟 7 天／其他（長週期／總預算，含 Cursor 這類單一視窗來源）拆成兩張獨立圖表，不再混在同一個 Y 軸比——兩者代表完全不同的緊急程度
+  - 同一帳號跨圖表共用同一個顏色，視窗（5h/7d）用實線/虛線區分，不是每個「帳號＋視窗」組合各自配一個不相干的顏色
+  - 圖例可點擊個別開關某條線的顯示（跟一般圖表庫的圖例互動一樣），每項顯示消耗速率（Δ%/小時，取最後兩個實際變化點計算）
+  - `UsageHistoryStore.Record()` 加上增量過濾——跟上一筆比對，數值沒變化就不寫，原本每 5 分鐘不管有沒有變化都寫一筆的噪音問題解決；記錄間隔也從 3 分鐘調整為 5 分鐘
+  - 折線圖跟匯出按鈕收在開關「開」的狀態底下，用 CSS `grid-template-rows`（0fr/1fr）做展開/收合過渡動畫，不是 `@if` 整塊瞬間消失/冒出來——這個專案沒有掛 `@angular/animations`，純 CSS 做得到就不用它
+- **匯出檔案**：預設檔名 `record_...` 改成 `haul_yyyyMMddHHmmss`；預設存檔位置 Documents 改成 Downloads。反組譯 Photino.Native 的原生 macOS dylib 確認：那顆存檔視窗只呼叫 `setDirectoryURL:`，從沒呼叫過 `setNameFieldStringValue:`，`defaultPath` 的檔名部分天生不會被套用（Photino 本身的限制，沒原始碼可修）——退而求其次：使用者沒動過檔名欄位（還是系統預設的 "Untitled"）就自動換成正確命名，使用者自己打了別的名字則尊重不覆蓋
+- **用量健康度**：移除點擊後彈出的細節 Dialog，只保留卡片列表頂端的純顯示（改成 `<div>` 不是按鈕，沒有東西可點還留著 hover 效果是誤導）；連帶清掉變成死程式碼的 `subscriptionSummaries`/`healthHoverClass` 跟幾個 i18n key
+- **訂閱用量提醒**（注意／接近上限）改成單一軌道、雙手柄的區間滑桿（新元件 `sanring-range-slider`）取代原本兩條各自獨立、靠程式邏輯互相夾住的滑桿——畫面上天生不可能讓「注意」超過「接近上限」，不用使用者自己試撞邊界才發現這個限制；閾值輸入改成下拉選單（跟「API KEY 餘額提醒」的數字輸入框同尺寸 `h-9 w-28`，兩者的內距/字級也對齊到完全一致）
+- **API KEY 餘額提醒**：DeepSeek/Kimi 兩列改成只在「至少追蹤一個對應帳號」時才顯示，不會出現帳號已取消追蹤、設定列還留著的不一致情況；`stateNearLimit` 措詞從「接近用盡」改成「警戒」——原本的措詞對餘額類（只是跨過第二道提醒門檻，不代表真的快沒了）太過嚴重
+- 修掉兩個共用元件的過渡動畫缺口：`sanring-switch` 軌道變色時長對齊圓點滑動的 200ms；`sanringInput` 補上 `transition-opacity`，讓被開關連動 disabled 的欄位變暗/變亮也有過渡，不是瞬間跳一下
+- 已隱藏來源清單的「取消隱藏」按鈕文字拿掉，改成跟卡片操作區一致的 icon + hover tooltip
+- 清掉 `frontend/src/` 底下意外落地的 91 個編譯產物 `.js`（跟每個 `.ts` 同目錄同名，內容是轉譯後的版本——不是刻意產生的，`.gitignore` 沒排除到，這次一併清掉避免進 git）
+
+## v0.2.0（2026-09-01）：Cursor 來源、用量健康度、用量歷史記錄
+
+- 新增 **Cursor** 訂閱制來源：讀本機 `state.vscdb`（SQLite，第一次在這個專案用 `Microsoft.Data.Sqlite`）+ 解 JWT 判斷過期，方案標籤（Pro/Ultra）直接讀本機快取的 `stripeMembershipType`，完整查證見 [`AI-LANDSCAPE.md`](AI-LANDSCAPE.md)
+- 方案標籤補齊：Claude（cswap 帳號改讀 Keychain 內 `subscriptionType`）、Cursor 都接上了，Codex 原本就有
+- 首次啟動一次性資料存取聲明彈窗（強制同意，不可跳過）；啟動時自動刷新一次用量，不用再等自動刷新排程或手動點擊
+- 用量警示改三階（attention 黃／near_limit 橘／exceeded 紅）；卡片清單頂端新增「用量健康度」彙總卡片（取最嚴重狀態代表整體，點開看各帳號細節）
+- 新增「記錄用量歷史」：開關開啟後自動刷新固定接管成 3 分鐘一次，把訂閱制來源的用量寫進本機 SQLite（最長保留 1 個月），可匯出成 Markdown 或 Excel（新增 `ClosedXML` 依賴），存檔對話框用 Photino.NET 內建的原生「另存新檔」，不用額外套件
+- 移除「歷史資料保留期」這個從沒真的生效過的舊設定（PRD Story 6 假設的歷史清除功能從未實作）
+- 設定頁多處 UX 修正：刷新間隔按鈕、記錄用量歷史開關、DeepSeek/Kimi 餘額提醒開關改成點下去立即存檔（原本要另外按「儲存」，選了純手動之類的選項沒按儲存就離開，回來又跳回舊值，感覺像「自動跳回」，其實是根本沒存到）；DeepSeek/Kimi 餘額提醒標籤在只追蹤一個帳號時可以點擊改名、同步回卡片；用量健康度卡片修掉一個 `sanringButton`/`sanringBtn` 打錯字的 bug（整個 ButtonDirective 沒套用，垂直置中跟 hover 一起壞掉）；switch 軌道過渡時長對齊圓點滑動的 200ms
+
 ## 2026-09-01：改名 sanring Usage Monitor → sanring Haul
 
 「Monitor」語感偏被動，改成 **Haul**——撒網把散落在各個 CLI/帳號裡的用量資料一次撈起來的動作感。純品牌更名，功能/架構不變：

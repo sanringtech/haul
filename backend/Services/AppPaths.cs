@@ -29,4 +29,7 @@ public static class AppPaths
     }
 
     public static string SettingsFilePath => Path.Combine(DataDirectory, "settings.json");
+
+    /// <summary>SQLite 檔——用量歷史記錄（設定頁「記錄用量歷史」開關），見 Services/UsageHistoryStore.cs。</summary>
+    public static string UsageHistoryDbPath => Path.Combine(DataDirectory, "usage-history.sqlite3");
 }

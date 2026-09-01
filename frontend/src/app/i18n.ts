@@ -22,6 +22,7 @@ export interface Translations {
   refresh: string;
   refreshing: string;
   lastUpdated: string;
+  usageHealthSummary: string;
   noSourcesTracked: string;
   addSource: string;
   addSourceAria: string;
@@ -126,6 +127,8 @@ export interface Translations {
   usageAlertSummary: string;
   apiKeyBalanceAlertTitle: string;
   apiKeyBalanceAlertDescription: string;
+  balanceAlertToggleAria: string;
+  balanceAmountAria: string;
   lowBalancePlaceholder: string;
   balanceAttentionLabel: string;
   balanceCriticalLabel: string;
@@ -134,6 +137,15 @@ export interface Translations {
   interval5m: string;
   interval1h: string;
   interval2h: string;
+  usageHistoryTitle: string;
+  usageHistoryDescription: string;
+  usageHistoryNoData: string;
+  chartSeriesShown: string;
+  chartSeriesHidden: string;
+  chartShortWindowTitle: string;
+  chartLongWindowTitle: string;
+  exportMd: string;
+  exportXlsx: string;
   saveSettings: string;
   settingsSaved: string;
 
@@ -174,6 +186,7 @@ export const translations: Record<Lang, Translations> = {
     refresh: '重新整理用量',
     refreshing: '重新整理中…',
     lastUpdated: '上次更新 {time}',
+    usageHealthSummary: '用量健康度：{state}',
     noSourcesTracked: '還沒有追蹤任何來源',
     addSource: '新增來源',
     addSourceAria: '新增來源',
@@ -196,7 +209,7 @@ export const translations: Record<Lang, Translations> = {
     noDataYet: '尚無資料',
     stateNormal: '正常',
     stateAttention: '注意',
-    stateNearLimit: '接近用盡',
+    stateNearLimit: '警戒',
     stateExceeded: '已用盡',
     stateUnknown: '—',
     back: '返回',
@@ -274,7 +287,9 @@ export const translations: Record<Lang, Translations> = {
     fixedLabel: '固定',
     usageAlertSummary: '{attention}% 顯示黃色、{nearLimit}% 顯示橘色、100% 顯示紅色。',
     apiKeyBalanceAlertTitle: 'API KEY 餘額提醒',
-    apiKeyBalanceAlertDescription: '可分別設定黃色注意與橘色接近用盡金額；留空代表不提醒。',
+    apiKeyBalanceAlertDescription: '可分別開啟各服務商的餘額提醒；開啟後設定提醒金額。',
+    balanceAlertToggleAria: '切換 {provider} 餘額提醒',
+    balanceAmountAria: '{provider} 提醒金額',
     lowBalancePlaceholder: '不提醒',
     balanceAttentionLabel: '注意（黃）',
     balanceCriticalLabel: '接近用盡（橘）',
@@ -283,6 +298,15 @@ export const translations: Record<Lang, Translations> = {
     interval5m: '5 分鐘',
     interval1h: '1 小時',
     interval2h: '2 小時',
+    usageHistoryTitle: '記錄用量歷史',
+    usageHistoryDescription: '開啟後自動刷新固定改為每 5 分鐘一次，並把各訂閱制來源的用量記錄到本機，最長保留 1 個月，可隨時匯出成 Markdown 或 Excel 檔。',
+    usageHistoryNoData: '還沒有足夠的記錄可以畫圖，開啟上面的開關再等幾輪刷新看看。',
+    chartSeriesShown: '{label}目前顯示中，點一下隱藏',
+    chartSeriesHidden: '{label}目前已隱藏，點一下顯示',
+    chartShortWindowTitle: '5 小時視窗（短週期／突發額度）',
+    chartLongWindowTitle: '7 天／其他視窗（長週期／總預算）',
+    exportMd: '匯出 Markdown',
+    exportXlsx: '匯出 Excel',
     saveSettings: '儲存',
     settingsSaved: '設定已儲存',
 
@@ -318,6 +342,7 @@ export const translations: Record<Lang, Translations> = {
     refresh: 'Refresh usage',
     refreshing: 'Refreshing…',
     lastUpdated: 'Last updated {time}',
+    usageHealthSummary: 'Usage health: {state}',
     noSourcesTracked: 'No sources tracked yet',
     addSource: 'Add source',
     addSourceAria: 'Add source',
@@ -340,7 +365,7 @@ export const translations: Record<Lang, Translations> = {
     noDataYet: 'No data yet',
     stateNormal: 'Normal',
     stateAttention: 'Attention',
-    stateNearLimit: 'Near empty',
+    stateNearLimit: 'Warning',
     stateExceeded: 'Exhausted',
     stateUnknown: '—',
     back: 'Back',
@@ -418,7 +443,9 @@ export const translations: Record<Lang, Translations> = {
     fixedLabel: 'Fixed',
     usageAlertSummary: 'Yellow at {attention}%, orange at {nearLimit}%, and red at 100%.',
     apiKeyBalanceAlertTitle: 'API KEY balance alerts',
-    apiKeyBalanceAlertDescription: 'Set yellow attention and orange near-empty amounts separately; leave blank to disable.',
+    apiKeyBalanceAlertDescription: 'Enable balance alerts per provider, then set the alert amount.',
+    balanceAlertToggleAria: 'Toggle {provider} balance alert',
+    balanceAmountAria: '{provider} alert amount',
     lowBalancePlaceholder: 'No alert',
     balanceAttentionLabel: 'Attention (yellow)',
     balanceCriticalLabel: 'Near empty (orange)',
@@ -427,6 +454,15 @@ export const translations: Record<Lang, Translations> = {
     interval5m: '5 min',
     interval1h: '1 hour',
     interval2h: '2 hours',
+    usageHistoryTitle: 'Record usage history',
+    usageHistoryDescription: 'When on, auto-refresh switches to a fixed 5-minute cadence and each subscription source’s usage is recorded locally (kept for up to 1 month). Export it anytime as Markdown or Excel.',
+    usageHistoryNoData: 'Not enough recorded data to chart yet — turn on the switch above and wait for a few more refreshes.',
+    chartSeriesShown: '{label} is shown — click to hide',
+    chartSeriesHidden: '{label} is hidden — click to show',
+    chartShortWindowTitle: '5-hour windows (short cycle / burst limit)',
+    chartLongWindowTitle: '7-day & other windows (long cycle / total budget)',
+    exportMd: 'Export Markdown',
+    exportXlsx: 'Export Excel',
     saveSettings: 'Save',
     settingsSaved: 'Settings saved',
 

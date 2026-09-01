@@ -34,6 +34,13 @@ public sealed class AppSettings
 
     public double? KimiAttentionBalanceThresholdUsd { get; set; }
 
+    /// <summary>
+    /// 「記錄用量歷史」開關（見 Services/UsageHistoryStore.cs）。開啟時前端自動刷新固定接管成 3
+    /// 分鐘一次，每輪結果都會寫進本機 SQLite；關閉時完全不寫、也不影響自動刷新間隔。預設關閉——
+    /// 這會讓非官方端點的請求頻率提高到每小時 20 次，不該是預設行為，得使用者自己選擇開啟。
+    /// </summary>
+    public bool UsageHistoryEnabled { get; set; }
+
     /// <summary>Account ids the user has hidden (constitution §8 "關閉顯示") — data/keys stay, just not shown.</summary>
     public List<string> HiddenAccountIds { get; set; } = [];
 

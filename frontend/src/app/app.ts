@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, TemplateRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   LucideArrowLeft,
@@ -9,7 +10,10 @@ import {
   LucideCircleCheck,
   LucideEye,
   LucideEyeOff,
+  LucideFileSpreadsheet,
+  LucideFileText,
   LucideGripVertical,
+  LucideHeartPulse,
   LucideInfo,
   LucideMoon,
   LucidePlus,
@@ -23,7 +27,9 @@ import { ButtonDirective } from './components/ui/button';
 import { BadgeDirective } from './components/ui/badge';
 import { ProgressComponent } from './components/ui/progress';
 import { InputDirective } from './components/ui/input';
-import { SliderComponent } from './components/ui/slider';
+import { RangeSliderComponent } from './components/ui/range-slider';
+import { LineChartComponent, LineChartSeries } from './components/ui/line-chart';
+import { SwitchComponent } from './components/ui/switch';
 import { SANRING_CARD_IMPORTS } from './components/ui/card';
 import { SANRING_ALERT_IMPORTS } from './components/ui/alert';
 import { AlertDialogService, SANRING_ALERT_DIALOG_IMPORTS } from './components/ui/alert-dialog';
@@ -52,6 +58,7 @@ interface UserSettingsWire {
   deepSeekLowBalanceThresholdUsd: number | null;
   kimiAttentionBalanceThresholdUsd: number | null;
   kimiLowBalanceThresholdUsd: number | null;
+  usageHistoryEnabled: boolean;
 }
 
 /** One progress row's worth of data, built from either the primary or secondary window fields. */
@@ -60,6 +67,23 @@ interface UsageWindow {
   percent: number | null;
   state: UsageState;
   detail: string | null;
+}
+
+/** Mirrors backend's UsageHistoryStore.UsageHistoryPoint（camelCase on the wire）——設定頁折線圖用。 */
+interface UsageHistoryPointWire {
+  recordedAtUtc: string;
+  accountId: string;
+  displayName: string;
+  accountLabel: string | null;
+  windowLabelKey: string | null;
+  percentUsed: number;
+  usageState: UsageState;
+}
+
+/** 卡片列表最上方的彙總健康度——見 usageHealth() 的算法說明。 */
+interface UsageHealth {
+  /** 所有訂閱用量中最需要注意的狀態；API KEY 餘額不屬於用量健康度。 */
+  state: UsageState;
 }
 
 /** Mirrors backend's SourceCatalogEntry — the fixed set of known provider types, tracked or not. */
@@ -74,11 +98,14 @@ interface CatalogEntry {
   selector: 'app-root',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     ButtonDirective,
     BadgeDirective,
     ProgressComponent,
     InputDirective,
-    SliderComponent,
+    RangeSliderComponent,
+    LineChartComponent,
+    SwitchComponent,
     SpinnerComponent,
     SkeletonDirective,
     CdkDropList,
@@ -92,7 +119,10 @@ interface CatalogEntry {
     LucideCircleCheck,
     LucideEye,
     LucideEyeOff,
+    LucideFileSpreadsheet,
+    LucideFileText,
     LucideGripVertical,
+    LucideHeartPulse,
     LucideInfo,
     LucideMoon,
     LucidePlus,
@@ -116,13 +146,58 @@ export class App implements AfterViewInit {
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
    *  記得一起改。 */
-  protected readonly appVersion = 'v0.1.0';
+  protected readonly appVersion = 'v0.3.0';
   protected readonly isDesktopHost = signal(typeof window.external?.sendMessage === 'function');
   protected readonly summaries = signal<UsageSummary[]>([]);
   protected readonly lastError = signal<string | null>(null);
   protected readonly isLoading = signal(false);
   /** Shown once next to the refresh button instead of once per card — every card's `asOf` is effectively the same refresh instant. */
   protected readonly lastRefreshedAt = signal<string | null>(null);
+
+  /** 以最嚴重的訂閱用量代表整體健康狀態；API KEY 餘額由來源卡片各自呈現。 */
+  protected readonly usageHealth = computed<UsageHealth | null>(() => {
+    const states = this.summaries()
+      .filter((item) => item.sourceType === 'subscription')
+      .flatMap((item) => this.windows(item).map((window) => window.state));
+    if (states.length === 0) return null;
+
+    const severity: Record<UsageState, number> = { unknown: 0, normal: 1, attention: 2, near_limit: 3, exceeded: 4 };
+    return { state: states.reduce((worst, state) => severity[state] > severity[worst] ? state : worst) };
+  });
+
+  /**
+   * 「API KEY 餘額提醒」那兩列的標籤要能點擊改名、同步回對應帳號卡片（跟卡片標題共用同一套
+   * startRename/commitRename 機制，不是另外做一套）——但這組閾值是「整個 DeepSeek/整個 Kimi 共用
+   * 一組」，不是綁在某個帳號上，所以只有「剛好只追蹤一個」的時候才找得出唯一對應的帳號可以改名；
+   * 追蹤兩個以上（或一個都沒有）就沒有唯一對應目標，退回顯示不可點擊的純文字「DeepSeek」/「Kimi」，
+   * 不然點下去到底改哪一個會誤導。DisplayName 同時篩 sourceType==='api_key'——Kimi 同時有訂閱制
+   * 跟 API KEY 制兩種 provider，DisplayName 都叫 "Kimi"，這裡要的是餘額那個，不能只比對名字。
+   */
+  protected readonly deepSeekAccount = computed(() => {
+    const matches = this.summaries().filter((s) => s.displayName === 'DeepSeek' && s.sourceType === 'api_key');
+    return matches.length === 1 ? matches[0] : null;
+  });
+  protected readonly kimiAccount = computed(() => {
+    const matches = this.summaries().filter((s) => s.displayName === 'Kimi' && s.sourceType === 'api_key');
+    return matches.length === 1 ? matches[0] : null;
+  });
+
+  /**
+   * 「有沒有追蹤這個 provider 的 api_key 帳號」——跟上面 deepSeekAccount()/kimiAccount() 是不同問題：
+   * 那兩個回答「剛好只有一個，可不可以在這裡改名」，這兩個回答「這個 provider 的餘額提醒設定列
+   * 該不該出現」。帳號被取消追蹤後（連同 summaries()/hiddenAccounts() 都沒有了），設定頁還留著
+   * 一整列「Kimi 餘額提醒」開關會很奇怪——使用者反饋這點，兩者其實是同一件事的兩個層面，帳號
+   * 都不在了，這個 provider 的餘額提醒設定當然也不該還露出來。「關閉顯示」中的帳號（hiddenAccounts）
+   * 還算追蹤中，不是取消追蹤，餘額提醒該繼續有效，所以也算進來。
+   */
+  protected readonly hasDeepSeekAccount = computed(() =>
+    this.summaries().some((s) => s.displayName === 'DeepSeek' && s.sourceType === 'api_key') ||
+    this.hiddenAccounts().some((a) => a.displayName === 'DeepSeek' && a.sourceType === 'api_key'),
+  );
+  protected readonly hasKimiAccount = computed(() =>
+    this.summaries().some((s) => s.displayName === 'Kimi' && s.sourceType === 'api_key') ||
+    this.hiddenAccounts().some((a) => a.displayName === 'Kimi' && a.sourceType === 'api_key'),
+  );
 
   /** Which account's label is currently showing an edit input, and its in-progress value. */
   protected readonly editingLabelAccountId = signal<string | null>(null);
@@ -158,15 +233,162 @@ export class App implements AfterViewInit {
   protected readonly draftRefreshInterval = signal<number | null>(60);
   protected readonly draftAttentionThreshold = signal<number>(70);
   protected readonly draftNearLimitThreshold = signal<number>(85);
-  protected readonly draftDeepSeekAttentionBalance = signal<number | null>(null);
+  /** 「注意」select 的選項清單——動態排除掉會跟「接近上限」目前的值交叉的選項，選單裡出現的
+   *  每一項本來就保證合法，不用另外在選了之後才 clamp。跟 sanring-range-slider 的 allowedMax 同一個
+   *  50~95、5 一階的規則。 */
+  protected readonly attentionThresholdOptions = computed(() => {
+    const options: number[] = [];
+    for (let v = 50; v <= this.draftNearLimitThreshold(); v += 5) options.push(v);
+    return options;
+  });
+  protected readonly nearLimitThresholdOptions = computed(() => {
+    const options: number[] = [];
+    for (let v = this.draftAttentionThreshold(); v <= 95; v += 5) options.push(v);
+    return options;
+  });
   protected readonly draftDeepSeekLowBalance = signal<number | null>(null);
-  protected readonly draftKimiAttentionBalance = signal<number | null>(null);
   protected readonly draftKimiLowBalance = signal<number | null>(null);
+  protected readonly draftDeepSeekBalanceAlertEnabled = signal(false);
+  protected readonly draftKimiBalanceAlertEnabled = signal(false);
+  /** 「記錄用量歷史」開關——active 值另外驅動下面建構子裡自動刷新 timer 的接管邏輯，見那裡的註解。 */
+  protected readonly usageHistoryEnabled = signal(false);
+  protected readonly draftUsageHistoryEnabled = signal(false);
   protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
-  protected readonly hasInvalidBalanceThresholds = computed(() =>
-    this.isInvalidBalancePair(this.draftDeepSeekAttentionBalance(), this.draftDeepSeekLowBalance()) ||
-    this.isInvalidBalancePair(this.draftKimiAttentionBalance(), this.draftKimiLowBalance()),
+
+  /** 匯出用量歷史（md/xlsx）的按鈕狀態——跟 addStatus/settingsSaveStatus 同一種「按下去到有結果」模式。 */
+  protected readonly historyExportStatus = signal<'idle' | 'pending' | 'success' | 'error'>('idle');
+  protected readonly historyExportError = signal<string | null>(null);
+  protected readonly usageHistory = signal<UsageHistoryPointWire[]>([]);
+
+  /**
+   * 設定頁折線圖的資料——把 usageHistory() 依「帳號＋視窗」分組成一條條線。顏色刻意不用
+   * success/warn/error 那組語意色（那些在別處代表「狀態」，這裡的顏色只是用來分辨「這是哪個
+   * 帳號的哪個視窗」，兩件事混在一起會誤導），改用 primary/coral/sun/info 四個品牌色階輪流分配。
+   */
+  /**
+   * 5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算，含 Cursor 月結這類沒有次要視窗概念
+   * 的來源）分成兩張圖，不再混在一起——兩者代表的是完全不同的決策維度：5 小時決定「現在能不能
+   * 繼續用」，7 天／月則決定「這週/這個月的整體步調」，同一張圖同一個 Y 軸混著看，「7 天用了
+   * 61%」看起來會跟「5 小時用了 61%」一樣緊急，其實急迫程度差非常多。單一視窗來源（Cursor 等）
+   * 沒有「5 小時」這種爆發性節奏，歸進長週期那組比較合理，即使實際重置週期未必是 7 天。
+   */
+  protected readonly shortWindowChartSeries = computed(() =>
+    this.buildChartSeries(this.usageHistory().filter((p) => p.windowLabelKey === 'fiveHourLabel')),
   );
+  protected readonly longWindowChartSeries = computed(() =>
+    this.buildChartSeries(this.usageHistory().filter((p) => p.windowLabelKey !== 'fiveHourLabel')),
+  );
+
+  /** 帳號→顏色的對照表刻意跨兩張圖共用同一份（不是每張圖各自從頭分配）——同一個帳號在兩張圖
+   *  裡要是同一個顏色，才看得出「這兩張圖裡的這兩條線是同一個人」，不然色號分配順序不同，
+   *  兩張圖對不起來。 */
+  private readonly accountColorMap = computed(() => {
+    const palette = [
+      'var(--sanring-primary-50)',
+      'var(--sanring-coral-50)',
+      'var(--sanring-sun-50)',
+      'var(--sanring-info-50)',
+    ];
+    const map = new Map<string, string>();
+    for (const p of this.usageHistory()) {
+      if (!map.has(p.accountId)) {
+        map.set(p.accountId, palette[map.size % palette.length]);
+      }
+    }
+    return map;
+  });
+
+  private buildChartSeries(points: UsageHistoryPointWire[]): LineChartSeries[] {
+    const accountColor = this.accountColorMap();
+    const grouped = new Map<string, { accountId: string; label: string; dashed: boolean; points: { x: number; y: number }[] }>();
+
+    for (const p of points) {
+      const key = `${p.accountId}::${p.windowLabelKey ?? ''}`;
+      const windowLabel = p.windowLabelKey === 'fiveHourLabel' ? this.t('fiveHourLabel')
+        : p.windowLabelKey === 'sevenDayLabel' ? this.t('sevenDayLabel')
+        : null;
+      const accountName = p.accountLabel ?? p.displayName;
+      const label = windowLabel ? `${accountName}（${windowLabel}）` : accountName;
+      const x = new Date(p.recordedAtUtc).getTime();
+
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.points.push({ x, y: p.percentUsed });
+      } else {
+        // 次要視窗（7 天）畫虛線；沒有次要視窗概念的來源（單一視窗，windowLabelKey 是 null）跟
+        // 主要視窗（5 小時）一樣畫實線。
+        grouped.set(key, { accountId: p.accountId, label, dashed: p.windowLabelKey === 'sevenDayLabel', points: [{ x, y: p.percentUsed }] });
+      }
+    }
+
+    return [...grouped.values()].map((series) => ({
+      label: series.label,
+      color: accountColor.get(series.accountId)!,
+      dashed: series.dashed,
+      points: series.points.sort((a, b) => a.x - b.x),
+    }));
+  }
+
+  /** X 軸時間範圍兩張圖共用同一個，不是各自貼合自己的資料——這樣兩張圖上下對齊時，同一個時間點
+   *  在兩張圖的水平位置是一樣的，比較「這時候發生了什麼」才有意義。 */
+  protected readonly chartMinX = computed(() => {
+    const allX = this.usageHistory().map((p) => new Date(p.recordedAtUtc).getTime());
+    return allX.length > 0 ? Math.min(...allX) : 0;
+  });
+  protected readonly chartMaxX = computed(() => {
+    const allX = this.usageHistory().map((p) => new Date(p.recordedAtUtc).getTime());
+    return allX.length > 0 ? Math.max(...allX) : 1;
+  });
+
+  /** 點圖例可以個別開關某一條線——跟一般圖表庫（ECharts 等）圖例的標準互動一樣。只存「被關掉」
+   *  的 label，不是存「目前可見」的清單——新出現的系列（例如剛追蹤的新帳號）預設就是顯示的，
+   *  不用額外處理「新系列要不要顯示」這個問題。兩張圖共用同一份，label 本身已經含帳號+視窗，
+   *  不會跨圖撞名。 */
+  protected readonly hiddenChartSeries = signal<ReadonlySet<string>>(new Set());
+
+  protected toggleChartSeries(label: string): void {
+    this.hiddenChartSeries.update((hidden) => {
+      const next = new Set(hidden);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
+
+  /**
+   * 圖例要顯示的資料（含消耗速率、是否被關掉）——刻意不當成傳給 <sanring-line-chart> 的
+   * LineChartSeries 的一部分（那個元件是純畫圖的，不該知道「速率」這種業務語意），也刻意不做成
+   * computed（現在有兩張圖各自要呼叫，用 computed 反而要多存兩份幾乎一樣的東西，一個 method
+   * 兩張圖共用邏輯更單純，這裡的資料量小，模板裡每次 CD 重算也不是問題）。
+   */
+  protected chartLegendFor(series: LineChartSeries[]) {
+    return series.map((s) => ({
+      ...s,
+      rateLabel: this.burnRateLabel(s.points),
+      hidden: this.hiddenChartSeries().has(s.label),
+    }));
+  }
+
+  /** 實際畫進 <sanring-line-chart> 的只有沒被關掉的系列。 */
+  protected visibleSeries(series: LineChartSeries[]): LineChartSeries[] {
+    return series.filter((s) => !this.hiddenChartSeries().has(s.label));
+  }
+
+  /**
+   * 消耗速率：用系列最後兩個點算 Δ%/小時——增量過濾後每個點都代表一次真正的數值變化，不是每 5
+   * 分鐘的固定間隔，用「最後兩點」比用「最後一小時內的點」更準（後者在點很稀疏時可能抓不到任何
+   * 點）。少於兩個點算不出速率，不顯示。
+   */
+  private burnRateLabel(points: { x: number; y: number }[]): string | null {
+    if (points.length < 2) return null;
+    const last = points[points.length - 1];
+    const prev = points[points.length - 2];
+    const hours = (last.x - prev.x) / 3_600_000;
+    if (hours <= 0) return null;
+    const rate = (last.y - prev.y) / hours;
+    const sign = rate >= 0 ? '+' : '';
+    return `${sign}${rate.toFixed(1)}%/h`;
+  }
 
   /** 「已隱藏的來源」清單——放在主畫面清單底部（跟卡片同一個畫面，不是設定頁），預設收合。 */
   protected readonly hiddenAccounts = signal<HiddenAccountEntry[]>([]);
@@ -198,8 +420,13 @@ export class App implements AfterViewInit {
     // 自動刷新 timer——只依賴 refreshIntervalMinutes 這個 active 值，不是設定頁還在編輯中的
     // draft，所以在設定頁裡調整下拉選項不會提早生效，要按「儲存」才會真的改變刷新頻率。
     // null＝純手動（PRD/憲法 §9），不開 timer。
+    //
+    // 「記錄用量歷史」開啟時直接接管成固定 5 分鐘一次，蓋掉使用者選的刷新間隔——這是使用者自己
+    // 選的行為（見開關旁的說明文字），不是意外副作用：沒有另外開一條背景輪詢，寫入歷史記錄完全
+    // 搭這裡的便車（見後端 Program.cs 的 RespondWithSummaries），只有一份「多久打一次 API」的邏輯。
+    // （原本是 3 分鐘，使用者反饋抓太密、資料雜訊偏多，改成 5 分鐘。）
     effect((onCleanup) => {
-      const minutes = this.refreshIntervalMinutes();
+      const minutes = this.usageHistoryEnabled() ? 5 : this.refreshIntervalMinutes();
       if (minutes === null) return;
       const id = setInterval(() => this.refresh(), minutes * 60_000);
       onCleanup(() => clearInterval(id));
@@ -283,10 +510,18 @@ export class App implements AfterViewInit {
     this.draftRefreshInterval.set(this.refreshIntervalMinutes());
     this.draftAttentionThreshold.set(this.attentionThresholdPercent());
     this.draftNearLimitThreshold.set(this.nearLimitThresholdPercent());
-    this.draftDeepSeekAttentionBalance.set(this.deepSeekAttentionBalanceThresholdUsd());
     this.draftDeepSeekLowBalance.set(this.deepSeekLowBalanceThresholdUsd());
-    this.draftKimiAttentionBalance.set(this.kimiAttentionBalanceThresholdUsd());
     this.draftKimiLowBalance.set(this.kimiLowBalanceThresholdUsd());
+    this.draftDeepSeekBalanceAlertEnabled.set(this.deepSeekLowBalanceThresholdUsd() !== null);
+    this.draftKimiBalanceAlertEnabled.set(this.kimiLowBalanceThresholdUsd() !== null);
+    this.draftUsageHistoryEnabled.set(this.usageHistoryEnabled());
+    this.historyExportStatus.set('idle');
+    this.historyExportError.set(null);
+    // 折線圖資料每次進設定頁都重新抓一次，不快取——資料量不大（見 UsageHistoryStore 的估算），
+    // 這裡不是高頻動作，沒必要為了省一次查詢去追蹤「上次抓的資料是不是還新鮮」。用 sendSilent
+    // 不是 send()：這是純本機 SQLite 查詢，不是打外部 API 的「用量刷新」，不該點亮清單頁的
+    // 刷新中圖示（使用者這時人在設定頁，那顆圖示他也看不到，點亮了也只是誤導）。
+    this.sendSilent({ type: 'get-usage-history' });
   }
 
   protected toggleHiddenList(): void {
@@ -306,8 +541,15 @@ export class App implements AfterViewInit {
     this.view.set('list');
   }
 
+  /**
+   * 這幾顆按鈕點下去立即存檔，不等「儲存」——跟 onUsageHistoryToggle 同一個理由、同一個 bug 的
+   * 回報（使用者選了「純手動」，沒按儲存就離開設定頁，回來又跳回 1 小時，感覺像「自動跳回」，
+   * 其實是根本沒存到）。這裡是離散的按鈕點擊（不是拖曳滑桿），跟 saveSettings() 平常存檔時同樣
+   * 只會觸發一次完整刷新，不會有滑桿逐 pixel 洗版存檔的問題，所以能比照開關那樣直接存。
+   */
   protected selectRefreshInterval(minutes: number | null): void {
     this.draftRefreshInterval.set(minutes);
+    this.saveSettings();
   }
 
   protected onAttentionThresholdChange(value: number): void {
@@ -318,35 +560,77 @@ export class App implements AfterViewInit {
     this.draftNearLimitThreshold.set(Math.max(value, this.draftAttentionThreshold()));
   }
 
-  protected onLowBalanceInput(provider: 'deepseek' | 'kimi', stage: 'attention' | 'critical', event: Event): void {
+  /**
+   * 拖滑桿跟選數字是同一個值的兩種輸入方式——原本試過 sanringInput type="number" 自由輸入，
+   * 使用者反饋改用 select 下拉：一來只有 50/55/…/95 這 10 個合法值，下拉直接列舉排除打錯字/
+   * 打出不是 5 的倍數這種情況；二來跟「API KEY 餘額提醒」那兩個數字輸入框在「同一種控制項」
+   * 這件事上取得一致（select 本質上也是一種 input）。選項清單本身就用 attentionThresholdOptions/
+   * nearLimitThresholdOptions 動態排除掉會跟另一個閾值交叉的值，所以這裡不用再另外 clamp——
+   * 選單裡出現的每個選項本來就保證合法。
+   */
+  protected onAttentionThresholdSelect(event: Event): void {
+    const value = Number((event.target as HTMLSelectElement).value);
+    if (!Number.isFinite(value)) return;
+    this.draftAttentionThreshold.set(value);
+  }
+
+  protected onNearLimitThresholdSelect(event: Event): void {
+    const value = Number((event.target as HTMLSelectElement).value);
+    if (!Number.isFinite(value)) return;
+    this.draftNearLimitThreshold.set(value);
+  }
+
+  /**
+   * 這顆開關存檔即時生效，不等使用者另外按「儲存」——跟同一頁其他欄位（間隔/閾值）故意採用
+   * 「先在草稿改，按儲存才生效」不一樣。原因：header 那幾顆主題/語言切換都是點下去立即生效，
+   * 使用者對「開關」這個控制項元件的既有預期就是這樣，之前做成要另外按儲存，會讓人以為開關已經
+   * 生效、關掉設定頁後才發現其實沒存到——玩家回報「記錄用量歷史會自動關閉」，根因就是這個預期
+   * 落差（不是真的有東西把它關掉，是本來就沒存進去）。
+   */
+  protected onUsageHistoryToggle(checked: boolean): void {
+    this.draftUsageHistoryEnabled.set(checked);
+    this.saveSettings();
+  }
+
+  protected onBalanceAlertToggle(provider: 'deepseek' | 'kimi', checked: boolean): void {
+    const enabled = provider === 'deepseek' ? this.draftDeepSeekBalanceAlertEnabled : this.draftKimiBalanceAlertEnabled;
+    const amount = provider === 'deepseek' ? this.draftDeepSeekLowBalance : this.draftKimiLowBalance;
+    enabled.set(checked);
+    if (checked && amount() === null) amount.set(10);
+  }
+
+  protected onLowBalanceInput(provider: 'deepseek' | 'kimi', event: Event): void {
     const raw = (event.target as HTMLInputElement).value.trim();
     const parsed = raw === '' ? null : Number(raw);
     const value = parsed !== null && Number.isFinite(parsed) ? Math.max(0, parsed) : null;
-    if (provider === 'deepseek' && stage === 'attention') this.draftDeepSeekAttentionBalance.set(value);
-    else if (provider === 'deepseek') this.draftDeepSeekLowBalance.set(value);
-    else if (stage === 'attention') this.draftKimiAttentionBalance.set(value);
+    if (provider === 'deepseek') this.draftDeepSeekLowBalance.set(value);
     else this.draftKimiLowBalance.set(value);
   }
 
   /** 存檔回應（'settings' 訊息）到達時才真的覆蓋 active 值，見 onHostMessage——不是這裡樂觀更新，
    * 因為閾值變動會連動一次完整刷新（見 Program.cs），active 值要跟後端回傳的卡片資料同步生效。 */
   protected saveSettings(): void {
-    if (this.hasInvalidBalanceThresholds()) return;
     this.settingsSaveStatus.set('saving');
     this.send({
       type: 'update-settings',
       refreshIntervalMinutes: this.draftRefreshInterval(),
       attentionThresholdPercent: this.draftAttentionThreshold(),
       nearLimitThresholdPercent: this.draftNearLimitThreshold(),
-      deepSeekAttentionBalanceThresholdUsd: this.draftDeepSeekAttentionBalance(),
-      deepSeekLowBalanceThresholdUsd: this.draftDeepSeekLowBalance(),
-      kimiAttentionBalanceThresholdUsd: this.draftKimiAttentionBalance(),
-      kimiLowBalanceThresholdUsd: this.draftKimiLowBalance(),
+      deepSeekAttentionBalanceThresholdUsd: null,
+      deepSeekLowBalanceThresholdUsd: this.draftDeepSeekBalanceAlertEnabled() ? this.draftDeepSeekLowBalance() : null,
+      kimiAttentionBalanceThresholdUsd: null,
+      kimiLowBalanceThresholdUsd: this.draftKimiBalanceAlertEnabled() ? this.draftKimiLowBalance() : null,
+      usageHistoryEnabled: this.draftUsageHistoryEnabled(),
     });
   }
 
-  private isInvalidBalancePair(attention: number | null, critical: number | null): boolean {
-    return attention !== null && critical !== null && critical >= attention;
+  /** md/xlsx 匯出——存檔對話框（原生「另存新檔」視窗）跟寫檔都在後端做，這裡只負責發訊息跟收結果。
+   *  用 sendSilent 而非 send()：這不是一次用量刷新，用 send() 會連帶點亮清單頁的刷新中圖示，
+   *  在設定頁裡做這個動作會讓使用者困惑「怎麼跑去刷新卡片了」。 */
+  protected exportUsageHistory(format: 'md' | 'xlsx'): void {
+    this.historyExportStatus.set('pending');
+    this.historyExportError.set(null);
+    this.sendSilent({ type: 'export-usage-history', exportFormat: format, lang: this.lang() });
   }
 
   protected selectAddSource(sourceId: string): void {
@@ -517,6 +801,19 @@ export class App implements AfterViewInit {
     )[state];
   }
 
+  /** 同一組狀態，這次只取前景色——健康度區塊的心跳圖示用，跟 badge/bar 共用色階但不要背景色。 */
+  protected healthIconClass(state: UsageState): string {
+    return (
+      {
+        normal: 'text-[var(--sanring-success-50)]',
+        attention: 'text-[var(--sanring-warn-50)]',
+        near_limit: 'text-[var(--sanring-caution-50)]',
+        exceeded: 'text-[var(--sanring-error-50)]',
+        unknown: 'text-[var(--sanring-neutral-40)]',
+      } satisfies Record<UsageState, string>
+    )[state];
+  }
+
   /**
    * 卡片內容機械地依資料量顯示：1 個視窗的來源（Codex/DeepSeek/Kimi）只出現一行，
    * 2 個視窗的來源（Claude 的 5h+7d）就自然多一行——不特別針對某個 AI 寫死判斷式。
@@ -567,6 +864,7 @@ export class App implements AfterViewInit {
         catalog?: CatalogEntry[];
         settings?: UserSettingsWire;
         hiddenAccounts?: HiddenAccountEntry[];
+        usageHistory?: UsageHistoryPointWire[];
         error?: string;
       };
 
@@ -580,6 +878,11 @@ export class App implements AfterViewInit {
         return;
       }
 
+      if (payload.type === 'usage-history' && payload.usageHistory) {
+        this.usageHistory.set(payload.usageHistory);
+        return;
+      }
+
       // get-settings（啟動時）跟 update-settings（存檔後）的回應是同一種訊息——後者多了「存檔中」
       // 的短暫確認提示，前者純粹是把 active 值填進來。
       if (payload.type === 'settings' && payload.settings) {
@@ -590,6 +893,7 @@ export class App implements AfterViewInit {
         this.deepSeekLowBalanceThresholdUsd.set(payload.settings.deepSeekLowBalanceThresholdUsd);
         this.kimiAttentionBalanceThresholdUsd.set(payload.settings.kimiAttentionBalanceThresholdUsd);
         this.kimiLowBalanceThresholdUsd.set(payload.settings.kimiLowBalanceThresholdUsd);
+        this.usageHistoryEnabled.set(payload.settings.usageHistoryEnabled);
         if (this.settingsSaveStatus() === 'saving') {
           this.settingsSaveStatus.set('saved');
           setTimeout(() => this.settingsSaveStatus.set('idle'), 1500);
@@ -635,8 +939,27 @@ export class App implements AfterViewInit {
         return;
       }
 
+      if (payload.type === 'usage-history-exported') {
+        this.historyExportStatus.set('success');
+        setTimeout(() => this.historyExportStatus.set('idle'), 1500);
+        return;
+      }
+
+      // 使用者在「另存新檔」視窗按取消——不算錯誤，只是把按鈕從 pending 收回 idle。
+      if (payload.type === 'usage-history-export-cancelled') {
+        this.historyExportStatus.set('idle');
+        return;
+      }
+
       if (payload.error) {
-        this.lastError.set(payload.error);
+        // 匯出中發生的錯誤（例如還沒有任何記錄）顯示在設定頁按鈕旁邊，不是清單頁那個全域的
+        // lastError——使用者這時人在設定頁，清單頁的錯誤提示他根本看不到。
+        if (this.historyExportStatus() === 'pending') {
+          this.historyExportStatus.set('error');
+          this.historyExportError.set(payload.error);
+        } else {
+          this.lastError.set(payload.error);
+        }
       }
     } catch {
       this.lastError.set(this.t('parseError', { raw }));

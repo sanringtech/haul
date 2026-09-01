@@ -25,7 +25,8 @@ public sealed record UserSettings(
     double? DeepSeekAttentionBalanceThresholdUsd,
     double? DeepSeekLowBalanceThresholdUsd,
     double? KimiAttentionBalanceThresholdUsd,
-    double? KimiLowBalanceThresholdUsd);
+    double? KimiLowBalanceThresholdUsd,
+    bool UsageHistoryEnabled);
 
 /// <summary>
 /// 「已隱藏的來源」列表要顯示的最小資訊——關閉顯示（憲法 §8）之後，帳號從 GetSummariesAsync() 消失，
@@ -262,7 +263,8 @@ public sealed class UsageService
             settings.DeepSeekAttentionBalanceThresholdUsd,
             settings.DeepSeekLowBalanceThresholdUsd,
             settings.KimiAttentionBalanceThresholdUsd,
-            settings.KimiLowBalanceThresholdUsd);
+            settings.KimiLowBalanceThresholdUsd,
+            settings.UsageHistoryEnabled);
     }
 
     /// <summary>設定頁儲存（PRD：即時儲存即時生效）。閾值 clamp 在 50-95（憲法 §4 三態顏色的定義範圍）。</summary>
@@ -273,7 +275,8 @@ public sealed class UsageService
         double? deepSeekAttentionBalanceThresholdUsd,
         double? deepSeekLowBalanceThresholdUsd,
         double? kimiAttentionBalanceThresholdUsd,
-        double? kimiLowBalanceThresholdUsd)
+        double? kimiLowBalanceThresholdUsd,
+        bool usageHistoryEnabled)
     {
         var settings = SettingsStore.Load();
         settings.RefreshIntervalMinutes = refreshIntervalMinutes;
@@ -283,6 +286,7 @@ public sealed class UsageService
             NormalizeBalanceThresholds(deepSeekAttentionBalanceThresholdUsd, deepSeekLowBalanceThresholdUsd);
         (settings.KimiAttentionBalanceThresholdUsd, settings.KimiLowBalanceThresholdUsd) =
             NormalizeBalanceThresholds(kimiAttentionBalanceThresholdUsd, kimiLowBalanceThresholdUsd);
+        settings.UsageHistoryEnabled = usageHistoryEnabled;
         SettingsStore.Save(settings);
         return GetSettings();
     }

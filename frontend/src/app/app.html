@@ -125,6 +125,21 @@
       </sanring-alert>
     }
 
+    <!-- 純顯示，不是可點擊的按鈕——原本點下去會開一個列出各帳號細節的 Dialog，使用者反饋只需要
+         頂部這個總覽，Dialog 拿掉了。改成 <div>，不是 <button>：沒有東西可點，還留著按鈕的 hover/
+         cursor-pointer 視覺會暗示「這個可以點」，其實點了沒反應，是誤導。h-12 + items-center 是
+         同一列的兩個子元素（icon + 文字）明確垂直置中。 -->
+    @if (usageHealth(); as health) {
+      <div
+        class="w-full h-12 flex items-center justify-start gap-3 px-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)]"
+      >
+        <svg lucideHeartPulse class="size-5 shrink-0" [class]="healthIconClass(health.state)"></svg>
+        <span class="text-sm font-semibold" [class]="healthIconClass(health.state)">
+          {{ t('usageHealthSummary', { state: usageStateLabel(health.state) }) }}
+        </span>
+      </div>
+    }
+
     <div class="flex flex-col gap-3" cdkDropList (cdkDropListDropped)="onDrop($event)">
       @if (isLoading() && summaries().length === 0) {
         <!-- 第一次載入還沒有任何資料時的骨架屏，避免空白卡片閃一下 -->
@@ -315,10 +330,23 @@
                 <span sanringBadge variant="outline" class="text-[10px] px-1.5 py-0 shrink-0">
                   {{ item.sourceType === 'subscription' ? t('subscriptionType') : t('apiKeyType') }}
                 </span>
-                <button sanringBtn type="button" size="sm" variant="ghost" class="text-xs inline-flex items-center gap-1" (click)="unhideSource(item.accountId)">
-                  <svg lucideEye class="size-3.5"></svg>
-                  {{ t('unhideSource') }}
-                </button>
+                <!-- 文字換成 icon + tooltip——跟卡片上「關閉顯示/取消追蹤」那兩顆同一套模式，
+                     hover 才看到文字，不常駐佔版面。 -->
+                <sanring-tooltip>
+                  <button
+                    sanringBtn
+                    sanringTooltipTrigger
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    class="h-9 w-9 shrink-0 p-0 text-[var(--sanring-muted)]"
+                    [attr.aria-label]="t('unhideSource')"
+                    (click)="unhideSource(item.accountId)"
+                  >
+                    <svg lucideEye class="size-3.5"></svg>
+                  </button>
+                  <sanring-tooltip-content>{{ t('unhideSource') }}</sanring-tooltip-content>
+                </sanring-tooltip>
               </div>
             }
           </div>
@@ -475,116 +503,293 @@
       </div>
     </div>
 
+    <!-- 記錄用量歷史：開關開著時上面的自動刷新間隔會被 3 分鐘取代（見 app.ts 建構子），跟按鈕
+         選了哪個間隔無關，所以特意放在同一張卡片組外面自成一區，不是那組按鈕的附屬選項。 -->
+    <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
+      <div class="flex items-center gap-3">
+        <h3 class="flex-1 text-sm font-semibold">{{ t('usageHistoryTitle') }}</h3>
+        <sanring-switch [checked]="draftUsageHistoryEnabled()" [ariaLabel]="t('usageHistoryTitle')" (checkedChange)="onUsageHistoryToggle($event)" />
+      </div>
+      <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('usageHistoryDescription') }}</p>
+
+      <!-- 折線圖跟匯出按鈕收在開關「開」的狀態底下——開關關著代表使用者現在不想看/不想管這塊，
+           畫面上就不該一直露出這兩個跟它綁在一起的功能。開關關掉不會刪資料，只是不再寫新的，之前
+           錄到的還在 SQLite 裡，重新打開開關這兩塊就會回來，不是資料不見了。
+           開合要有過渡動畫，不能像 @if 那樣整塊瞬間消失/冒出來——這裡不用 @if，改用 CSS
+           grid-template-rows 在 0fr/1fr 之間做 transition（單列 grid 的 1fr 軌道會撐開成內容的
+           高度，這條軌道本身可以動畫，height:auto 沒辦法直接 transition 但這個可以，是目前
+           純 CSS 做「展開/收合」動畫的標準寫法）。內層 overflow-hidden + min-h-0 是讓收合時內容
+           確實被裁掉，不會在軌道還沒縮到 0 之前就先溢出來。這個專案沒有掛 @angular/animations，
+           故意不為了這一個地方多背一個模組，純 CSS 做得到就不用它。 -->
+      <div
+        class="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        [style.grid-template-rows]="usageHistoryEnabled() ? '1fr' : '0fr'"
+      >
+        <div class="overflow-hidden min-h-0 flex flex-col gap-3">
+          <!-- 內容一直都在 DOM 裡，不再用 @if 整塊移除——收合動畫要看得到內容跟著縮小，
+               不是內容瞬間消失、外框才慢慢縮成 0（那樣使用者只會看到一個空殼在動畫）。
+
+               5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算）分兩張圖，不混在同一張——
+               兩者是完全不同的決策維度：5 小時決定「現在能不能繼續用」，7 天／月決定「這週/這個
+               月的整體步調」，同一個 Y 軸混著看，「7 天用了 61%」看起來會跟「5 小時用了 61%」
+               一樣緊急，其實急迫程度差很多。兩張圖共用同一份帳號→顏色對照跟 X 軸時間範圍
+               （見 app.ts 的 accountColorMap／chartMinX／chartMaxX），同一個帳號在兩張圖裡顏色
+               一樣、時間點對得起來，只是拆開看不同週期。 -->
+          @if (shortWindowChartSeries().length === 0 && longWindowChartSeries().length === 0) {
+            <p class="text-[10px] text-[var(--sanring-muted)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
+              {{ t('usageHistoryNoData') }}
+            </p>
+          } @else {
+            @if (shortWindowChartSeries().length > 0) {
+              <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+                <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartShortWindowTitle') }}</h4>
+                <ng-container
+                  *ngTemplateOutlet="chartBlock; context: { series: shortWindowChartSeries() }"
+                ></ng-container>
+              </div>
+            }
+            @if (longWindowChartSeries().length > 0) {
+              <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+                <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartLongWindowTitle') }}</h4>
+                <ng-container
+                  *ngTemplateOutlet="chartBlock; context: { series: longWindowChartSeries() }"
+                ></ng-container>
+              </div>
+            }
+          }
+
+          <!-- 折線圖 + 圖例本體——兩張圖（5 小時／7 天）共用同一份模板，不重複寫兩次。 -->
+          <ng-template #chartBlock let-series="series">
+            <sanring-line-chart [series]="visibleSeries(series)" [minX]="chartMinX()" [maxX]="chartMaxX()" [height]="100" />
+            <!-- 點圖例可以個別開關某一條線——跟一般圖表庫的圖例互動一樣。關掉的項目降低透明度、
+                 swatch 加一道刪除線當視覺回饋，不是直接整項消失（消失會讓人搞不清楚剛剛點了誰）。
+                 一個系列一行——原本用 flex-wrap 讓短項目擠在同一行（例如「Cursor」跟「Codex（5
+                 小時）」疊在一起），乍看會誤以為是同一列資料，改成直排每項獨占一行，速率靠右對齊
+                 方便掃視比較。 -->
+            <div class="flex flex-col gap-1">
+              @for (s of chartLegendFor(series); track s.label) {
+                <button
+                  type="button"
+                  class="flex items-center gap-1.5 cursor-pointer"
+                  [class.opacity-40]="s.hidden"
+                  [attr.aria-pressed]="!s.hidden"
+                  [title]="s.hidden ? t('chartSeriesHidden', { label: s.label }) : t('chartSeriesShown', { label: s.label })"
+                  (click)="toggleChartSeries(s.label)"
+                >
+                  <span
+                    class="h-0.5 w-3 shrink-0"
+                    [style.background]="s.dashed ? 'transparent' : s.color"
+                    [style.border-bottom]="s.dashed ? '2px dashed ' + s.color : 'none'"
+                  ></span>
+                  <span class="text-[10px] text-[var(--sanring-muted)] truncate flex-1 text-left" [class.line-through]="s.hidden">{{ s.label }}</span>
+                  @if (s.rateLabel) {
+                    <span class="text-[10px] text-[var(--sanring-muted)] font-mono shrink-0">{{ s.rateLabel }}</span>
+                  }
+                </button>
+              }
+            </div>
+          </ng-template>
+
+          <div class="flex items-center gap-2">
+            <button
+              sanringBtn
+              type="button"
+              size="sm"
+              variant="secondary"
+              class="flex-1 inline-flex items-center justify-center gap-1.5"
+              [disabled]="historyExportStatus() === 'pending'"
+              (click)="exportUsageHistory('md')"
+            >
+              @if (historyExportStatus() === 'pending') {
+                <sanring-spinner size="sm" />
+              } @else {
+                <svg lucideFileText class="size-3.5"></svg>
+              }
+              {{ t('exportMd') }}
+            </button>
+            <button
+              sanringBtn
+              type="button"
+              size="sm"
+              variant="secondary"
+              class="flex-1 inline-flex items-center justify-center gap-1.5"
+              [disabled]="historyExportStatus() === 'pending'"
+              (click)="exportUsageHistory('xlsx')"
+            >
+              @if (historyExportStatus() === 'pending') {
+                <sanring-spinner size="sm" />
+              } @else {
+                <svg lucideFileSpreadsheet class="size-3.5"></svg>
+              }
+              {{ t('exportXlsx') }}
+            </button>
+          </div>
+          @if (historyExportStatus() === 'error' && historyExportError()) {
+            <p class="text-xs text-[var(--sanring-error-50)]">{{ historyExportError() }}</p>
+          }
+        </div>
+      </div>
+    </div>
+
     <!-- 每組設定都是獨立 surface：背景、邊框與內距共同建立區域性，不只靠分隔線。 -->
     <div class="flex flex-col gap-4 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <h3 class="text-sm font-semibold">{{ t('usageAlertTitle') }}</h3>
-      <div class="flex flex-col gap-2">
+      <!-- 三個門檻先集中列成圖例，再用「一條」區間滑桿統一操作——原本每個門檻各自一條獨立滑桿，
+           靠程式邏輯互相夾住彼此，畫面上看不出兩者是同一張 0-100% 量表上的兩個斷點。改成單一軌道
+           雙手柄之後，「注意一定不會比接近上限高」這件事變成畫面上天生不可能發生的事，不用使用者
+           自己去猜或試撞邊界才發現。 -->
+      <div class="flex flex-col gap-1.5">
+        <!-- 拖滑桿跟選數字是同一個值的兩種輸入方式——原本試過數字輸入框，改成 select 下拉：一來
+             50/55/…/95 只有 10 個合法值，下拉直接列舉、排除打錯字或打出不是 5 倍數的情況；二來
+             跟「API KEY 餘額提醒」那兩個數字輸入框在「同一種控制項尺寸」這件事上統一（select 本質
+             上也是一種 input，故意用同一個 h-9 w-28）。「已用盡」那列也做成 select，只是唯一選項
+             且 disabled——三列外觀/控制項類型一致，不是兩個能選、一個純文字硬湊出來的。 -->
         <div class="flex items-center gap-2">
           <span class="size-2.5 rounded-full bg-[var(--sanring-warn-50)]"></span>
           <span class="flex-1 text-xs">{{ t('attentionAlertLabel') }}</span>
-          <span sanringBadge variant="outline" class="text-xs">{{ draftAttentionThreshold() }}%</span>
+          <select
+            class="h-9 w-28 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-3 text-right text-sm text-[var(--sanring-foreground)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]"
+            [attr.aria-label]="t('attentionAlertLabel')"
+            (change)="onAttentionThresholdSelect($event)"
+          >
+            @for (opt of attentionThresholdOptions(); track opt) {
+              <option [value]="opt" [selected]="opt === draftAttentionThreshold()">{{ opt }}%</option>
+            }
+          </select>
         </div>
-        <sanring-slider
-          [min]="50"
-          [max]="95"
-          [allowedMax]="draftNearLimitThreshold()"
-          [step]="5"
-          [value]="draftAttentionThreshold()"
-          (valueChange)="onAttentionThresholdChange($event)"
-        />
-      </div>
-      <div class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
           <span class="size-2.5 rounded-full bg-[var(--sanring-caution-50)]"></span>
           <span class="flex-1 text-xs">{{ t('nearLimitAlertLabel') }}</span>
-          <span sanringBadge variant="outline" class="text-xs">{{ draftNearLimitThreshold() }}%</span>
+          <select
+            class="h-9 w-28 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-3 text-right text-sm text-[var(--sanring-foreground)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]"
+            [attr.aria-label]="t('nearLimitAlertLabel')"
+            (change)="onNearLimitThresholdSelect($event)"
+          >
+            @for (opt of nearLimitThresholdOptions(); track opt) {
+              <option [value]="opt" [selected]="opt === draftNearLimitThreshold()">{{ opt }}%</option>
+            }
+          </select>
         </div>
-        <sanring-slider
-          [min]="50"
-          [max]="95"
-          [allowedMin]="draftAttentionThreshold()"
-          [step]="5"
-          [value]="draftNearLimitThreshold()"
-          (valueChange)="onNearLimitThresholdChange($event)"
-        />
+        <div class="flex items-center gap-2">
+          <span class="size-2.5 rounded-full bg-[var(--sanring-error-50)]"></span>
+          <span class="flex-1 text-xs">{{ t('exhaustedAlertLabel') }}</span>
+          <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('fixedLabel') }}</span>
+          <select
+            disabled
+            class="h-9 w-28 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-3 text-right text-sm text-[var(--sanring-foreground)] transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+            [attr.aria-label]="t('exhaustedAlertLabel')"
+          >
+            <option [selected]="true">100%</option>
+          </select>
+        </div>
       </div>
-      <div class="flex items-center gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] px-3 py-2">
-        <span class="size-2.5 rounded-full bg-[var(--sanring-error-50)]"></span>
-        <span class="flex-1 text-xs">{{ t('exhaustedAlertLabel') }}</span>
-        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('fixedLabel') }}</span>
-        <span sanringBadge variant="outline" class="text-xs">100%</span>
-      </div>
+      <sanring-range-slider
+        [min]="0"
+        [max]="100"
+        [allowedMin]="50"
+        [allowedMax]="95"
+        [step]="5"
+        [low]="draftAttentionThreshold()"
+        [high]="draftNearLimitThreshold()"
+        [lowAriaLabel]="t('attentionAlertLabel')"
+        [highAriaLabel]="t('nearLimitAlertLabel')"
+        (lowChange)="onAttentionThresholdChange($event)"
+        (highChange)="onNearLimitThresholdChange($event)"
+      />
       <p class="text-[10px] text-[var(--sanring-muted)]">
         {{ t('usageAlertSummary', { attention: draftAttentionThreshold().toString(), nearLimit: draftNearLimitThreshold().toString() }) }}
       </p>
     </div>
 
+    <!-- 整塊只在「至少追蹤了一個 DeepSeek 或 Kimi 的 api_key 帳號」時才出現——帳號都取消追蹤了，
+         這裡還留著一整組沒有對應帳號的餘額提醒設定，使用者會覺得「這兩個東西不是同一件事嗎」，
+         見 app.ts 的 hasDeepSeekAccount()/hasKimiAccount() 註解。 -->
+    @if (hasDeepSeekAccount() || hasKimiAccount()) {
     <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <h3 class="text-sm font-semibold">{{ t('apiKeyBalanceAlertTitle') }}</h3>
       <div class="flex flex-col gap-1">
         <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('apiKeyBalanceAlertDescription') }}</p>
       </div>
-      <div class="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-end gap-2 text-xs">
-        <span></span>
-        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('balanceAttentionLabel') }}</span>
-        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('balanceCriticalLabel') }}</span>
+      @if (hasDeepSeekAccount()) {
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs min-h-9">
+        <div class="min-w-0">
+          @if (deepSeekAccount(); as account) {
+            @if (editingLabelAccountId() === account.source) {
+              <input
+                sanringInput
+                type="text"
+                class="h-7 text-xs"
+                [placeholder]="account.displayName"
+                [value]="editingLabelValue()"
+                (input)="onRenameInput($event)"
+                (keydown)="onRenameKeydown($event)"
+                (blur)="commitRename()"
+                autofocus
+              />
+            } @else {
+              <button type="button" class="hover:underline text-left truncate w-full" [title]="t('renameTitle')" (click)="startRename(account)">
+                {{ account.accountLabel ?? account.displayName }}
+              </button>
+            }
+          } @else {
+            <span>DeepSeek</span>
+          }
+        </div>
+        <div class="flex items-center justify-end gap-2">
+          <sanring-switch
+            [checked]="draftDeepSeekBalanceAlertEnabled()"
+            [ariaLabel]="t('balanceAlertToggleAria', { provider: 'DeepSeek' })"
+            (checkedChange)="onBalanceAlertToggle('deepseek', $event)"
+          />
+          <input sanringInput type="number" min="0" step="0.01" inputmode="decimal" class="h-9 w-28 text-right"
+            [attr.aria-label]="t('balanceAmountAria', { provider: 'DeepSeek' })"
+            [disabled]="!draftDeepSeekBalanceAlertEnabled()"
+            [value]="draftDeepSeekLowBalance()" (input)="onLowBalanceInput('deepseek', $event)" />
+        </div>
       </div>
-      <div class="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-center gap-2 text-xs">
-        <span>DeepSeek</span>
-        <input
-          sanringInput
-          type="number"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          class="h-9 text-right"
-          [placeholder]="t('lowBalancePlaceholder')"
-          [value]="draftDeepSeekAttentionBalance() ?? ''"
-          (input)="onLowBalanceInput('deepseek', 'attention', $event)"
-        />
-        <input
-          sanringInput
-          type="number"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          class="h-9 text-right"
-          [placeholder]="t('lowBalancePlaceholder')"
-          [value]="draftDeepSeekLowBalance() ?? ''"
-          (input)="onLowBalanceInput('deepseek', 'critical', $event)"
-        />
+      }
+      @if (hasKimiAccount()) {
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs min-h-9">
+        <div class="min-w-0">
+          @if (kimiAccount(); as account) {
+            @if (editingLabelAccountId() === account.source) {
+              <input
+                sanringInput
+                type="text"
+                class="h-7 text-xs"
+                [placeholder]="account.displayName"
+                [value]="editingLabelValue()"
+                (input)="onRenameInput($event)"
+                (keydown)="onRenameKeydown($event)"
+                (blur)="commitRename()"
+                autofocus
+              />
+            } @else {
+              <button type="button" class="hover:underline text-left truncate w-full" [title]="t('renameTitle')" (click)="startRename(account)">
+                {{ account.accountLabel ?? account.displayName }}
+              </button>
+            }
+          } @else {
+            <span>Kimi</span>
+          }
+        </div>
+        <div class="flex items-center justify-end gap-2">
+          <sanring-switch
+            [checked]="draftKimiBalanceAlertEnabled()"
+            [ariaLabel]="t('balanceAlertToggleAria', { provider: 'Kimi' })"
+            (checkedChange)="onBalanceAlertToggle('kimi', $event)"
+          />
+          <input sanringInput type="number" min="0" step="0.01" inputmode="decimal" class="h-9 w-28 text-right"
+            [attr.aria-label]="t('balanceAmountAria', { provider: 'Kimi' })"
+            [disabled]="!draftKimiBalanceAlertEnabled()"
+            [value]="draftKimiLowBalance()" (input)="onLowBalanceInput('kimi', $event)" />
+        </div>
       </div>
-      <div class="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-center gap-2 text-xs">
-        <span>Kimi</span>
-        <input
-          sanringInput
-          type="number"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          class="h-9 text-right"
-          [placeholder]="t('lowBalancePlaceholder')"
-          [value]="draftKimiAttentionBalance() ?? ''"
-          (input)="onLowBalanceInput('kimi', 'attention', $event)"
-        />
-        <input
-          sanringInput
-          type="number"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          class="h-9 text-right"
-          [placeholder]="t('lowBalancePlaceholder')"
-          [value]="draftKimiLowBalance() ?? ''"
-          (input)="onLowBalanceInput('kimi', 'critical', $event)"
-        />
-      </div>
-      @if (hasInvalidBalanceThresholds()) {
-        <p class="text-xs text-[var(--sanring-error-50)]">{{ t('balanceOrderError') }}</p>
       }
     </div>
+    }
 
-    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving' || hasInvalidBalanceThresholds()" class="mt-3 inline-flex items-center justify-center gap-2 shadow-sm" (click)="saveSettings()">
+    <button sanringBtn type="button" [disabled]="settingsSaveStatus() === 'saving'" class="mt-3 inline-flex items-center justify-center gap-2 shadow-sm" (click)="saveSettings()">
       @if (settingsSaveStatus() === 'saving') {
         <sanring-spinner size="sm" />
       } @else if (settingsSaveStatus() === 'saved') {

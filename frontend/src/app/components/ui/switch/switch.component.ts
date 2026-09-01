@@ -97,7 +97,9 @@ export class SwitchComponent extends SanringCvaBase<boolean> {
   protected readonly isDisabled = computed(() => this.disabled() || this.disabledState());
   protected readonly trackClass = computed(() =>
     cn(
-      'peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+      // duration-200 明確寫出來，不要只靠 transition-colors 預設的 150ms——跟下面 thumb 的位移
+      // 動畫同一個時長，軌道變色跟圓點滑動才會同步完成，不會一個先跳完顏色、一個還在滑。
+      'peer inline-flex shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50',
       SELECTION_CONTROL_FOCUS_CLASS,
       SWITCH_TRACK_SIZE_CLASSES[this.size()],
       this.invalid() || this.errorState ? 'border-[var(--sanring-error-50)]' : 'border-transparent',

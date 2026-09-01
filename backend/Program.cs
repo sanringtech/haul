@@ -3,6 +3,7 @@ using System.Text.Json;
 using Photino.NET;
 using UsageMonitor.Desktop;
 using UsageMonitor.Desktop.Models;
+using UsageMonitor.Desktop.Services;
 
 // During `dotnet run --dev` (see scripts/dev.sh) point the window at the Angular
 // dev server instead of the bundled wwwroot, so `ng serve`'s hot reload works.
@@ -129,6 +130,12 @@ async void OnWebMessageReceived(object? sender, string message)
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("hidden-accounts", null, null, HiddenAccounts: usageService.GetHiddenAccounts()), jsonOptions));
                 break;
 
+            // 設定頁的折線圖用——回傳保留期內的全部資料點，前端自己依 accountId/windowLabelKey
+            // 分組成一條條折線（跟匯出走同一份資料來源，只是這裡是給圖表用、匯出是給檔案用）。
+            case "get-usage-history":
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("usage-history", null, null, UsageHistory: [.. UsageHistoryStore.QueryAll()]), jsonOptions));
+                break;
+
             case "get-settings":
                 var currentSettings = usageService.GetSettings();
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("settings", null, null, Settings: currentSettings), jsonOptions));
@@ -142,11 +149,18 @@ async void OnWebMessageReceived(object? sender, string message)
                     request.DeepSeekAttentionBalanceThresholdUsd,
                     request.DeepSeekLowBalanceThresholdUsd,
                     request.KimiAttentionBalanceThresholdUsd,
-                    request.KimiLowBalanceThresholdUsd);
+                    request.KimiLowBalanceThresholdUsd,
+                    request.UsageHistoryEnabled ?? false);
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("settings", null, null, Settings: updated), jsonOptions));
                 // 閾值一變，現有卡片的 usageState（正常/接近上限/已用盡）馬上就不準了——PRD 說設定要
                 // 「即時儲存即時生效」，補一次完整刷新才會反映在畫面上，不是只存進設定檔就算了。
                 await RespondWithSummaries();
+                break;
+
+            // 匯出用量歷史（設定頁「記錄用量歷史」開關）。lang 決定匯出檔案內表頭字串的語言——這是
+            // 後端少數自己組顯示文字的地方，見 UsageHistoryExporter 開頭註解為什麼這裡是例外。
+            case "export-usage-history" when request.ExportFormat is "md" or "xlsx":
+                await ExportUsageHistoryAsync(request.ExportFormat, request.Lang == "en" ? "en" : "zh-TW");
                 break;
 
             default:
@@ -163,6 +177,69 @@ async void OnWebMessageReceived(object? sender, string message)
     {
         var summaries = await usageService.GetSummariesAsync();
         host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("usage-summary", summaries, null), jsonOptions));
+
+        // 「記錄用量歷史」開關開著才寫——見 UsageHistoryStore 開頭註解：沒有獨立的背景輪詢，完全
+        // 搭這裡每次刷新的便車，前端在開關開啟時會把自動刷新固定接管成 5 分鐘一次（app.ts）。
+        if (usageService.GetSettings().UsageHistoryEnabled)
+        {
+            UsageHistoryStore.Record(summaries);
+        }
+    }
+
+    async Task ExportUsageHistoryAsync(string format, string lang)
+    {
+        var points = UsageHistoryStore.QueryAll();
+        if (points.Count == 0)
+        {
+            host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(null, null, lang == "en" ? "No usage history recorded yet." : "目前還沒有任何用量歷史記錄。"), jsonOptions));
+            return;
+        }
+
+        var zhTw = lang != "en";
+        var suggestedName = $"haul_{DateTime.Now:yyyyMMddHHmmss}.{format}";
+        // Downloads 沒有對應的 Environment.SpecialFolder 列舉值（這是 .NET 這個 API 本身的缺口，
+        // 不是這裡漏寫）——但 Downloads 資料夾在 macOS/Windows/Linux 三邊都是同樣掛在使用者家目錄
+        // 下面這個慣例，直接拼路徑就好，不用像 AppPaths.cs 的 DataDirectory 那樣三個平台各自分支。
+        var downloadsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+
+        // ShowSaveFileAsync 是 Photino.NET 內建的原生「另存新檔」視窗，不用額外的檔案對話框套件。
+        // 使用者按取消時回傳 null——不算錯誤，但前端有一個「匯出中」的按鈕狀態在等回應，還是要回
+        // 一則專屬訊息讓它能收尾，不然那顆按鈕會卡在 pending 狀態。
+        var chosenPath = await host.ShowSaveFileAsync(
+            title: zhTw ? "匯出用量歷史" : "Export usage history",
+            defaultPath: Path.Combine(downloadsDir, suggestedName),
+            filters: format == "xlsx"
+                ? [(zhTw ? "Excel 檔案" : "Excel workbook", new[] { "xlsx" })]
+                : [(zhTw ? "Markdown 檔案" : "Markdown file", new[] { "md" })]);
+        if (string.IsNullOrEmpty(chosenPath))
+        {
+            host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("usage-history-export-cancelled", null, null), jsonOptions));
+            return;
+        }
+
+        // Photino.Native 在 macOS 上這顆存檔視窗只呼叫了 setDirectoryURL:，從沒呼叫過
+        // setNameFieldStringValue:（反組譯過原生 dylib 確認的，不是猜的）——defaultPath 裡的檔名
+        // 那段天生不會被套用，視窗一開只會顯示系統原生的預設字「Untitled」，不是這裡的邏輯漏寫。
+        // 這是 Photino 本身的限制，沒有原始碼可以修，只能退而求其次：使用者如果沒有動過那個欄位
+        // （回傳的檔名還是原封不動的 "Untitled"），這裡自己把檔名換成 suggestedName；如果使用者
+        // 自己有打別的名字，尊重他打的，不要覆蓋掉。
+        var chosenDir = Path.GetDirectoryName(chosenPath) ?? downloadsDir;
+        var chosenStem = Path.GetFileNameWithoutExtension(chosenPath);
+        if (chosenStem.Equals("Untitled", StringComparison.OrdinalIgnoreCase))
+        {
+            chosenPath = Path.Combine(chosenDir, suggestedName);
+        }
+
+        if (format == "xlsx")
+        {
+            await File.WriteAllBytesAsync(chosenPath, UsageHistoryExporter.BuildXlsx(points, zhTw));
+        }
+        else
+        {
+            await File.WriteAllTextAsync(chosenPath, UsageHistoryExporter.BuildMarkdown(points, zhTw));
+        }
+
+        host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("usage-history-exported", null, null), jsonOptions));
     }
 }
 
@@ -179,7 +256,11 @@ file sealed record HostRequest(
     double? DeepSeekAttentionBalanceThresholdUsd = null,
     double? DeepSeekLowBalanceThresholdUsd = null,
     double? KimiAttentionBalanceThresholdUsd = null,
-    double? KimiLowBalanceThresholdUsd = null);
+    double? KimiLowBalanceThresholdUsd = null,
+    bool? UsageHistoryEnabled = null,
+    // export-usage-history 專用："md" | "xlsx"，lang 決定匯出檔案表頭文字語言（前端目前選的 UI 語言）。
+    string? ExportFormat = null,
+    string? Lang = null);
 
 file sealed record HostCredential(string? ApiKey);
 
@@ -189,4 +270,5 @@ file sealed record HostResponse(
     string? Error,
     SourceCatalogEntry[]? Catalog = null,
     UserSettings? Settings = null,
-    HiddenAccountEntry[]? HiddenAccounts = null);
+    HiddenAccountEntry[]? HiddenAccounts = null,
+    UsageHistoryPoint[]? UsageHistory = null);

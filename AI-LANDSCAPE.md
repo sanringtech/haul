@@ -95,6 +95,30 @@ OAuth client id（cswap 反查出來的常數，不用另外申請）。錯誤�
 cswap 那套 strike/quarantine 機制）⑤ 新增帳號的 UI 流程（使用者自己在終端機切換登入，app 端「擷取目前這組」存
 快照）。**結論**：技術上不再是黑盒子，但仍是實質工程量，還沒動手实作，是否值得做取決於多帳號使用者的比例。
 
+## 企業／團隊帳號的真實使用情境（2026-09-01）
+
+使用者問「Claude 如果是企業帳號，是每人都綁 Gmail 處理嗎？」——查了 Anthropic/OpenAI 官方文件後的結論：**不是，企業帳號的身份不是「綁 Gmail」這種說法能涵蓋的**，而且這牽涉到這個 app 的核心假設（只讀本機 CLI 自己登入產生的 session），值得記下來。
+
+**Claude 的三種登入情境**：
+1. **個人 Pro/Max**——一般 email 登入（常見 Gmail，但不限定），`claude` CLI 走瀏覽器 OAuth，token 存本機 Keychain。這是這個 app 現在主打、也是唯一實測過的情境。
+2. **Team/Enterprise，沒開強制 SSO**——用「被管理員邀請進去的 Claude.ai 帳號」登入，CLI 端一樣是「選 Claude account with subscription → 走 OAuth → Authorize」同一套流程，本機一樣會生出同一種 OAuth token、存在同一個 Keychain 位置。**理論上這個 app 現有的讀取方式應該一樣抓得到，但沒有實測過**。
+3. **Team/Enterprise，開了「domain capture」+ 強制 SSO**——企業網域的 email 登入會被自動導去公司 IdP（Okta/Entra ID/Google Workspace/Auth0 等），**擋掉個人帳號回退**，使用者身份是走公司 SSO，CLI 本機能不能生出這個 app 讀得懂的 OAuth token，沒有查證過。
+
+**未驗證的風險點**：即使情境 2 的本機 token 抓得到，這個 app 打的 `/api/oauth/usage`（非官方端點）對 Team/Enterprise 的「額度池」用量，回傳格式/語意是否跟個人 Pro/Max 一樣，完全沒查證過。
+
+**Codex（ChatGPT）更明確地卡關**：查到一個已知的官方 issue——**ChatGPT Business/Enterprise 開了「Enforce SSO」時，`codex login` 目前會壞掉**（見下方 Sources），是 Codex CLI 本身的 bug，不是這個 app 的問題。這批使用者現在連本機登入都做不到，這個 app 自然也拿不到資料。
+
+**實務情境整理**：
+
+| 情境 | 這個 app 現在能不能用 |
+|---|---|
+| 個人 Pro/Max（含多個人帳號用 cswap 切換）| ✅ 已支援，主要目標族群 |
+| 一人身兼「個人 Pro/Max + 公司 Team 席位」，兩邊都在本機登入 | ⚠️ 理論上可行（cswap 架構本來就是多帳號），但 Team 席位的用量端點語意沒驗證過 |
+| Team/Enterprise 但沒開強制 SSO | ⚠️ CLI 登入流程一樣，本機 token 應該抓得到，語意未驗證 |
+| Team/Enterprise 開了強制 SSO（domain capture）| ❌ 個人帳號登入直接被擋；Codex 這邊 CLI 登入本身還有已知 bug |
+
+**結論**：這個 app 的架構本質上只能讀「本機 CLI 自己登入產生的 session」，天生是**個人視角**的工具——沒有 admin API 存取權，SSO 帳號很多情況下連本機都登不進去，不該假裝能做團隊管理員視角的東西。目標族群清楚是「個人開發者／自由接案者，管理自己（可能好幾個）的訂閱額度」。
+
 ## Sources
 
 - [How can I check my requests per day remaining? · google-gemini/gemini-cli Discussion #3096](https://github.com/google-gemini/gemini-cli/discussions/3096)
@@ -110,3 +134,9 @@ cswap 那套 strike/quarantine 機制）⑤ 新增帳號的 UI 流程（使用�
 - [Grok Pricing 2026: SuperGrok $30, Heavy $300 & API Costs](https://www.ai-toolbox.co/grok-models/grok-pricing-plans-api-2026)
 - [Kimi K3 Pricing (August 2026) | BenchLM.ai](https://benchlm.ai/moonshot/api-pricing)
 - [Kimi AI Pricing 2026: Plans, Membership Cost & API Token Rates](https://kimik2ai.com/pricing/)
+- [Use Claude Code with your Team or Enterprise plan | Anthropic Help Center](https://support.claude.com/en/articles/11845131-use-claude-code-with-your-team-or-enterprise-plan)
+- [SSO login | Anthropic Help Center](https://support.claude.com/en/articles/14503613-sso-login)
+- [Set up single sign-on (SSO) | Anthropic Help Center](https://support.claude.com/en/articles/13132885-set-up-single-sign-on-sso)
+- [Claude Enterprise Security: A Complete Guide to Governing Claude Code at Scale — TrueFoundry](https://www.truefoundry.com/blog/claude-enterprise-security)
+- [codex login didn't support ChatGPT SSO · Issue #5553 · openai/codex](https://github.com/openai/codex/issues/5553)
+- [Authentication | ChatGPT Learn](https://learn.chatgpt.com/docs/auth)
