@@ -105,7 +105,33 @@ public sealed class ClaudeUsageProvider : IUsageProvider
     private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
         new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
 
+    // cswap 偶爾會對單一帳號回報暫時性的異常（例如那次剛好向 Anthropic 拿資料失敗），不代表帳號
+    // 真的壞了——下一次刷新常常就自己恢復。原本任何一次失敗（cswap 本身叫不動、JSON 解析不出來、
+    // 帳號從清單消失、usageStatus 不是 "ok"）都立刻顯示錯誤卡片，等於把一次性的雜訊直接攤在使用者
+    // 面前，要等下一次刷新（可能一小時後）才會自動恢復。改成同一次呼叫裡先重試幾次，只有連續都
+    // 失敗才真的顯示錯誤——不是加一層跨刷新週期的「沿用上次數值」快取（那要動到 UsageService 的
+    // 狀態管理，範圍大很多），單純把「打一次 cswap」這個動作本身變得更耐瞬斷。
+    private const int CswapRetryAttempts = 3;
+    private static readonly TimeSpan CswapRetryDelay = TimeSpan.FromSeconds(2);
+
     private async Task<UsageSummary> GetUsageViaCswapAsync(TrackedAccount account, string email, AppSettings settings, CancellationToken ct)
+    {
+        UsageSummary? lastFailure = null;
+        for (var attempt = 1; attempt <= CswapRetryAttempts; attempt++)
+        {
+            var (summary, succeeded) = await TryGetUsageViaCswapOnceAsync(account, email, settings, ct);
+            if (succeeded) return summary;
+
+            lastFailure = summary;
+            if (attempt < CswapRetryAttempts)
+                await Task.Delay(CswapRetryDelay, ct);
+        }
+        return lastFailure!;
+    }
+
+    /// <returns>(Summary, Succeeded) — Succeeded=false 時 Summary 是失敗當下要顯示的錯誤卡片，
+    /// 呼叫端決定要不要重試或直接把它顯示出來（重試耗盡時）。</returns>
+    private async Task<(UsageSummary Summary, bool Succeeded)> TryGetUsageViaCswapOnceAsync(TrackedAccount account, string email, AppSettings settings, CancellationToken ct)
     {
         (int ExitCode, string StdOut, string StdErr) result;
         try
@@ -114,13 +140,13 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         }
         catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
         {
-            return Build(account, "invalid", L(MessageKeys.CswapCallFailed, ("message", ex.Message)));
+            return (Build(account, "invalid", L(MessageKeys.CswapCallFailed, ("message", ex.Message))), false);
         }
 
         if (result.ExitCode != 0)
         {
             var errorOutput = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
-            return Build(account, "invalid", L(MessageKeys.CswapCallFailed, ("message", Truncate(errorOutput))));
+            return (Build(account, "invalid", L(MessageKeys.CswapCallFailed, ("message", Truncate(errorOutput)))), false);
         }
 
         CswapListResponse? parsed;
@@ -130,18 +156,18 @@ public sealed class ClaudeUsageProvider : IUsageProvider
         }
         catch (JsonException)
         {
-            return Build(account, "invalid", L(MessageKeys.ParseError, ("body", Truncate(result.StdOut))));
+            return (Build(account, "invalid", L(MessageKeys.ParseError, ("body", Truncate(result.StdOut)))), false);
         }
 
         // cswap 的 account number 只是清單裡的序號，帳號增減會變動——用 email 比對才穩定。
         var match = parsed?.Accounts?.FirstOrDefault(a => string.Equals(a.Email, email, StringComparison.OrdinalIgnoreCase));
         if (match is null)
-            return Build(account, "invalid", L(MessageKeys.CswapAccountNotFound, ("email", email)));
+            return (Build(account, "invalid", L(MessageKeys.CswapAccountNotFound, ("email", email))), false);
 
         if (!string.IsNullOrEmpty(match.UsageStatus) && match.UsageStatus != "ok")
-            return Build(account, "invalid", L(MessageKeys.CswapUsageStatusNotOk, ("status", match.UsageStatus)));
+            return (Build(account, "invalid", L(MessageKeys.CswapUsageStatusNotOk, ("status", match.UsageStatus))), false);
 
-        return BuildFromCswapUsage(account, match, settings);
+        return (BuildFromCswapUsage(account, match, settings), true);
     }
 
     private UsageSummary BuildFromCswapUsage(TrackedAccount account, CswapAccount cswapAccount, AppSettings settings)
