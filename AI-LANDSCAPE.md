@@ -21,14 +21,53 @@
 | **Gemini**（Google）| Google AI Pro/Ultra（原 Google One AI Premium）| ❌ 沒有公開端點——Gemini CLI 的 `/stats` 只顯示當次 session、不是帳號總量；個人 API key 沒有對應的用量查詢 REST 端點，只能上 AI Studio 網頁看 | 死路，跟 Claude/Codex 同類型限制 |
 | **GitHub Copilot** | Individual、Business、Enterprise（2026 起從 premium request 制改成 usage-based AI Credits） | ❌ 個人層級沒有——`GET /orgs/{org}/copilot/metrics` 只給組織層級、要 admin 權限，個人 token 查不到自己的用量配額 | 死路 |
 | **Perplexity** | Pro ~$20/mo | ❌ 官方文件沒有描述任何查詢端點，只能上 API Portal 網頁看 | 死路（沒找到反查社群方案，但也沒證據說做得到） |
-| **Cursor**（AI 編輯器）| Hobby Free / Pro $20 / Pro+ $60 / Ultra $200 / Teams $40/user / Enterprise | 🟡 **有機會**——找到社群反查出來的端點：`GET https://cursor.com/api/usage?user={userId}`（帶 `WorkosCursorSessionToken={userId}::{accessToken}` cookie），另外 `GET https://cursor.com/api/auth/stripe` 給方案資訊。Token 存在 SQLite（`~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`，macOS），不是 Keychain 或純文字 JSON——跟現有 Claude/Codex 的讀取方式不同，要新加 SQLite 讀取能力 | **值得深入驗證**，架構上跟 Claude/Codex 同一套「反查非公開端點」手法，只是本機儲存機制不同（SQLite vs Keychain/JSON） |
+| **Cursor**（AI 編輯器）| Hobby Free / Pro $20 / Pro+ $60 / Ultra $200 / Teams $40/user / Enterprise | ✅ **已實測打通**，見下方完整記錄 | **可以做，架構跟 Claude/Codex 單帳號路徑一樣，不是多帳號那類複雜度** |
 
-## 下一步
+## Cursor——已實測打通（2026-09-01）
 
-如果要挑一個先做，**Cursor 是唯一一個已經找到真實端點的**，其他三個（Gemini/Copilot/Perplexity）目前看起來都是死路，除非之後查到新的反查方案。Cursor 要做的話：
-1. 讀 `state.vscdb` 拿到 `userId` + `accessToken`（.NET 需要加 SQLite 讀取套件，例如 `Microsoft.Data.Sqlite`——這是全新依賴，其他 provider 都沒用過）
-2. 實測 `GET /api/usage?user={userId}` 的真實回應格式（目前只查到「有這個欄位」，沒查到完整 schema，跟當初查 Claude/Codex 端點前一樣，要拿自己帳號實測過才能寫 parser）
-3. 確認 cookie 格式的 token 會不會過期/要不要 refresh（跟 Q1 討論的 Claude 多帳號 refresh 問題是同一類風險）
+直接讀本機真實的 `state.vscdb` 實測，比原本查到的社群方案更好：
+
+**本機 session 存放位置**：SQLite 資料庫（`ItemTable`），不是 Keychain 也不是純文字 JSON：
+- macOS：`~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`
+- Windows（未驗證，比照慣例）：`%APPDATA%\Cursor\User\globalStorage\state.vscdb`
+- Linux（未驗證）：`~/.config/Cursor/User/globalStorage/state.vscdb`
+
+relevant keys：`cursorAuth/accessToken`（JWT）、`cursorAuth/cachedEmail`、`cursorAuth/stripeMembershipType`（**方案名稱就直接存在本機，不用打 API**，實測值是 `"pro"`）、`cursorAuth/stripeSubscriptionStatus`（`"active"`）。
+
+**access token 是 JWT，可以直接解 payload 拿到過期時間**（`exp` claim），不用打任何端點就知道還有沒有效——實測目前這組還有近 8 週效期（`iss: https://authentication.cursor.sh`，`sub: google-oauth2|user_xxx` 就是 userId）。**不像 Claude 多帳號那個問題**——Cursor 只有一個「目前登入中」的 session（不是要同時追蹤好幾組），跟 Claude/Codex 現有的單帳號 provider 是同一種架構，不需要自己實作 refresh，只需要讀取 + 過期就當「未登入」提示重新打開 Cursor（跟 `ClaudeCredentialsExpiredLocal` 同一套處理方式）。
+
+**用量端點，實測打通，完整 JSON（不是 gRPC binary framing，用 Connect Protocol 的 JSON 傳輸模式）**：
+
+```
+POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage
+Authorization: Bearer <cursorAuth/accessToken>
+Content-Type: application/json
+
+{}
+```
+
+真實回應（帳號資訊已略）：
+```json
+{
+  "billingCycleStart": "1787811190000",
+  "billingCycleEnd": "1790489590000",
+  "planUsage": {
+    "totalSpend": 167,
+    "includedSpend": 167,
+    "remaining": 1833,
+    "limit": 2000,
+    "totalPercentUsed": 0.3373737373737374
+  },
+  "displayThreshold": 200,
+  "displayMessage": "You've used 8% of your included usage"
+}
+```
+
+**⚠️ 欄位語意有陷阱，不要照字面猜**：`totalPercentUsed = 0.337`，但 `displayMessage` 講的是「用了 8%」——兩個對不上。實測 `totalSpend / limit = 167 / 2000 = 8.35%`，四捨五入正好等於 `displayMessage` 講的 8%，`totalPercentUsed` 這個欄位量的顯然是別的東西（可能是某個 model bucket 專屬的百分比，不是整體）。**寫 parser 時百分比要用 `totalSpend / limit` 自己算，不要直接吃 `totalPercentUsed`**——這正是查證不能只看「有沒有這個欄位」，要連語意都對過才算數的例子。`limit`/`totalSpend`/`remaining` 單位是**美分**（`limit: 2000` = Pro 方案的 $20 額度，完全對得上）。`billingCycleEnd`（unix ms）就是重置時間，跟 Claude/Codex 的 `resetsAt`/`reset_at` 概念一樣。
+
+`GET https://cursor.com/api/auth/stripe`（Bearer 或 Cookie 都測過能用）也有方案資訊（`membershipType`/`subscriptionStatus`/`isYearlyPlan`），但既然 SQLite 裡的 `stripeMembershipType` 本機快取就有，不用特地多打一次。
+
+**下一步（要做的話）**：加 `Microsoft.Data.Sqlite` NuGet 套件（全新依賴，其他 provider 都沒用過）、寫 `CursorAuthReader`（讀 SQLite + 解 JWT payload 判斷過期）、寫 `CursorUsageProvider`（打上面那支端點，百分比自己算不要用 `totalPercentUsed`）。
 
 ## Claude 多帳號自實作（不依賴 cswap）——查證結果（2026-09-01）
 
