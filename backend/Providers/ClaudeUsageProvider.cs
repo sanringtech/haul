@@ -196,7 +196,46 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             SecondaryUsageState: ClassifyState(sevenDayPct, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.SevenDayLabel),
             SecondaryDetail: sevenDayDetail,
-            AccountLabel: account.Label);
+            AccountLabel: account.Label,
+            PlanLabel: FormatPlanLabel(TryReadCswapSubscriptionType(cswapAccount.Number, cswapAccount.Email)));
+    }
+
+    // cswap list --json 本身不吐 subscriptionType（實測過，schema 裡沒有），但每個帳號的完整憑證
+    // JSON（含 subscriptionType）其實原封不動存在 macOS Keychain 裡——cswap 自己要切換帳號時就是
+    // 讀寫這個，service name "claude-swap"、account 格式 "account-{number}-{email}"（讀 cswap 原始碼
+    // credentials.py 的 SECURITY_SERVICE 常數查到，2026-09-01）。純唯讀多戳一次 Keychain，跟
+    // ClaudeAuthReader 讀 Claude Code 自己那組憑證同一種精神；只在 macOS 上有效（cswap 在其他平台
+    // 用不同的儲存後端，見該常數旁的註解），失敗就回 null，前端不顯示，不是攔下來當錯誤處理。
+    private static string? TryReadCswapSubscriptionType(int number, string email)
+    {
+        if (!OperatingSystem.IsMacOS() || number <= 0 || string.IsNullOrEmpty(email)) return null;
+
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("/usr/bin/security")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            };
+            foreach (var arg in new[] { "find-generic-password", "-a", $"account-{number}-{email}", "-s", "claude-swap", "-w" })
+                psi.ArgumentList.Add(arg);
+
+            using var process = System.Diagnostics.Process.Start(psi);
+            if (process is null) return null;
+            var stdout = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout)) return null;
+
+            using var doc = JsonDocument.Parse(stdout);
+            return doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth) && oauth.TryGetProperty("subscriptionType", out var sub)
+                ? sub.GetString()
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private UsageSummary BuildFromUsage(TrackedAccount account, AnthropicUsageResponse usage, AppSettings settings, string? planLabel = null)
@@ -313,6 +352,7 @@ internal sealed class CswapListResponse
 
 internal sealed class CswapAccount
 {
+    public int Number { get; set; }
     public string Email { get; set; } = "";
     public string? OrganizationName { get; set; }
     public bool Active { get; set; }

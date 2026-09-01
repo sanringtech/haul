@@ -8,11 +8,12 @@
 
 | AI | 訂閱方案 | API key 查用量/餘額 | app 內狀態 |
 |---|---|---|---|
-| **Claude**（Anthropic）| Free / Pro $20 / Max 5x $100 / Max 20x $200 / Team / Enterprise | ❌ 已查證不可行 | ✅ 訂閱制（含多帳號，靠 cswap） |
-| **Codex**（OpenAI/ChatGPT）| Free / Plus $20 / Pro $200 / Team / Enterprise | ❌ 已查證不可行 | ✅ 訂閱制。`plan_type` 欄位其實在 raw response 裡（2026-09-01 實測 `"plan_type": "plus"`），只是目前沒解析出來顯示 |
+| **Claude**（Anthropic）| Free / Pro $20 / Max 5x $100 / Max 20x $200 / Team / Enterprise | ❌ 已查證不可行 | ✅ 訂閱制（含多帳號，靠 cswap）。方案標籤（Pro/Max）也接上了——`cswap list --json` 本身沒有這欄位，但每個帳號的完整憑證（含 `subscriptionType`）原封不動存在 macOS Keychain（service `claude-swap`，帳號名 `account-{number}-{email}`，讀 cswap 原始碼查到的），直接讀那個 |
+| **Codex**（OpenAI/ChatGPT）| Free / Plus $20 / Pro $200 / Team / Enterprise | ❌ 已查證不可行 | ✅ 訂閱制 + 方案標籤（`plan_type` 欄位，2026-09-01 接上，之前查證有這欄位但沒解析，現在真的顯示了） |
 | **DeepSeek** | 無分層方案，純預付額度 | ✅ 官方 balance API 可用 | ✅ API key 制 |
 | **Kimi**（Moonshot AI）| 消費端助理方案 Free ～ $199/mo「Vivace」（音樂速度命名，中間層級名稱沒查全，見下方 Sources 自行核對）；企業方案 2026-08-04 起改成「聯繫銷售」不公開報價 | ✅ 官方 balance API 可用（API key 制）／訂閱制端點 ⚠️ 未實測 | ✅ 兩種都有 |
-| **Grok**（xAI）| Free / SuperGrok Lite $10 / SuperGrok $30 / SuperGrok Heavy $300，或走 X 訂閱包（X Premium $8 / X Premium+ $40） | ❌ 已查證沒有查詢端點 | ✅ 訂閱制（ccusage） |
+| **Cursor**（AI 編輯器）| Hobby Free / Pro $20 / Pro+ $60 / Ultra $200 / Teams $40/user / Enterprise | 未評估（不是「用 API key」這種模式，讀本機登入 session） | ✅ 訂閱制（2026-09-01 新增，已實測，含方案標籤——`stripeMembershipType` 本機就有）。完整查證見下方段落 |
+| **Grok**（xAI）| Free / SuperGrok Lite $10 / SuperGrok $30 / SuperGrok Heavy $300，或走 X 訂閱包（X Premium $8 / X Premium+ $40） | ❌ 已查證沒有查詢端點 | ❌ **沒有實作**（2026-09-01 更正：之前這裡跟 README 都寫「✅ 訂閱制（ccusage）」，掃過 `backend/` 完全沒有任何 Grok 相關程式碼，是文件寫錯，不是功能被拿掉——`i18n.ts` 裡的 `infoGrokBody` 自己都寫了「暫時沒有實作」，這條路本來就沒做完） |
 
 ## 查證過但還沒支援
 
