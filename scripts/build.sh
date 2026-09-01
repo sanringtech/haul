@@ -22,6 +22,12 @@ cp -R frontend/dist/frontend/browser backend/wwwroot/browser
 echo "==> Publishing backend"
 if [ -n "$RID" ]; then
   PUBLISH_DIR="publish/$RID"
+  # 一定要先清空：這裡不是乾淨目錄——make-dmg.sh 會把 .dmg 直接寫進同一個 publish/<rid>/
+  # 資料夾，上一輪產生的 .dmg（或任何殘留檔案）如果還在，下面「把 publish 目錄裡除了 .app
+  # 以外的東西都掃進 Contents/MacOS/」那步會連它一起掃進去，變成 .dmg 包 .dmg（2026-09-01
+  # 實測踩到：.app 從正常的幾十 MB 膨脹到 191MB）。dotnet publish 本身只會疊加/覆蓋，不會
+  # 幫忙清掉這種不是它自己產出的雜物，得自己保證起手是空的。
+  rm -rf "$PUBLISH_DIR"
   PUBLISH_ARGS=(-c Release -r "$RID" --self-contained true -o "$PUBLISH_DIR")
   # Windows has no bundle-folder convention like macOS's .app — a single .exe *is* the cleanest
   # distributable there, so fold the whole self-contained runtime into one file (2026-08-31,
@@ -34,6 +40,7 @@ if [ -n "$RID" ]; then
   [[ "$RID" == osx-* ]] && IS_MACOS_TARGET=true
 else
   PUBLISH_DIR="publish/current"
+  rm -rf "$PUBLISH_DIR"
   dotnet publish backend -c Release -o "$PUBLISH_DIR"
   IS_MACOS_TARGET=false
   [[ "$(uname -s)" == "Darwin" ]] && IS_MACOS_TARGET=true
