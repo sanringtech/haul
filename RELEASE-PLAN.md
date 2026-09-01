@@ -22,6 +22,7 @@
 - [x] **實際下載連結**（2026-08-31）：GitHub Release `v0.1.0` 掛在 repo，macOS `.dmg` + Windows `.zip` 兩個 asset，Coming Soon 頁面的下載按鈕也接上了（兩個連結都驗證過真的抓得到檔案）
 - macOS 沒簽章依然要手動繞過 Gatekeeper（右鍵開啟，或 `xattr -d com.apple.quarantine`），這階段可以接受，但要在分享時附上這段說明，不然對方會以為程式壞了
 - [x] **改名：sanring Usage Monitor → sanring Haul**（2026-09-01）：「Monitor」語感偏被動（盯著看），改成 Haul——撒網把散落各處的用量資料一次撈起來的動作感。牽動：repo（`usage_monitor` → `haul`）、網域（`usage-monitor.sanring.dev` → `haul.sanring.dev`）、執行檔/csproj（`SanringMonitor` → `SanringHaul`）、bundle id（`dev.sanring.usagemonitor` → `dev.sanring.haul`）、v0.1.0 Release 資產重新上傳。**刻意不動**：本機資料夾名稱（`~/Library/Application Support/SanRingUsageMonitor/`，見下方階段 0）、localStorage key 前綴（`sanring-usage-monitor:*`）、C# namespace（`UsageMonitor.Desktop`）——這些是使用者看不到的內部管線，改名只會帶來「舊資料/舊偏好設定silently消失」的風險，沒有對應的品牌效益，跟第一次改名（`UsageMonitor.Desktop` → `SanringMonitor`）同一套判斷
+- [x] **Homebrew（自己的 tap）**（2026-09-01）：[`sanringtech/homebrew-tap`](https://github.com/sanringtech/homebrew-tap)，`Casks/haul.rb` 指到 v0.1.0 release 的 `.dmg`（sha256 下載後 `shasum` 實測比對過）。**不是**送審官方 `homebrew-cask`——那個通路有穩定度/知名度門檻，v0.1.0 剛改名還太早，見上面「repo 公開性」的同一套考量。已用本機 `brew tap` → `brew trust`（實測發現：較新版 Homebrew 對第三方 tap 預設不信任，要手動 trust 一次，這步不做會直接被擋）→ `brew install --cask haul` 走過一次完整流程，成功裝到 `/Applications/`。**修正一個原本猜錯的地方**：一開始以為 Homebrew 安裝 cask 會自動清掉 `com.apple.quarantine`，實測 `xattr -l` 發現沒有——這版 Homebrew 不會，Gatekeeper 照樣會擋第一次雙擊，caveats 裡已經補上正確的繞過方式，不是隨口猜的
 
 ## 階段 2：真的對外公開發布
 

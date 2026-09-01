@@ -15,6 +15,10 @@
 
 **刻意不動**（內部管線，使用者看不到，改了只有資料遺失風險沒有品牌效益）：本機資料夾名稱 `SanRingUsageMonitor`、localStorage key 前綴 `sanring-usage-monitor:*`、C# namespace `UsageMonitor.Desktop`。
 
+## 2026-09-01：Homebrew（自己的 tap）
+
+[`sanringtech/homebrew-tap`](https://github.com/sanringtech/homebrew-tap) + `Casks/haul.rb`，`brew tap sanringtech/tap && brew install --cask haul`。實測走過完整安裝流程（見 RELEASE-PLAN.md 階段 1），修正一個原本猜錯的地方：Homebrew 不會自動清掉 `com.apple.quarantine`，Gatekeeper 照樣擋第一次雙擊，caveats 已補正確繞過方式。
+
 ## M5（進行中）
 
 - [ ] Windows 上實際跑一次打包驗證（`WindowsSecretStore` 目前只是照文件寫的 P/Invoke，還沒真的在 Windows 上測過）

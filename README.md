@@ -50,6 +50,14 @@ backend/
 
 現況（2026-09-01）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.1.0 已發布（macOS `.dmg` + Windows `.exe`，⚠️ Windows 未實測）。
 
+macOS 也可以透過自己的 Homebrew tap 安裝（[sanringtech/homebrew-tap](https://github.com/sanringtech/homebrew-tap)，還沒送審官方 `homebrew-cask`）：
+
+```bash
+brew tap sanringtech/tap
+brew trust sanringtech/tap   # 較新版 Homebrew 對第三方 tap 預設不信任，要手動信任一次
+brew install --cask haul
+```
+
 ## 待辦 / 進度
 
 依 PRD 里程碑：M1–M4 已完成，M5（Windows 打包驗證、系統匣圖示）進行中。完整開發歷程 → [`CHANGELOG.md`](CHANGELOG.md)。
