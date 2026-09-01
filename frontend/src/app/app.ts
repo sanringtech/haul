@@ -99,7 +99,7 @@ interface CatalogEntry {
   templateUrl: './app.html',
 })
 export class App {
-  protected readonly title = signal('SanRing Usage Monitor');
+  protected readonly title = signal('sanring Haul');
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
    *  記得一起改。 */

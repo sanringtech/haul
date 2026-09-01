@@ -1,6 +1,19 @@
 # Changelog
 
-開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事，現在還沒有版本號機制。
+開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
+
+## 2026-09-01：改名 sanring Usage Monitor → sanring Haul
+
+「Monitor」語感偏被動，改成 **Haul**——撒網把散落在各個 CLI/帳號裡的用量資料一次撈起來的動作感。純品牌更名，功能/架構不變：
+
+- repo：`sanringtech/usage_monitor` → `sanringtech/haul`
+- 網域：`usage-monitor.sanring.dev` → `haul.sanring.dev`
+- 執行檔/csproj：`SanringMonitor` → `SanringHaul`
+- macOS bundle id：`dev.sanring.usagemonitor` → `dev.sanring.haul`
+- v0.1.0 Release 資產重新上傳（檔名跟著換）
+- header 補上版本號顯示（logo 右側 `v0.1.0`，`App.appVersion`，手動對齊 `VERSION`）
+
+**刻意不動**（內部管線，使用者看不到，改了只有資料遺失風險沒有品牌效益）：本機資料夾名稱 `SanRingUsageMonitor`、localStorage key 前綴 `sanring-usage-monitor:*`、C# namespace `UsageMonitor.Desktop`。
 
 ## M5（進行中）
 

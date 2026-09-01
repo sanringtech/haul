@@ -1,6 +1,8 @@
-# SanRing Usage Monitor
+# sanring Haul
 
-跨平台（Windows + macOS）桌面小工具：監控 Claude / Codex / DeepSeek / Kimi / Grok 底下每一個帳號的用量。
+跨平台（Windows + macOS）桌面小工具：把 Claude / Codex / DeepSeek / Kimi / Grok 底下每一個帳號的用量一次撈回同一個畫面。
+
+> 2026-09-01 改名：原名「sanring Usage Monitor」（執行檔曾叫 `SanringMonitor`），覺得「Monitor」太被動（盯著看），改成 **Haul**——像撒網把散落在各個 CLI/帳號裡的用量資料一次撈起來的動作感。功能、架構完全沒變，純品牌更名。
 
 - **前端**：Angular (`frontend/`) — UI，透過 `window.external` 跟後端溝通；元件用 [`@sanring/ui`](https://ui.sanring.dev/)（`npx @sanring/cli add <component>` 增加新元件）+ Tailwind CSS v4
 - **後端**：C# + [Photino.NET](https://www.tryphotino.io/)（原生 WebView 殼）(`backend/`) — 讀取本機用量資料
@@ -23,7 +25,7 @@
 
 ```bash
 ./scripts/build.sh              # 目前平台
-./scripts/build.sh osx-arm64    # 指定 RID，self-contained（macOS 會順便組成 SanringMonitor.app）
+./scripts/build.sh osx-arm64    # 指定 RID，self-contained（macOS 會順便組成 SanringHaul.app）
 ./scripts/build.sh win-x64
 ```
 
@@ -46,7 +48,7 @@ backend/
 
 分三階段（自己用 → 小範圍分享 → 公開發布），各階段要做的事、目前進度 → [`RELEASE-PLAN.md`](RELEASE-PLAN.md)。
 
-現況（2026-08-31）：repo 已公開（`sanringtech/usage_monitor`），Coming Soon 頁面已上線：[usage-monitor.sanring.dev](https://usage-monitor.sanring.dev)。還沒有正式安裝檔可下載。
+現況（2026-09-01）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.1.0 已發布（macOS `.dmg` + Windows `.exe`，⚠️ Windows 未實測）。
 
 ## 待辦 / 進度
 

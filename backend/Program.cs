@@ -27,7 +27,7 @@ if (args.Contains("--print-usage"))
 }
 
 var window = new PhotinoWindow()
-    .SetTitle("SanRing Usage Monitor")
+    .SetTitle("sanring Haul")
     .SetUseOsDefaultSize(false)
     .SetSize(new Size(420, 640))
     .SetResizable(true)

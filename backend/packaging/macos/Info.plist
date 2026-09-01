@@ -5,18 +5,18 @@
 	<!-- Dock 的 tooltip 實測認 CFBundleName，不是 CFBundleDisplayName（跟一般認知的優先順序相反）——
 	     兩個 key 都設成同一個全名，不管 macOS 這個版本讀哪一個都會顯示正確的文字。 -->
 	<key>CFBundleName</key>
-	<string>SanRing Usage Monitor</string>
+	<string>sanring Haul</string>
 	<key>CFBundleDisplayName</key>
-	<string>SanRing Usage Monitor</string>
+	<string>sanring Haul</string>
 	<key>CFBundleExecutable</key>
-	<string>SanringMonitor</string>
+	<string>SanringHaul</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.sanring.usagemonitor</string>
+	<string>dev.sanring.haul</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<!-- SSOT 是 repo 根目錄的 VERSION 檔（backend/SanringMonitor.csproj 會自動讀進 <Version>）——
+	<!-- SSOT 是 repo 根目錄的 VERSION 檔（backend/SanringHaul.csproj 會自動讀進 <Version>）——
 	     這裡是手動對齊，改版時記得跟著改，還沒到值得建自動同步的規模（見 RELEASE-PLAN.md）。 -->
 	<key>CFBundleShortVersionString</key>
 	<string>0.1.0</string>

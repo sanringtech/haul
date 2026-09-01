@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wraps a built SanringMonitor.app into a distributable .dmg — the standard macOS "drag into
+# Wraps a built SanringHaul.app into a distributable .dmg — the standard macOS "drag into
 # Applications" install experience, instead of sharing the raw .app folder zipped up.
 #
 # Separate from build.sh on purpose (like make-icns.sh): packaging for distribution is slower
@@ -11,8 +11,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PUBLISH_DIR="${1:-publish/current}"
-APP_DIR="$PUBLISH_DIR/SanringMonitor.app"
-OUT_DMG="$PUBLISH_DIR/SanringMonitor.dmg"
+APP_DIR="$PUBLISH_DIR/SanringHaul.app"
+OUT_DMG="$PUBLISH_DIR/SanringHaul.dmg"
 
 if [ ! -d "$APP_DIR" ]; then
   echo "找不到 $APP_DIR ——先跑 ./scripts/build.sh（在 macOS 上，或指定 osx-* RID）產生 .app" >&2

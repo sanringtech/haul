@@ -27,7 +27,7 @@ if [ -n "$RID" ]; then
   # distributable there, so fold the whole self-contained runtime into one file (2026-08-31,
   # first real cross-compile: also caught that plain <OutputType>Exe> builds a console-subsystem
   # .exe on Windows — a black terminal window would pop up alongside the GUI on double-click —
-  # fixed in SanringMonitor.csproj by switching to WinExe for win-* RIDs, not here).
+  # fixed in SanringHaul.csproj by switching to WinExe for win-* RIDs, not here).
   [[ "$RID" == win-* ]] && PUBLISH_ARGS+=(-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true)
   dotnet publish backend "${PUBLISH_ARGS[@]}"
   IS_MACOS_TARGET=false
@@ -43,17 +43,17 @@ if [ "$IS_MACOS_TARGET" = true ]; then
   # A bare `dotnet publish` output has no Dock/Finder icon on macOS — Photino's SetIconFile()
   # is documented as Windows/Linux-only, so the app icon has to come from a real .app bundle's
   # Info.plist + .icns instead (see backend/Program.cs's SetIconFile comment for the full story).
-  echo "==> Assembling SanringMonitor.app"
-  APP_DIR="$PUBLISH_DIR/SanringMonitor.app"
+  echo "==> Assembling SanringHaul.app"
+  APP_DIR="$PUBLISH_DIR/SanringHaul.app"
   rm -rf "$APP_DIR"
   mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
   # Everything dotnet published (executable, dlls, wwwroot) moves under Contents/MacOS/ as one
   # unit — Photino resolves its relative Load()/asset paths against the executable's own
   # directory (AppContext.BaseDirectory), not the process's cwd, so this keeps that intact.
-  find "$PUBLISH_DIR" -mindepth 1 -maxdepth 1 ! -name "SanringMonitor.app" -exec mv {} "$APP_DIR/Contents/MacOS/" \;
+  find "$PUBLISH_DIR" -mindepth 1 -maxdepth 1 ! -name "SanringHaul.app" -exec mv {} "$APP_DIR/Contents/MacOS/" \;
   cp backend/packaging/macos/Info.plist "$APP_DIR/Contents/Info.plist"
   cp backend/packaging/macos/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
-  chmod +x "$APP_DIR/Contents/MacOS/SanringMonitor"
+  chmod +x "$APP_DIR/Contents/MacOS/SanringHaul"
   echo "==> Wrote $APP_DIR"
 fi
 
