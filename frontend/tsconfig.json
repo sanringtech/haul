@@ -3,6 +3,12 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    // Angular CLI 自己的 build pipeline從來不需要 tsc 直接 emit 東西（它自己另外處理輸出），這裡
+    // 沒設 noEmit 是 Angular CLI 產生的預設值——但這個 session 已經連續兩次因為某次直接呼叫 tsc
+    // （沒加 --noEmit）在 src/ 底下每個 .ts 旁邊生出一份編譯後的 .js，汙染到快要進 git 的地步
+    // （2026-09-01/09-02，都在 commit 前才發現、手動清掉）。顯式設成 true，不管未來是誰、用什麼
+    // 方式直接叫 tsc，都不會再意外落地任何檔案。
+    "noEmit": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,

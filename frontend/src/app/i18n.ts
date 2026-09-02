@@ -140,6 +140,11 @@ export interface Translations {
   usageHistoryTitle: string;
   usageHistoryDescription: string;
   usageHistoryNoData: string;
+  claudeWakeUpTitle: string;
+  claudeWakeUpDescription: string;
+  claudeWakeUpNoAccounts: string;
+  claudeWakeUpAccountToggleAria: string;
+  claudeWakeUpHourAria: string;
   chartSeriesShown: string;
   chartSeriesHidden: string;
   chartShortWindowTitle: string;
@@ -301,6 +306,11 @@ export const translations: Record<Lang, Translations> = {
     usageHistoryTitle: '記錄用量歷史',
     usageHistoryDescription: '開啟後自動刷新固定改為每 5 分鐘一次，並把各訂閱制來源的用量記錄到本機，最長保留 1 個月，可隨時匯出成 Markdown 或 Excel 檔。',
     usageHistoryNoData: '還沒有足夠的記錄可以畫圖，開啟上面的開關再等幾輪刷新看看。',
+    claudeWakeUpTitle: 'Claude 用量喚醒',
+    claudeWakeUpDescription: '⚠️ 這是唯一會消耗你用量額度的功能：Claude 的 5 小時／7 天視窗要送出訊息才會啟動。開啟後，下面勾選的帳號會在各自設定的時刻（本機時間，24 小時制）送一則最小訊息喚醒視窗——每個帳號一天最多一次，代價很小，但是真的對話紀錄。app 沒開著的話不會準時觸發，會等到下次刷新才補打。',
+    claudeWakeUpNoAccounts: '目前沒有透過 cswap 追蹤的 Claude 帳號可以選——單一帳號模式不支援這個功能。',
+    claudeWakeUpAccountToggleAria: '對 {name} 啟用用量喚醒',
+    claudeWakeUpHourAria: '{name} 的喚醒時刻',
     chartSeriesShown: '{label}目前顯示中，點一下隱藏',
     chartSeriesHidden: '{label}目前已隱藏，點一下顯示',
     chartShortWindowTitle: '5 小時視窗（短週期／突發額度）',
@@ -457,6 +467,11 @@ export const translations: Record<Lang, Translations> = {
     usageHistoryTitle: 'Record usage history',
     usageHistoryDescription: 'When on, auto-refresh switches to a fixed 5-minute cadence and each subscription source’s usage is recorded locally (kept for up to 1 month). Export it anytime as Markdown or Excel.',
     usageHistoryNoData: 'Not enough recorded data to chart yet — turn on the switch above and wait for a few more refreshes.',
+    claudeWakeUpTitle: 'Claude usage wake-up',
+    claudeWakeUpDescription: "⚠️ The only feature that spends real usage: Claude's 5-hour/7-day windows only start once a message is sent. When on, each selected account below gets one minimal message at its own set hour (local time, 24-hour) to wake its window — once a day per account, tiny cost, but a real logged conversation. Won't fire on time if the app isn't open; it catches up on the next refresh instead.",
+    claudeWakeUpNoAccounts: 'No Claude accounts tracked via cswap yet — single-account mode doesn’t support this.',
+    claudeWakeUpAccountToggleAria: 'Enable usage wake-up for {name}',
+    claudeWakeUpHourAria: 'Wake-up hour for {name}',
     chartSeriesShown: '{label} is shown — click to hide',
     chartSeriesHidden: '{label} is hidden — click to show',
     chartShortWindowTitle: '5-hour windows (short cycle / burst limit)',

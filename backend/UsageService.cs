@@ -26,7 +26,9 @@ public sealed record UserSettings(
     double? DeepSeekLowBalanceThresholdUsd,
     double? KimiAttentionBalanceThresholdUsd,
     double? KimiLowBalanceThresholdUsd,
-    bool UsageHistoryEnabled);
+    bool UsageHistoryEnabled,
+    bool ClaudeWakeUpEnabled,
+    Dictionary<string, int> ClaudeWakeUpAccountHours);
 
 /// <summary>
 /// 「已隱藏的來源」列表要顯示的最小資訊——關閉顯示（憲法 §8）之後，帳號從 GetSummariesAsync() 消失，
@@ -215,6 +217,13 @@ public sealed class UsageService
         var settings = SettingsStore.Load();
         var changed = settings.TrackedAccounts.RemoveAll(a => a.AccountId == accountId) > 0;
         changed |= settings.HiddenAccountIds.Remove(accountId);
+        // 「Claude 用量喚醒」是唯一會真的消耗用量額度的功能——帳號被取消追蹤後，殘留的選取跟時刻
+        // 不能留著沒清，不然使用者以為「取消追蹤＝這個帳號的一切都停了」，實際上背景還在繼續真的
+        // 打對話請求（cswap 本身沒有被告知要忘記這個帳號，Keychain 憑證還在，還是打得通）。跟其他
+        // 設定欄位（例如 DeepSeek 的餘額閾值）不一樣，那些殘留只是安靜的死資料，這個殘留是會繼續
+        // 花錢的動作，必須主動清掉，不能只靠設定頁下次存檔時才順便篩掉。
+        changed |= settings.ClaudeWakeUpAccountHours.Remove(accountId);
+        changed |= settings.ClaudeWakeUpLastPingDate.Remove(accountId);
         if (changed) SettingsStore.Save(settings);
     }
 
@@ -264,7 +273,9 @@ public sealed class UsageService
             settings.DeepSeekLowBalanceThresholdUsd,
             settings.KimiAttentionBalanceThresholdUsd,
             settings.KimiLowBalanceThresholdUsd,
-            settings.UsageHistoryEnabled);
+            settings.UsageHistoryEnabled,
+            settings.ClaudeWakeUpEnabled,
+            settings.ClaudeWakeUpAccountHours);
     }
 
     /// <summary>設定頁儲存（PRD：即時儲存即時生效）。閾值 clamp 在 50-95（憲法 §4 三態顏色的定義範圍）。</summary>
@@ -276,7 +287,9 @@ public sealed class UsageService
         double? deepSeekLowBalanceThresholdUsd,
         double? kimiAttentionBalanceThresholdUsd,
         double? kimiLowBalanceThresholdUsd,
-        bool usageHistoryEnabled)
+        bool usageHistoryEnabled,
+        bool claudeWakeUpEnabled,
+        Dictionary<string, int>? claudeWakeUpAccountHours)
     {
         var settings = SettingsStore.Load();
         settings.RefreshIntervalMinutes = refreshIntervalMinutes;
@@ -287,6 +300,16 @@ public sealed class UsageService
         (settings.KimiAttentionBalanceThresholdUsd, settings.KimiLowBalanceThresholdUsd) =
             NormalizeBalanceThresholds(kimiAttentionBalanceThresholdUsd, kimiLowBalanceThresholdUsd);
         settings.UsageHistoryEnabled = usageHistoryEnabled;
+        settings.ClaudeWakeUpEnabled = claudeWakeUpEnabled;
+        // 只接受「目前真的追蹤中、而且是 cswap 多帳號路徑」的 accountId、小時 clamp 在 0-23——前端
+        // 傳來的資料理論上已經是合法值，這裡再篩一次是防呆，不是信任前端沒送過怪資料。
+        var trackedCswapClaudeIds = settings.TrackedAccounts
+            .Where(a => a.SourceId == "claude" && a.AccountId.StartsWith(ClaudeUsageProvider.CswapAccountPrefix, StringComparison.Ordinal))
+            .Select(a => a.AccountId)
+            .ToHashSet();
+        settings.ClaudeWakeUpAccountHours = (claudeWakeUpAccountHours ?? [])
+            .Where(kv => trackedCswapClaudeIds.Contains(kv.Key))
+            .ToDictionary(kv => kv.Key, kv => Math.Clamp(kv.Value, 0, 23));
         SettingsStore.Save(settings);
         return GetSettings();
     }

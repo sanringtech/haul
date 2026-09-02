@@ -150,7 +150,9 @@ async void OnWebMessageReceived(object? sender, string message)
                     request.DeepSeekLowBalanceThresholdUsd,
                     request.KimiAttentionBalanceThresholdUsd,
                     request.KimiLowBalanceThresholdUsd,
-                    request.UsageHistoryEnabled ?? false);
+                    request.UsageHistoryEnabled ?? false,
+                    request.ClaudeWakeUpEnabled ?? false,
+                    request.ClaudeWakeUpAccountHours);
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("settings", null, null, Settings: updated), jsonOptions));
                 // 閾值一變，現有卡片的 usageState（正常/接近上限/已用盡）馬上就不準了——PRD 說設定要
                 // 「即時儲存即時生效」，補一次完整刷新才會反映在畫面上，不是只存進設定檔就算了。
@@ -184,6 +186,10 @@ async void OnWebMessageReceived(object? sender, string message)
         {
             UsageHistoryStore.Record(summaries);
         }
+
+        // 「Claude 用量喚醒」同樣搭這裡的便車，不是獨立排程——內部自己判斷今天是否已經打過，
+        // 沒到期就是幾乎零成本的一次字典查詢，不會拖慢一般的刷新速度。
+        await ClaudeActivationPinger.PingIfDueAsync();
     }
 
     async Task ExportUsageHistoryAsync(string format, string lang)
@@ -258,6 +264,8 @@ file sealed record HostRequest(
     double? KimiAttentionBalanceThresholdUsd = null,
     double? KimiLowBalanceThresholdUsd = null,
     bool? UsageHistoryEnabled = null,
+    bool? ClaudeWakeUpEnabled = null,
+    Dictionary<string, int>? ClaudeWakeUpAccountHours = null,
     // export-usage-history 專用："md" | "xlsx"，lang 決定匯出檔案表頭文字語言（前端目前選的 UI 語言）。
     string? ExportFormat = null,
     string? Lang = null);

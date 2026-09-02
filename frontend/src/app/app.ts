@@ -59,6 +59,20 @@ interface UserSettingsWire {
   kimiAttentionBalanceThresholdUsd: number | null;
   kimiLowBalanceThresholdUsd: number | null;
   usageHistoryEnabled: boolean;
+  claudeWakeUpEnabled: boolean;
+  /** accountId → 幾點（0-23，本機時間）觸發，有在這個物件裡＝已勾選。 */
+  claudeWakeUpAccountHours: Record<string, number>;
+}
+
+/**
+ * startRename() 只真的用得到這三個欄位——縮小成這個介面而不是整個 UsageSummary，讓「Claude 用量
+ * 喚醒」清單也能重用同一套改名機制：那份清單混合了 summaries()（UsageSummary）跟 hiddenAccounts()
+ * （HiddenAccountEntry）兩種不同形狀的資料，統一成這個最小交集就不用另外寫第二套改名邏輯。
+ */
+interface RenameableAccount {
+  source: string;
+  displayName: string;
+  accountLabel: string | null;
 }
 
 /** One progress row's worth of data, built from either the primary or secondary window fields. */
@@ -146,7 +160,7 @@ export class App implements AfterViewInit {
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
    *  記得一起改。 */
-  protected readonly appVersion = 'v0.3.0';
+  protected readonly appVersion = 'v0.3.1';
   protected readonly isDesktopHost = signal(typeof window.external?.sendMessage === 'function');
   protected readonly summaries = signal<UsageSummary[]>([]);
   protected readonly lastError = signal<string | null>(null);
@@ -253,7 +267,39 @@ export class App implements AfterViewInit {
   /** 「記錄用量歷史」開關——active 值另外驅動下面建構子裡自動刷新 timer 的接管邏輯，見那裡的註解。 */
   protected readonly usageHistoryEnabled = signal(false);
   protected readonly draftUsageHistoryEnabled = signal(false);
+  /**
+   * 「Claude 用量喚醒」——這是唯一會真的消耗使用者用量額度的開關（其餘都是唯讀查詢），用 Map
+   * 存 accountId → 觸發時刻（0-23，本機時間），有在 Map 裡＝已勾選，不需要另外一個布林清單。
+   * 跟其餘設定頁的開關（記錄用量歷史、刷新間隔按鈕）同一套「點下去立即存檔」模式，見
+   * onClaudeWakeUpToggle/onClaudeWakeUpAccountToggle/onClaudeWakeUpAccountHourChange。
+   */
+  protected readonly claudeWakeUpEnabled = signal(false);
+  protected readonly draftClaudeWakeUpEnabled = signal(false);
+  protected readonly claudeWakeUpAccountHours = signal<ReadonlyMap<string, number>>(new Map());
+  protected readonly draftClaudeWakeUpAccountHours = signal<ReadonlyMap<string, number>>(new Map());
+  /** 新勾選一個帳號時的預設喚醒時刻——早上比較合理，起床/開始工作前先喚醒，不用等到真的開始用才觸發。 */
+  private static readonly DEFAULT_WAKE_UP_HOUR = 7;
+  /** 24 小時制的下拉選項，模板裡 @for 直接迭代，固定清單不用做成 computed。 */
+  protected readonly claudeWakeUpHourOptions = Array.from({ length: 24 }, (_, h) => h);
   protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
+
+  /** 「Claude 用量喚醒」帳號清單只能從目前追蹤中、走 cswap 多帳號路徑的 Claude 帳號裡挑——單帳號
+   *  模式（source 字面上是 "claude"）沒有走 cswap，讀不到 Keychain 裡對應的完整憑證格式，見
+   *  ClaudeActivationPinger 的說明。 */
+  /**
+   * 隱藏中（關閉顯示，不是取消追蹤）的帳號也要算進來——隱藏≠移除，帳號還在追蹤中，Keychain
+   * 憑證還在，喚醒還是會真的觸發，使用者得看得到、改得了這個設定，不能因為卡片被藏起來就連
+   * 帶連設定頁都找不到（那樣等於沒辦法關掉一個還在背景消耗額度的東西）。summaries()／
+   * hiddenAccounts() 兩邊的帳號不會重疊（同一個帳號同時間只會在其中一邊），直接合併不用去重。
+   */
+  protected readonly claudeWakeUpEligibleAccounts = computed<RenameableAccount[]>(() => [
+    ...this.summaries()
+      .filter((s) => s.source.startsWith('claude:'))
+      .map((s) => ({ source: s.source, displayName: s.displayName, accountLabel: s.accountLabel })),
+    ...this.hiddenAccounts()
+      .filter((a) => a.accountId.startsWith('claude:'))
+      .map((a) => ({ source: a.accountId, displayName: a.displayName, accountLabel: a.accountLabel })),
+  ]);
 
   /** 匯出用量歷史（md/xlsx）的按鈕狀態——跟 addStatus/settingsSaveStatus 同一種「按下去到有結果」模式。 */
   protected readonly historyExportStatus = signal<'idle' | 'pending' | 'success' | 'error'>('idle');
@@ -515,6 +561,8 @@ export class App implements AfterViewInit {
     this.draftDeepSeekBalanceAlertEnabled.set(this.deepSeekLowBalanceThresholdUsd() !== null);
     this.draftKimiBalanceAlertEnabled.set(this.kimiLowBalanceThresholdUsd() !== null);
     this.draftUsageHistoryEnabled.set(this.usageHistoryEnabled());
+    this.draftClaudeWakeUpEnabled.set(this.claudeWakeUpEnabled());
+    this.draftClaudeWakeUpAccountHours.set(this.claudeWakeUpAccountHours());
     this.historyExportStatus.set('idle');
     this.historyExportError.set(null);
     // 折線圖資料每次進設定頁都重新抓一次，不快取——資料量不大（見 UsageHistoryStore 的估算），
@@ -592,6 +640,35 @@ export class App implements AfterViewInit {
     this.saveSettings();
   }
 
+  /** 同一個「開關點下去立即存檔」理由——這個開關比其他都更需要即時生效：使用者關掉它就是想要
+   *  立刻停止消耗額度，不該還要多按一次儲存才真的停下來。 */
+  protected onClaudeWakeUpToggle(checked: boolean): void {
+    this.draftClaudeWakeUpEnabled.set(checked);
+    this.saveSettings();
+  }
+
+  protected onClaudeWakeUpAccountToggle(accountId: string, checked: boolean): void {
+    this.draftClaudeWakeUpAccountHours.update((hours) => {
+      const next = new Map(hours);
+      if (checked) next.set(accountId, App.DEFAULT_WAKE_UP_HOUR);
+      else next.delete(accountId);
+      return next;
+    });
+    this.saveSettings();
+  }
+
+  protected onClaudeWakeUpAccountHourChange(accountId: string, event: Event): void {
+    const hour = Number((event.target as HTMLSelectElement).value);
+    if (!Number.isFinite(hour)) return;
+    this.draftClaudeWakeUpAccountHours.update((hours) => {
+      if (!hours.has(accountId)) return hours; // 沒勾選就沒有時刻可以改
+      const next = new Map(hours);
+      next.set(accountId, hour);
+      return next;
+    });
+    this.saveSettings();
+  }
+
   protected onBalanceAlertToggle(provider: 'deepseek' | 'kimi', checked: boolean): void {
     const enabled = provider === 'deepseek' ? this.draftDeepSeekBalanceAlertEnabled : this.draftKimiBalanceAlertEnabled;
     const amount = provider === 'deepseek' ? this.draftDeepSeekLowBalance : this.draftKimiLowBalance;
@@ -621,6 +698,8 @@ export class App implements AfterViewInit {
       kimiAttentionBalanceThresholdUsd: null,
       kimiLowBalanceThresholdUsd: this.draftKimiBalanceAlertEnabled() ? this.draftKimiLowBalance() : null,
       usageHistoryEnabled: this.draftUsageHistoryEnabled(),
+      claudeWakeUpEnabled: this.draftClaudeWakeUpEnabled(),
+      claudeWakeUpAccountHours: Object.fromEntries(this.draftClaudeWakeUpAccountHours()),
     });
   }
 
@@ -690,7 +769,7 @@ export class App implements AfterViewInit {
   }
 
   /** 點名稱進入編輯：預填畫面上目前顯示的文字（自訂標籤，沒有的話就是 displayName 本身，例如 "Codex"）。 */
-  protected startRename(item: UsageSummary): void {
+  protected startRename(item: RenameableAccount): void {
     this.editingLabelAccountId.set(item.source);
     this.editingLabelValue.set(item.accountLabel ?? item.displayName);
   }
@@ -894,6 +973,8 @@ export class App implements AfterViewInit {
         this.kimiAttentionBalanceThresholdUsd.set(payload.settings.kimiAttentionBalanceThresholdUsd);
         this.kimiLowBalanceThresholdUsd.set(payload.settings.kimiLowBalanceThresholdUsd);
         this.usageHistoryEnabled.set(payload.settings.usageHistoryEnabled);
+        this.claudeWakeUpEnabled.set(payload.settings.claudeWakeUpEnabled);
+        this.claudeWakeUpAccountHours.set(new Map(Object.entries(payload.settings.claudeWakeUpAccountHours)));
         if (this.settingsSaveStatus() === 'saving') {
           this.settingsSaveStatus.set('saved');
           setTimeout(() => this.settingsSaveStatus.set('idle'), 1500);

@@ -41,6 +41,28 @@ public sealed class AppSettings
     /// </summary>
     public bool UsageHistoryEnabled { get; set; }
 
+    /// <summary>
+    /// 「Claude 用量喚醒」開關（見 Services/ClaudeActivationPinger.cs）。Claude 的 5 小時／7 天用量
+    /// 視窗是懶初始化的——沒送過訊息（或上一輪視窗到期後還沒送新訊息）就會停在「尚未開始」的狀態，
+    /// 開啟這個開關後，每天第一次刷新、且本機時間已經過了 <see cref="ClaudeWakeUpAccountHours"/> 設定
+    /// 的時刻，會對選中的帳號各送一則最小訊息喚醒視窗。**這是這個 app 唯一會真的消耗使用者用量額度
+    /// 的功能**（其餘都是唯讀查詢），預設關閉，且要使用者自己選帳號才會生效（查證見 AI-LANDSCAPE.md
+    /// 「Claude 視窗『懶初始化』行為」）。
+    /// </summary>
+    public bool ClaudeWakeUpEnabled { get; set; }
+
+    /// <summary>
+    /// 要喚醒哪些追蹤中的 Claude 帳號，以及各自要幾點（本機時間，0-23）才觸發——key 是
+    /// TrackedAccount.AccountId（"claude:{email}" 格式），value 是小時。有在這個字典裡＝已勾選，
+    /// 不需要另外一個布林清單。只有 cswap 多帳號才有多個選項，單帳號模式（AccountId 字面上是
+    /// "claude"）不支援，因為那條路徑沒有走 cswap，讀不到 Keychain 裡對應的完整憑證格式。
+    /// </summary>
+    public Dictionary<string, int> ClaudeWakeUpAccountHours { get; set; } = [];
+
+    /// <summary>每個帳號最後一次成功喚醒的本機日期（"yyyy-MM-dd"）——純內部記帳用，判斷「今天是否
+    /// 已經打過」，不會顯示在設定頁、也不是使用者能編輯的東西，跟上面兩個欄位性質不同。</summary>
+    public Dictionary<string, string> ClaudeWakeUpLastPingDate { get; set; } = [];
+
     /// <summary>Account ids the user has hidden (constitution §8 "關閉顯示") — data/keys stay, just not shown.</summary>
     public List<string> HiddenAccountIds { get; set; } = [];
 

@@ -631,6 +631,76 @@
       </div>
     </div>
 
+    <!-- Claude 用量喚醒：Claude 的 5 小時／7 天視窗是懶初始化的（沒送過訊息、或上一輪視窗到期後
+         還沒送新訊息，就停在「尚未開始」狀態，查證見 AI-LANDSCAPE.md），這個開關會每天對勾選的
+         帳號各送一則最小訊息喚醒視窗。**這是這個 app 唯一會真的消耗使用者用量額度的功能**——
+         其餘都是唯讀查詢，說明文字要講清楚，預設關閉。 -->
+    <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
+      <div class="flex items-center gap-3">
+        <h3 class="flex-1 text-sm font-semibold">{{ t('claudeWakeUpTitle') }}</h3>
+        <sanring-switch [checked]="draftClaudeWakeUpEnabled()" [ariaLabel]="t('claudeWakeUpTitle')" (checkedChange)="onClaudeWakeUpToggle($event)" />
+      </div>
+      <p class="text-[10px] text-[var(--sanring-warn-50)]">{{ t('claudeWakeUpDescription') }}</p>
+
+      <!-- 跟上面「記錄用量歷史」同一套 CSS grid-rows 收合動畫，帳號清單只在開關開著時才需要看到。 -->
+      <div
+        class="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        [style.grid-template-rows]="claudeWakeUpEnabled() ? '1fr' : '0fr'"
+      >
+        <div class="overflow-hidden min-h-0 flex flex-col gap-2">
+          @if (claudeWakeUpEligibleAccounts().length === 0) {
+            <p class="text-[10px] text-[var(--sanring-muted)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
+              {{ t('claudeWakeUpNoAccounts') }}
+            </p>
+          } @else {
+            @for (account of claudeWakeUpEligibleAccounts(); track account.source) {
+              <div class="flex items-center gap-3 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] px-3 py-2">
+                <!-- 標籤可點擊改名——跟卡片標題、API KEY 餘額提醒那兩列同一套 startRename/commitRename
+                     機制，這裡的 account 本來就是完整的 UsageSummary，直接沿用不用另外接。 -->
+                <div class="flex-1 min-w-0">
+                  @if (editingLabelAccountId() === account.source) {
+                    <input
+                      sanringInput
+                      type="text"
+                      class="h-7 text-xs"
+                      [placeholder]="account.displayName"
+                      [value]="editingLabelValue()"
+                      (input)="onRenameInput($event)"
+                      (keydown)="onRenameKeydown($event)"
+                      (blur)="commitRename()"
+                      autofocus
+                    />
+                  } @else {
+                    <button type="button" class="hover:underline text-left truncate w-full text-xs" [title]="t('renameTitle')" (click)="startRename(account)">
+                      {{ account.accountLabel ?? account.displayName }}
+                    </button>
+                  }
+                </div>
+                <sanring-switch
+                  [checked]="draftClaudeWakeUpAccountHours().has(account.source)"
+                  [ariaLabel]="t('claudeWakeUpAccountToggleAria', { name: account.accountLabel ?? account.displayName })"
+                  (checkedChange)="onClaudeWakeUpAccountToggle(account.source, $event)"
+                />
+                <!-- 24 小時制用下拉選單保證顯示格式，不用 <input type="time">——那個的 12/24 小時制
+                     顯示是跟著作業系統locale走的，沒辦法用 HTML 強制成 24 小時制，select 才是可靠的做法
+                     （設定頁「訂閱用量提醒」那組閾值選單也是同樣理由選 select，不是巧合）。 -->
+                <select
+                  class="h-9 w-24 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-2 text-right text-xs text-[var(--sanring-foreground)] transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  [disabled]="!draftClaudeWakeUpAccountHours().has(account.source)"
+                  [attr.aria-label]="t('claudeWakeUpHourAria', { name: account.accountLabel ?? account.displayName })"
+                  (change)="onClaudeWakeUpAccountHourChange(account.source, $event)"
+                >
+                  @for (h of claudeWakeUpHourOptions; track h) {
+                    <option [value]="h" [selected]="h === (draftClaudeWakeUpAccountHours().get(account.source) ?? 7)">{{ h.toString().padStart(2, '0') }}:00</option>
+                  }
+                </select>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+
     <!-- 每組設定都是獨立 surface：背景、邊框與內距共同建立區域性，不只靠分隔線。 -->
     <div class="flex flex-col gap-4 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <h3 class="text-sm font-semibold">{{ t('usageAlertTitle') }}</h3>
@@ -647,40 +717,49 @@
         <div class="flex items-center gap-2">
           <span class="size-2.5 rounded-full bg-[var(--sanring-warn-50)]"></span>
           <span class="flex-1 text-xs">{{ t('attentionAlertLabel') }}</span>
-          <select
-            class="h-9 w-28 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-3 text-right text-sm text-[var(--sanring-foreground)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]"
-            [attr.aria-label]="t('attentionAlertLabel')"
-            (change)="onAttentionThresholdSelect($event)"
-          >
-            @for (opt of attentionThresholdOptions(); track opt) {
-              <option [value]="opt" [selected]="opt === draftAttentionThreshold()">{{ opt }}%</option>
-            }
-          </select>
+          <div class="relative w-28">
+            <select
+              class="h-9 w-full appearance-none rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] pl-3 pr-8 text-right text-sm text-[var(--sanring-foreground)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]"
+              [attr.aria-label]="t('attentionAlertLabel')"
+              (change)="onAttentionThresholdSelect($event)"
+            >
+              @for (opt of attentionThresholdOptions(); track opt) {
+                <option [value]="opt" [selected]="opt === draftAttentionThreshold()">{{ opt }}%</option>
+              }
+            </select>
+            <svg lucideChevronDown class="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[var(--sanring-muted)]"></svg>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="size-2.5 rounded-full bg-[var(--sanring-caution-50)]"></span>
           <span class="flex-1 text-xs">{{ t('nearLimitAlertLabel') }}</span>
-          <select
-            class="h-9 w-28 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-3 text-right text-sm text-[var(--sanring-foreground)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]"
-            [attr.aria-label]="t('nearLimitAlertLabel')"
-            (change)="onNearLimitThresholdSelect($event)"
-          >
-            @for (opt of nearLimitThresholdOptions(); track opt) {
-              <option [value]="opt" [selected]="opt === draftNearLimitThreshold()">{{ opt }}%</option>
-            }
-          </select>
+          <div class="relative w-28">
+            <select
+              class="h-9 w-full appearance-none rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] pl-3 pr-8 text-right text-sm text-[var(--sanring-foreground)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sanring-border-strong)]"
+              [attr.aria-label]="t('nearLimitAlertLabel')"
+              (change)="onNearLimitThresholdSelect($event)"
+            >
+              @for (opt of nearLimitThresholdOptions(); track opt) {
+                <option [value]="opt" [selected]="opt === draftNearLimitThreshold()">{{ opt }}%</option>
+              }
+            </select>
+            <svg lucideChevronDown class="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[var(--sanring-muted)]"></svg>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <span class="size-2.5 rounded-full bg-[var(--sanring-error-50)]"></span>
           <span class="flex-1 text-xs">{{ t('exhaustedAlertLabel') }}</span>
           <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('fixedLabel') }}</span>
-          <select
-            disabled
-            class="h-9 w-28 rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] px-3 text-right text-sm text-[var(--sanring-foreground)] transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-50"
-            [attr.aria-label]="t('exhaustedAlertLabel')"
-          >
-            <option [selected]="true">100%</option>
-          </select>
+          <div class="relative w-28 opacity-50">
+            <select
+              disabled
+              class="h-9 w-full appearance-none rounded-[var(--sanring-radius)] border border-[var(--sanring-border-strong)] bg-[var(--sanring-surface)] pl-3 pr-8 text-right text-sm text-[var(--sanring-foreground)] disabled:cursor-not-allowed"
+              [attr.aria-label]="t('exhaustedAlertLabel')"
+            >
+              <option [selected]="true">100%</option>
+            </select>
+            <svg lucideChevronDown class="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[var(--sanring-muted)]"></svg>
+          </div>
         </div>
       </div>
       <sanring-range-slider

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sanring Haul</title>
-<meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間。v0.3.0 現已提供 macOS / Windows 下載。">
+<meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間。v0.3.1 現已提供 macOS / Windows 下載。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='1' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='1' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='14' y='1' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='1' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='2' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='14' y='2' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='1' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='5' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='10' y='5' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='13' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='6' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='10' y='6' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='13' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='9' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='6' y='9' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='9' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='10' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='6' y='10' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='9' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='13' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='2' y='13' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='5' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='14' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='2' y='14' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='5' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Ubuntu:wght@400;500;700&display=swap">
 <style>
@@ -308,6 +308,91 @@
   footer a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
   footer a:hover, footer a:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
   a:focus-visible, .platform:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* footer 裡「已知風險與揭露」「完整版本說明」原本是連到 GitHub 的連結，改成 <button> 開站內
+     dialog——這個頁面唯一的目的就是說服使用者「這個東西可以信任、載了不會出事」，跳出去 GitHub
+     讀一份開發者視角的 markdown 檔，中間這個切出頁面的跳轉本身就是一次流失機會；蓋一個 dialog
+     直接把重點攤在同一頁，讀完關掉就回到原本捲動的位置。視覺上刻意跟 footer a 長得一樣（底線、
+     顏色），使用者不會感覺到「這其實是顆按鈕不是連結」，只是行為變成開窗不是跳轉。 */
+  .link-button {
+    font: inherit;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 3px;
+  }
+  .link-button:hover, .link-button:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
+
+  /* 原生 <dialog> 元素——不用另外抓一個 JS modal 套件，showModal()/close() 加原生 ::backdrop
+     就是完整的無障礙 modal 行為（focus trap、Esc 關閉、跟 <body> 其餘內容的互動阻擋全部內建）。 */
+  .info-dialog {
+    width: min(560px, calc(100vw - 2.5rem));
+    max-height: min(80vh, 640px);
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: var(--fg);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+  }
+  .info-dialog::backdrop { background: rgba(10, 14, 15, 0.6); backdrop-filter: blur(2px); }
+  .info-dialog-header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .info-dialog-header h2 {
+    margin: 0;
+    flex: 1;
+    font-family: var(--font-display);
+    font-size: 1rem;
+  }
+  .info-dialog-close {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-strong);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+  .info-dialog-close:hover, .info-dialog-close:focus-visible { color: var(--fg); border-color: var(--accent); }
+  .info-dialog-body {
+    padding: 1.1rem 1.25rem 1.4rem;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.75;
+    color: var(--muted);
+  }
+  .info-dialog-body p { margin: 0 0 0.9rem; }
+  .info-dialog-body p:last-child { margin-bottom: 0; }
+  .info-dialog-body strong { color: var(--fg); }
+  .info-dialog-body ul { margin: 0 0 0.9rem; padding-left: 1.2rem; }
+  .info-dialog-body li { margin-bottom: 0.5rem; }
+  .info-dialog-body li:last-child { margin-bottom: 0; }
+  .info-dialog-body a { color: var(--accent); }
+  .info-dialog-body h3 {
+    margin: 1.3rem 0 0.5rem;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    color: var(--fg);
+  }
+  .info-dialog-body h3:first-child { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -315,7 +400,7 @@
 <canvas id="stars" aria-hidden="true"></canvas>
 
 <main>
-  <p class="kicker"><span class="dot"></span>SANRING · v0.3.0</p>
+  <p class="kicker"><span class="dot"></span>SANRING · v0.3.1</p>
 
   <svg class="mark" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
     <rect x="1" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="2" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="5" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/>
@@ -339,8 +424,12 @@
     <rect x="13" y="14" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="14" y="14" width="1" height="1" fill="var(--accent)" opacity="0.35"/>
   </svg>
 
-  <h1>Claude、Codex、DeepSeek、Kimi、Cursor 用量<br><span class="accent">一次撈起來</span>，不用切五個分頁</h1>
-  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，把好幾個帳號的剩餘額度、重置時間一次撈進同一個畫面。v0.3.0 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
+  <!-- 原本的標題是「Claude、Codex、DeepSeek、Kimi、Cursor 用量 一次撈起來，不用切五個分頁」——
+       字面但冗長，5 個服務名稱其實下面的用量卡片預覽 + fleet 標籤已經展示過了，標題不用再重複
+       列一次。換成短句子，直接呼應「Haul」這個品牌名本身的意象（撒網把散落各處的東西一次撈起、
+       一網打盡），好記，也不用列舉會過時的服務清單（以後新增/移除來源，標題不用跟著改）。 -->
+  <h1>所有 AI 額度<br><span class="accent">一網打盡</span></h1>
+  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，把 Claude、Codex、DeepSeek、Kimi、Cursor 好幾個帳號的剩餘額度、重置時間一次撈進同一個畫面，不用切五個分頁。v0.3.1 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
 
   <div class="features">
     <div class="feature">
@@ -357,7 +446,7 @@
     </div>
   </div>
 
-  <p class="status-pill">v0.3.0 · 未簽章，開啟需手動繞過安全性警告</p>
+  <p class="status-pill">v0.3.1 · 未簽章，開啟需手動繞過安全性警告</p>
 
   <div class="preview" role="img" aria-label="用量卡片預覽：Claude Code，5 小時已用 62%，7 天已用 40%">
     <div class="preview-head">
@@ -398,14 +487,14 @@
   </div>
 
   <div class="platforms">
-    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.3.0/SanringHaul-0.3.0-macOS-arm64.dmg">
+    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.3.1/SanringHaul-0.3.1-macOS-arm64.dmg">
       <svg viewBox="0 0 24 24"><path d="M16.365 1.43c0 1.14-.468 2.06-1.14 2.75-.73.75-1.94 1.33-2.94 1.33-.11-1.13.44-2.29 1.13-3.02.75-.8 2.05-1.4 2.95-1.44 0 .13.01.25 0 .38zm4.14 15.66c-.55 1.27-1.22 2.53-2.2 3.62-.94 1.05-1.98 2.1-3.4 2.12-1.4.02-1.85-.83-3.45-.83-1.6 0-2.1.81-3.42.85-1.36.05-2.4-1.13-3.36-2.17-1.86-2.03-3.31-5.74-1.4-8.87.95-1.55 2.64-2.53 4.47-2.56 1.34-.02 2.6.9 3.42.9.81 0 2.35-1.11 3.96-.95.67.03 2.56.27 3.77 2.03-.1.06-2.25 1.32-2.22 3.94.03 3.13 2.75 4.17 2.79 4.19-.03.09-.44 1.5-1.46 2.73z"/></svg>
       <span class="platform-text">
         <span class="platform-name">macOS <span class="platform-sub">Apple Silicon · .dmg</span></span>
       </span>
       <span class="platform-status">下載</span>
     </a>
-    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.3.0/SanringHaul-0.3.0-Windows-x64.zip">
+    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.3.1/SanringHaul-0.3.1-Windows-x64.zip">
       <svg viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4V11.5H3V5.5ZM11.4 4.27 21 3v8.5H11.4V4.27ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.4 12.5H21V21L11.4 19.73V12.5Z"/></svg>
       <span class="platform-text">
         <span class="platform-name">Windows <span class="platform-sub">x64 · ⚠️ 未實測</span></span>
@@ -416,11 +505,61 @@
 
   <footer>
     個人開發的小工具，不是商業產品。下載前請看
-    <a href="https://github.com/sanringtech/haul/blob/main/RISKS.md">已知風險與揭露</a>、
-    <a href="https://github.com/sanringtech/haul/releases/tag/v0.3.0">完整版本說明</a>。<br>
+    <button type="button" class="link-button" onclick="document.getElementById('risksDialog').showModal()">已知風險與揭露</button>、
+    <button type="button" class="link-button" onclick="document.getElementById('notesDialog').showModal()">完整版本說明</button>。<br>
     sanring.dev
   </footer>
 </main>
+
+<dialog id="risksDialog" class="info-dialog">
+  <div class="info-dialog-header">
+    <h2>已知風險與揭露</h2>
+    <button type="button" class="info-dialog-close" aria-label="關閉" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="info-dialog-body">
+    <p>發布給其他人用之前請先讀這份。這是個人開發的小工具，不是商業產品，作者不對此提供法律保證。</p>
+
+    <h3>非官方端點依賴</h3>
+    <p>Claude、Codex、Cursor 的用量查詢，以及 Kimi 的訂閱制用量查詢，走的都是<strong>非官方、非文件化的介面</strong>——不是這幾家公司保證會一直支援的公開合約，服務商隨時可能無預告改版或停用，屆時對應功能會失效，需要等修好。DeepSeek、Kimi 的 API key 餘額查詢走的是官方文件化的端點，不在此列。</p>
+
+    <h3>不是官方產品</h3>
+    <p>sanring Haul 跟 Anthropic、OpenAI、DeepSeek、Moonshot AI（Kimi）、Cursor 都沒有合作或任何官方關係，只是讀取你自己電腦上已經登入的本機 CLI session，或你自己貼上的 API key 去查詢用量——不會繞過任何付費牆，也不會查到不屬於你自己帳號的資料。</p>
+
+    <h3>未簽章 / 未公證</h3>
+    <p>目前處於小範圍分享階段，macOS 版沒有經過開發者簽章與公證，第一次開啟會被 Gatekeeper 擋下；Windows 版可能被 SmartScreen 擋。這不代表程式有問題，是還沒有花錢申請簽章憑證。</p>
+
+    <h3>Windows 版未經真實測試</h3>
+    <p>目前只在 macOS 上開發、只做過跨平台建置驗證，沒有人在真實 Windows 環境實際跑過——尤其是 API key 的本機儲存這塊，能不能正常運作還是未知數。</p>
+
+    <h3>資料只存在你自己的電腦</h3>
+    <p>帳號、設定、憑證全部存在本機（設定檔 + 系統的憑證管理服務），不會同步到任何雲端或伺服器，換一台電腦視同從零開始。</p>
+
+    <p>完整技術細節（含每個端點的確切路徑）見 <a href="https://github.com/sanringtech/haul/blob/main/RISKS.md" target="_blank" rel="noopener">RISKS.md</a>。</p>
+  </div>
+</dialog>
+
+<dialog id="notesDialog" class="info-dialog">
+  <div class="info-dialog-header">
+    <h2>完整版本說明 · v0.3.1</h2>
+    <button type="button" class="info-dialog-close" aria-label="關閉" onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <div class="info-dialog-body">
+    <h3>這個版本新增了什麼</h3>
+    <ul>
+      <li><strong>Claude 用量喚醒</strong>（設定頁，預設關閉）：Claude 的 5 小時／7 天用量視窗要送出訊息才會啟動，沒用過或上一輪視窗到期後會停在「尚未開始」狀態。開啟後可以逐帳號設定每天幾點（24 小時制）送一則最小訊息喚醒視窗——這是目前唯一會真的消耗用量額度的功能，其餘都是唯讀查詢，預設關閉、要自己選帳號才生效。</li>
+      <li>用量歷史折線圖：5 小時／7 天分成兩張圖表，避免不同週期的百分比混在一起誤判緊急程度；圖例可點擊個別開關某條線、顯示消耗速率。</li>
+      <li>訂閱用量提醒改成單一軌道雙手柄的區間滑桿，操作更直覺。</li>
+      <li>一些穩定性/UX 修正：設定頁多處開關改成點下去立即存檔；帳號改名功能擴及更多設定列。</li>
+    </ul>
+    <h3>下載前請先讀</h3>
+    <ul>
+      <li>未簽章：macOS 會被 Gatekeeper 擋，Windows 可能被 SmartScreen 擋（見上方「已知風險與揭露」）。</li>
+      <li>Windows 版只做過建置驗證，沒有人在真實 Windows 上測試過。</li>
+      <li>部分功能依賴非官方端點，對應服務商可能無預告改版。</li>
+    </ul>
+    <p>完整開發歷程見 <a href="https://github.com/sanringtech/haul/blob/main/CHANGELOG.md" target="_blank" rel="noopener">CHANGELOG.md</a>，逐版下載連結見 <a href="https://github.com/sanringtech/haul/releases" target="_blank" rel="noopener">GitHub Releases</a>。</p>
+  </div>
+</dialog>
 
 <script>
   (function () {

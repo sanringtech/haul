@@ -2,7 +2,27 @@
 
 主流 AI 工具的訂閱方案 + API key 能不能查到用量/餘額，作為決定要不要新增來源的依據。**技術可行性一律要反查真實端點行為才算數，不能用猜的**——這是這個專案從 Claude/Codex 那次就一路堅持的規矩，見 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
-最後更新：2026-09-01。訂閱方案/價格會變，這裡記錄的是查證當下的快照，之後要用請重新確認。
+最後更新：2026-09-02。訂閱方案/價格會變，這裡記錄的是查證當下的快照，之後要用請重新確認。
+
+## Claude 視窗「懶初始化」行為 + 喚醒用量視窗（2026-09-02，已實測）
+
+實測發現：Claude 的 5 小時／7 天用量視窗**不是帳號開通就開始跑**，是懶初始化的——帳號（或視窗週期到期後）如果沒有送過訊息，`/api/oauth/usage` 回傳 `utilization: 0`、`resets_at: null`，跟 claude.ai 網頁上「Starts when a message is sent」是同一個狀態，不是資料抓錯或帳號壞掉。跟一份使用者自己的匯出紀錄比對過：同一個帳號前一天還有 29~59% 的真實用量，隔天視窗到期後就會回到這個「尚未開始」狀態，直到下一則訊息送出才重新啟動。
+
+**因此「喚醒」一個視窗的方法就是送一則真的訊息**，已經直接打通驗證：
+
+```
+POST https://api.anthropic.com/v1/messages
+Authorization: Bearer <cswap 存在 Keychain 的 Claude Code OAuth accessToken>
+anthropic-version: 2023-06-01
+anthropic-beta: oauth-2025-04-20
+Content-Type: application/json
+
+{"model": "claude-haiku-4-5-20251001", "max_tokens": 8, "messages": [{"role": "user", "content": "hi"}]}
+```
+
+回應 HTTP 200，真的收到模型回覆，`usage: {input_tokens: 8, output_tokens: 8}`——代價很小但**是真的消耗額度**，跟查用量狀態的唯讀端點是完全不同性質的呼叫（見下方「Claude 用量喚醒」功能，設定頁的開關）。認證方式（`Authorization: Bearer` + `anthropic-beta: oauth-2025-04-20`）跟 `ClaudeUsageProvider` 打 usage 端點是同一套，只是端點換成 `/v1/messages`、多一個 `anthropic-version` header。
+
+**未查證**：Codex（ChatGPT）的用量視窗是否也有同樣的懶初始化行為——`backend-api/wham/usage` 是完全不同的非公開端點，沒有理由假設它跟 Anthropic 這邊行為一樣，這次的「喚醒」功能只做 Claude。
 
 ## 已支援（見 [`ARCHITECTURE.md`](ARCHITECTURE.md) / [`RISKS.md`](RISKS.md)）
 
