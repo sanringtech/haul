@@ -3,8 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sanring Haul</title>
+<title>sanring Haul — Claude／Codex／Cursor 用量追蹤工具</title>
 <meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間。v0.3.1 現已提供 macOS / Windows 下載。">
+<link rel="canonical" href="https://haul.sanring.dev/">
+
+<!-- Open Graph——原本完全沒有這組 tag，連結被分享到 Slack/Discord/Twitter/LINE 這類地方時
+     預覽卡是空的（標題/說明/圖片全無），對這種小工具「靠別人轉貼發現」的路徑是實際的流失。 -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://haul.sanring.dev/">
+<meta property="og:title" content="sanring Haul — 所有 AI 額度，一網打盡">
+<meta property="og:description" content="同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間，不用切五個分頁。macOS / Windows 可下載。">
+<meta property="og:image" content="https://haul.sanring.dev/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="zh_TW">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="sanring Haul — 所有 AI 額度，一網打盡">
+<meta name="twitter:description" content="同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間，不用切五個分頁。">
+<meta name="twitter:image" content="https://haul.sanring.dev/og-image.png">
+
+<!-- JSON-LD structured data——讓 Google 有機會在搜尋結果直接顯示「免費」「支援 macOS/Windows」
+     這類資訊卡片，不只是一行藍色連結。SoftwareApplication 是這類下載頁最貼近的 schema.org 型別。 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "sanring Haul",
+  "url": "https://haul.sanring.dev/",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "macOS, Windows",
+  "description": "常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間。",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='1' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='1' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='1' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='14' y='1' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='1' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='2' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='2' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='14' y='2' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='1' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='5' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='10' y='5' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='13' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='5' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='6' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='10' y='6' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='13' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='6' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='9' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='6' y='9' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='9' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='9' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='2' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='5' y='10' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='6' y='10' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='9' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='10' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='13' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='2' y='13' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='5' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='13' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='1' y='14' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='2' y='14' width='1' height='1' fill='%232E7F8B'%3E%3C/rect%3E%3Crect x='5' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='6' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='9' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='10' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='13' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3Crect x='14' y='14' width='1' height='1' fill='%232E7F8B' opacity='0.35'%3E%3C/rect%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Ubuntu:wght@400;500;700&display=swap">
 <style>
