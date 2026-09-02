@@ -135,10 +135,10 @@ export class WidgetApp {
   protected usageBadgeClass(state: UsageState): string {
     return (
       {
-        normal: 'border-transparent bg-[var(--sanring-success-50)] text-white',
+        normal: 'border-transparent bg-[var(--sanring-success-50)] text-[var(--sanring-success-90)]',
         attention: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
         near_limit: 'border-transparent bg-[var(--sanring-caution-50)] text-[var(--sanring-caution-90)]',
-        exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-white',
+        exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-[var(--sanring-error-90)]',
         unknown: 'border-transparent bg-[var(--sanring-neutral-30)] text-[var(--sanring-neutral-90)]',
       } satisfies Record<UsageState, string>
     )[state];

@@ -127,6 +127,14 @@
   --sanring-control-foreground: var(--sanring-neutral-90);
   --sanring-active: var(--sanring-primary-80);
 
+  /* 當文字用的狀態色：*-50 是徽章/進度條填色，淺底上當字會不過對比。
+     helper 比 muted 更接近前景，給設定頁長說明用。 */
+  --sanring-warn-fg: var(--sanring-warn-40);
+  --sanring-success-fg: var(--sanring-success-50);
+  --sanring-caution-fg: var(--sanring-caution-50);
+  --sanring-error-fg: var(--sanring-error-40);
+  --sanring-helper: var(--sanring-neutral-30);
+
   /* Progress：覆寫這三個可以換掉整個 progress bar 的配色 */
   --sanring-progress-track: var(--sanring-surface-strong);
   --sanring-progress-bar: var(--sanring-control);
@@ -152,6 +160,12 @@
   --sanring-control: var(--sanring-neutral-90);
   --sanring-control-foreground: #ffffff;
   --sanring-active: #d8eef1;
+
+  --sanring-warn-fg: var(--sanring-warn-80);
+  --sanring-success-fg: var(--sanring-success-80);
+  --sanring-caution-fg: var(--sanring-caution-90);
+  --sanring-error-fg: var(--sanring-error-80);
+  --sanring-helper: var(--sanring-neutral-80);
 
   --sanring-progress-shimmer: rgba(255, 255, 255, 0.45);
 }

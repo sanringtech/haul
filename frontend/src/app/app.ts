@@ -166,7 +166,7 @@ export class App implements AfterViewInit {
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
    *  記得一起改。 */
-  protected readonly appVersion = 'v0.3.2';
+  protected readonly appVersion = 'v0.3.3';
   protected readonly isDesktopHost = signal(typeof window.external?.sendMessage === 'function');
   protected readonly summaries = signal<UsageSummary[]>([]);
   protected readonly lastError = signal<string | null>(null);
@@ -880,10 +880,10 @@ export class App implements AfterViewInit {
   protected usageBadgeClass(state: UsageState): string {
     return (
       {
-        normal: 'border-transparent bg-[var(--sanring-success-50)] text-white',
+        normal: 'border-transparent bg-[var(--sanring-success-50)] text-[var(--sanring-success-90)]',
         attention: 'border-transparent bg-[var(--sanring-warn-50)] text-[var(--sanring-warn-90)]',
         near_limit: 'border-transparent bg-[var(--sanring-caution-50)] text-[var(--sanring-caution-90)]',
-        exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-white',
+        exceeded: 'border-transparent bg-[var(--sanring-error-50)] text-[var(--sanring-error-90)]',
         unknown: 'border-transparent bg-[var(--sanring-neutral-30)] text-[var(--sanring-neutral-90)]',
       } satisfies Record<UsageState, string>
     )[state];
@@ -924,11 +924,11 @@ export class App implements AfterViewInit {
   protected healthIconClass(state: UsageState): string {
     return (
       {
-        normal: 'text-[var(--sanring-success-50)]',
-        attention: 'text-[var(--sanring-warn-50)]',
-        near_limit: 'text-[var(--sanring-caution-50)]',
-        exceeded: 'text-[var(--sanring-error-50)]',
-        unknown: 'text-[var(--sanring-neutral-40)]',
+        normal: 'text-[var(--sanring-success-fg)]',
+        attention: 'text-[var(--sanring-warn-fg)]',
+        near_limit: 'text-[var(--sanring-caution-fg)]',
+        exceeded: 'text-[var(--sanring-error-fg)]',
+        unknown: 'text-[var(--sanring-muted)]',
       } satisfies Record<UsageState, string>
     )[state];
   }

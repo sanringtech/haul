@@ -53,7 +53,7 @@ export class LabelDirective {
       // 有 Field 包裝時，精確依賴 control 狀態，不受 DOM 順序影響
       this.field?.isDisabled() && 'cursor-not-allowed opacity-70',
       // 如果你希望輸入錯誤時 Label 也變紅，可以加上這行
-      this.field?.hasError() && 'text-[var(--sanring-error-40)]',
+      this.field?.hasError() && 'text-[var(--sanring-error-fg)]',
       this.class(),
     );
   });

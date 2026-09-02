@@ -47,7 +47,7 @@ export class ErrorMessageComponent {
   protected readonly errorClass = computed(() =>
     cn(
       // shadcn 風格的錯誤文字樣式 (text-destructive)
-      'text-[0.8rem] font-medium text-[var(--sanring-error-40)]',
+      'text-[0.8rem] font-medium text-[var(--sanring-error-fg)]',
       this.class(),
     ),
   );

@@ -17,7 +17,7 @@ export class BadgeDirective {
       default: 'border-transparent bg-[var(--sanring-control)] text-[var(--sanring-control-foreground)] hover:opacity-80',
       secondary:
         'border-[var(--sanring-border)] bg-[var(--sanring-surface-strong)] text-[var(--sanring-foreground)] hover:bg-[var(--sanring-active)]',
-      destructive: 'border-transparent bg-[var(--sanring-error-50)] text-white hover:bg-[var(--sanring-error-60)]',
+      destructive: 'border-transparent bg-[var(--sanring-error-50)] text-[var(--sanring-error-90)] hover:bg-[var(--sanring-error-60)]',
       outline: 'border-[var(--sanring-border-strong)] text-[var(--sanring-foreground)]',
       ghost:
         'border-transparent bg-transparent text-[var(--sanring-foreground)] hover:bg-[var(--sanring-surface-strong)]',

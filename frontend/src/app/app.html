@@ -262,7 +262,7 @@
                   type="button"
                   size="sm"
                   variant="ghost"
-                  class="h-9 w-9 shrink-0 p-0 text-[var(--sanring-muted)] hover:text-[var(--sanring-error-50)] focus-visible:text-[var(--sanring-error-50)]"
+                  class="h-9 w-9 shrink-0 p-0 text-[var(--sanring-muted)] hover:text-[var(--sanring-error-fg)] focus-visible:text-[var(--sanring-error-fg)]"
                   [attr.aria-label]="t('removeSource')"
                   [sanringAlertDialogTrigger]="removeDialog"
                 >
@@ -387,7 +387,7 @@
             <div class="rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] p-3 flex flex-col gap-2">
               <div>
                 <h3 class="text-base font-semibold">{{ t('subscriptionType') }}</h3>
-                <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('subscriptionSectionDesc') }}</p>
+                <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('subscriptionSectionDesc') }}</p>
               </div>
               @for (c of catalogBySubscription(); track c.sourceId) {
                 <button
@@ -410,7 +410,7 @@
             <div class="rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] p-3 flex flex-col gap-2">
               <div>
                 <h3 class="text-base font-semibold">{{ t('apiKeyType') }}</h3>
-                <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('apiKeySectionDesc') }}</p>
+                <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('apiKeySectionDesc') }}</p>
               </div>
               @for (c of catalogByApiKey(); track c.sourceId) {
                 <button sanringBtn type="button" variant="outline" class="justify-between" (click)="selectAddSource(c.sourceId)">
@@ -510,7 +510,7 @@
         <h3 class="flex-1 text-sm font-semibold">{{ t('usageHistoryTitle') }}</h3>
         <sanring-switch [checked]="draftUsageHistoryEnabled()" [ariaLabel]="t('usageHistoryTitle')" (checkedChange)="onUsageHistoryToggle($event)" />
       </div>
-      <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('usageHistoryDescription') }}</p>
+      <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('usageHistoryDescription') }}</p>
 
       <!-- 「查看圖表」按鈕跟匯出按鈕收在開關「開」的狀態底下——開關關著代表使用者現在不想看/不想管
            這塊，畫面上就不該一直露出這兩個跟它綁在一起的功能。開關關掉不會刪資料，只是不再寫新的，
@@ -577,7 +577,7 @@
             </button>
           </div>
           @if (historyExportStatus() === 'error' && historyExportError()) {
-            <p class="text-xs text-[var(--sanring-error-50)]">{{ historyExportError() }}</p>
+            <p class="text-xs text-[var(--sanring-error-fg)]">{{ historyExportError() }}</p>
           }
         </div>
       </div>
@@ -590,11 +590,11 @@
       <sanring-dialog-content class="max-h-[85vh] overflow-y-auto">
         <sanring-dialog-header>
           <h2 sanringDialogTitle>{{ t('usageHistoryTitle') }}</h2>
-          <p sanringDialogDescription>{{ t('usageHistoryDescription') }}</p>
+          <p sanringDialogDescription class="text-[var(--sanring-helper)]">{{ t('usageHistoryDescription') }}</p>
         </sanring-dialog-header>
 
         @if (shortWindowChartSeries().length === 0 && longWindowChartSeries().length === 0) {
-          <p class="text-[10px] text-[var(--sanring-muted)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
+          <p class="text-xs leading-relaxed text-[var(--sanring-helper)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
             {{ t('usageHistoryNoData') }}
           </p>
         } @else {
@@ -618,7 +618,7 @@
                時間點對得起來，只是拆開看不同週期。 -->
           @if (shortWindowChartSeries().length > 0) {
             <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-              <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartShortWindowTitle') }}</h4>
+              <h4 class="text-xs font-semibold text-[var(--sanring-helper)]">{{ t('chartShortWindowTitle') }}</h4>
               @if (chartMode() === 'line') {
                 <ng-container *ngTemplateOutlet="chartBlock; context: { series: shortWindowChartSeries() }"></ng-container>
               } @else {
@@ -628,7 +628,7 @@
           }
           @if (longWindowChartSeries().length > 0) {
             <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-              <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartLongWindowTitle') }}</h4>
+              <h4 class="text-xs font-semibold text-[var(--sanring-helper)]">{{ t('chartLongWindowTitle') }}</h4>
               @if (chartMode() === 'line') {
                 <ng-container *ngTemplateOutlet="chartBlock; context: { series: longWindowChartSeries() }"></ng-container>
               } @else {
@@ -662,9 +662,9 @@
                   [style.background]="s.dashed ? 'transparent' : s.color"
                   [style.border-bottom]="s.dashed ? '2px dashed ' + s.color : 'none'"
                 ></span>
-                <span class="text-[10px] text-[var(--sanring-muted)] truncate flex-1 text-left" [class.line-through]="s.hidden">{{ s.label }}</span>
+                <span class="text-xs text-[var(--sanring-helper)] truncate flex-1 text-left" [class.line-through]="s.hidden">{{ s.label }}</span>
                 @if (s.rateLabel) {
-                  <span class="text-[10px] text-[var(--sanring-muted)] font-mono shrink-0">{{ s.rateLabel }}</span>
+                  <span class="text-xs text-[var(--sanring-helper)] font-mono shrink-0">{{ s.rateLabel }}</span>
                 }
               </button>
             }
@@ -679,7 +679,7 @@
             @for (d of donutDataFor(series); track d.label) {
               <div class="flex flex-col items-center gap-1">
                 <sanring-donut-gauge [percent]="d.percent" [color]="d.color" [size]="64" />
-                <span class="text-[9px] text-[var(--sanring-muted)] text-center truncate w-full" [title]="d.label">{{ d.label }}</span>
+                <span class="text-[10px] text-[var(--sanring-helper)] text-center truncate w-full" [title]="d.label">{{ d.label }}</span>
               </div>
             }
           </div>
@@ -700,7 +700,7 @@
         <h3 class="flex-1 text-sm font-semibold">{{ t('claudeWakeUpTitle') }}</h3>
         <sanring-switch [checked]="draftClaudeWakeUpEnabled()" [ariaLabel]="t('claudeWakeUpTitle')" (checkedChange)="onClaudeWakeUpToggle($event)" />
       </div>
-      <p class="text-[10px] text-[var(--sanring-warn-50)]">{{ t('claudeWakeUpDescription') }}</p>
+      <p class="text-xs leading-relaxed text-[var(--sanring-warn-fg)]">{{ t('claudeWakeUpDescription') }}</p>
 
       <!-- 跟上面「記錄用量歷史」同一套 CSS grid-rows 收合動畫，帳號清單只在開關開著時才需要看到。 -->
       <div
@@ -709,7 +709,7 @@
       >
         <div class="overflow-hidden min-h-0 flex flex-col gap-2">
           @if (claudeWakeUpEligibleAccounts().length === 0) {
-            <p class="text-[10px] text-[var(--sanring-muted)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
+            <p class="text-xs leading-relaxed text-[var(--sanring-helper)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
               {{ t('claudeWakeUpNoAccounts') }}
             </p>
           } @else {
@@ -835,7 +835,7 @@
         (lowChange)="onAttentionThresholdChange($event)"
         (highChange)="onNearLimitThresholdChange($event)"
       />
-      <p class="text-[10px] text-[var(--sanring-muted)]">
+      <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">
         {{ t('usageAlertSummary', { attention: draftAttentionThreshold().toString(), nearLimit: draftNearLimitThreshold().toString() }) }}
       </p>
     </div>
@@ -847,7 +847,7 @@
     <div class="flex flex-col gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] p-4">
       <h3 class="text-sm font-semibold">{{ t('apiKeyBalanceAlertTitle') }}</h3>
       <div class="flex flex-col gap-1">
-        <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('apiKeyBalanceAlertDescription') }}</p>
+        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('apiKeyBalanceAlertDescription') }}</p>
       </div>
       @if (hasDeepSeekAccount()) {
       <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs min-h-9">

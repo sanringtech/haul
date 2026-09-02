@@ -61,6 +61,12 @@
     --success: #81c784;
     --sun: #fce08f;
 
+    /* 徽章填色不跟 --accent 一起換淺色：淺色主題把 accent 加深給連結用，
+       若徽章也跟去加深、字色又用 --bg（變成近白），對比會掉到 4:1 以下。 */
+    --chip-fg: #1c2a2c;
+    --chip-accent: #8bd3dd;
+    --chip-success: #81c784;
+
     --font-display: 'Space Mono', 'Cascadia Code', ui-monospace, 'SF Mono', monospace;
     --font-body: Ubuntu, ui-sans-serif, system-ui, -apple-system, sans-serif;
 
@@ -259,8 +265,8 @@
     font-variant-numeric: tabular-nums;
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--bg);
-    background: var(--accent);
+    color: var(--chip-fg);
+    background: var(--chip-accent);
     border-radius: 999px;
     padding: 0.12rem 0.5rem;
     flex-shrink: 0;
@@ -275,8 +281,8 @@
     font-family: var(--font-display);
     font-size: 0.68rem;
     font-weight: 700;
-    color: var(--bg);
-    background: var(--success);
+    color: var(--chip-fg);
+    background: var(--chip-success);
     border-radius: 999px;
     padding: 0.12rem 0.6rem;
     flex-shrink: 0;
@@ -326,8 +332,8 @@
     font-size: 0.66rem;
     font-weight: 700;
     letter-spacing: 0.03em;
-    color: var(--bg);
-    background: var(--accent);
+    color: var(--chip-fg);
+    background: var(--chip-accent);
     border-radius: 999px;
     padding: 0.3rem 0.7rem;
     margin-left: 0.5rem;
