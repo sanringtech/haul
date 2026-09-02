@@ -209,7 +209,7 @@
                   <!-- 有百分比概念（時間窗口用量）：進度條 + 百分比 -->
                   <div class="flex items-center gap-2">
                     @if (w.label) {
-                      <span class="text-[10px] text-[var(--sanring-muted)] w-9 shrink-0">{{ w.label }}</span>
+                      <span class="text-[10px] text-[var(--sanring-muted)] shrink-0">{{ w.label }}</span>
                     }
                     <sanring-progress class="flex-1" [value]="w.percent" [barClass]="usageBarClass(w.state)" />
                     <sanring-tooltip>
@@ -227,7 +227,7 @@
                   <!-- 沒有百分比概念（絕對餘額，如 DeepSeek/Kimi）：不畫假進度條，餘額當主要內容，狀態改文字 badge -->
                   <div class="flex items-center gap-2">
                     @if (w.label) {
-                      <span class="text-[10px] text-[var(--sanring-muted)] w-9 shrink-0">{{ w.label }}</span>
+                      <span class="text-[10px] text-[var(--sanring-muted)] shrink-0">{{ w.label }}</span>
                     }
                     <span class="flex-1 text-sm">{{ w.detail ?? t('noDataYet') }}</span>
                     <span sanringBadge [class]="usageBadgeClass(w.state) + ' text-xs shrink-0'">

@@ -91,6 +91,10 @@ export interface Translations {
   cursorCredentialsNotFound: string;
   cursorCredentialsExpiredLocal: string;
   cursorCredentialsRejected: string;
+  cursorModelsLabel: string;
+  otherModelsLabel: string;
+  cursorIncludedLabel: string;
+  cursorIncludedSpend: string;
   deepSeekInvalidKey: string;
   deepSeekHttpError: string;
   deepSeekParseError: string;
@@ -259,6 +263,10 @@ export const translations: Record<Lang, Translations> = {
     cursorCredentialsNotFound: '找不到 Cursor 的登入 session，請先打開 Cursor 完成登入',
     cursorCredentialsExpiredLocal: '登入憑證已過期，請打開 Cursor 讓它自動刷新',
     cursorCredentialsRejected: 'Cursor 拒絕了目前的登入憑證，請重新打開 Cursor 登入',
+    cursorModelsLabel: '內建模型',
+    otherModelsLabel: '其他模型',
+    cursorIncludedLabel: '內含額度',
+    cursorIncludedSpend: '已花費 ${amount} / ${limit}',
     deepSeekInvalidKey: 'API KEY 被拒絕（撤銷或格式錯誤）',
     deepSeekHttpError: 'DeepSeek 回應錯誤：HTTP {status}',
     deepSeekParseError: 'DeepSeek 回應內容無法解析：{body}',
@@ -337,7 +345,7 @@ export const translations: Record<Lang, Translations> = {
     infoGrokTitle: 'Grok',
     infoGrokBody: '目前不支援 API KEY（xAI 官方沒有對應的查詢端點）；訂閱走本機估算（ccusage grok）。官方訂閱端點雖然已經查到，但認證複雜、不確定性偏高，暫時沒有實作。',
     infoCursorTitle: 'Cursor',
-    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session（存在 SQLite，不是 Keychain）。已用真實帳號驗證過，用量百分比是「花費 / 方案額度」算出來的，不是直接顯示官方回應裡的原始欄位（那個欄位量的是別的東西）。',
+    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session。卡片兩條進度對齊設定頁「Included in Pro」：內建模型（Cursor Models，含 Grok / Composer）與其他模型（Other Models）。美元內含額度改顯示在其他模型下方的附註，不再拿「花費 / $20」去當那兩條的百分比。',
     infoDisclaimerTitle: '關於非公開端點',
     infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
 
@@ -420,6 +428,10 @@ export const translations: Record<Lang, Translations> = {
     cursorCredentialsNotFound: "Couldn't find a Cursor login session — open Cursor and log in first",
     cursorCredentialsExpiredLocal: 'Login credentials have expired — open Cursor once to let it refresh automatically',
     cursorCredentialsRejected: 'Cursor rejected the current login credentials — open Cursor and log in again',
+    cursorModelsLabel: 'Cursor Models',
+    otherModelsLabel: 'Other Models',
+    cursorIncludedLabel: 'Included',
+    cursorIncludedSpend: 'Spent ${amount} / ${limit}',
     deepSeekInvalidKey: 'API KEY was rejected (revoked or malformed)',
     deepSeekHttpError: 'DeepSeek returned an error: HTTP {status}',
     deepSeekParseError: "Could not parse DeepSeek's response: {body}",
@@ -498,7 +510,7 @@ export const translations: Record<Lang, Translations> = {
     infoGrokTitle: 'Grok',
     infoGrokBody: "API KEY isn't supported (xAI has no corresponding query endpoint); subscription uses a local estimate (ccusage grok). An official subscription endpoint was found but its complexity/uncertainty is high, so it hasn't been implemented yet.",
     infoCursorTitle: 'Cursor',
-    infoCursorBody: "Single account, reads the local Cursor login session (stored in SQLite, not the Keychain). Verified against a real account — the usage percentage is computed as spend / plan limit, not read directly from the response's own percentage field (which measures something else).",
+    infoCursorBody: "Single account, reads the local Cursor login session. The two bars match Settings → Included in Pro: Cursor Models (Grok / Composer) and Other Models. Dollar included-spend is a caption under Other Models — not the percentage on those bars.",
     infoDisclaimerTitle: 'About undocumented endpoints',
     infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
 

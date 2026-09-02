@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 
 namespace UsageMonitor.Desktop.Security;
 
-public sealed record CursorAuthToken(string AccessToken, long? ExpiresAtMs, string? PlanType);
+public sealed record CursorAuthToken(string AccessToken, long? ExpiresAtMs, string? PlanType, string? UserId);
 
 /// <summary>
 /// Reads Cursor's own local login session — same read-only spirit as <see cref="ClaudeAuthReader"/> /
@@ -54,7 +54,8 @@ public static class CursorAuthReader
         }
 
         if (string.IsNullOrEmpty(accessToken)) return null;
-        return new CursorAuthToken(accessToken, ReadJwtExpiryMs(accessToken), planType);
+        var (expiresAtMs, userId) = ReadJwtClaims(accessToken);
+        return new CursorAuthToken(accessToken, expiresAtMs, planType, userId);
     }
 
     public static bool IsExpired(CursorAuthToken token)
@@ -64,20 +65,23 @@ public static class CursorAuthReader
         return nowMs + ExpiryBufferMs >= expiresAt;
     }
 
-    /// <summary>Decodes the JWT payload segment and reads its "exp" claim (seconds since epoch) — no
-    /// signature verification, we're not authenticating anything, just reading a timestamp out of a
-    /// token we already trust because it came from Cursor's own local session store.</summary>
-    private static long? ReadJwtExpiryMs(string jwt)
+    /// <summary>Decodes the JWT payload for <c>exp</c> and <c>sub</c> — no signature verification.
+    /// <c>sub</c> is the Cursor user id needed for the dashboard session cookie
+    /// (<c>WorkosCursorSessionToken={sub}::{accessToken}</c>), same as the settings page.</summary>
+    private static (long? ExpiresAtMs, string? UserId) ReadJwtClaims(string jwt)
     {
         var parts = jwt.Split('.');
-        if (parts.Length != 3) return null;
+        if (parts.Length != 3) return (null, null);
 
         try
         {
             var payloadJson = Base64UrlDecode(parts[1]);
             using var doc = JsonDocument.Parse(payloadJson);
+            long? expiresAtMs = null;
             if (doc.RootElement.TryGetProperty("exp", out var exp) && exp.TryGetInt64(out var expSeconds))
-                return expSeconds * 1000;
+                expiresAtMs = expSeconds * 1000;
+            var userId = doc.RootElement.TryGetProperty("sub", out var sub) ? sub.GetString() : null;
+            return (expiresAtMs, string.IsNullOrEmpty(userId) ? null : userId);
         }
         catch (Exception ex) when (ex is FormatException or JsonException)
         {
@@ -85,7 +89,7 @@ public static class CursorAuthReader
             // does when the OAuth JSON has no expiresAt: caller proceeds and lets the actual HTTP call
             // surface a 401 if the token really is dead, rather than guessing.
         }
-        return null;
+        return (null, null);
     }
 
     private static string Base64UrlDecode(string input)

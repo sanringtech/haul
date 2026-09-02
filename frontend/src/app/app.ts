@@ -352,6 +352,9 @@ export class App implements AfterViewInit {
       const key = `${p.accountId}::${p.windowLabelKey ?? ''}`;
       const windowLabel = p.windowLabelKey === 'fiveHourLabel' ? this.t('fiveHourLabel')
         : p.windowLabelKey === 'sevenDayLabel' ? this.t('sevenDayLabel')
+        : p.windowLabelKey === 'cursorModelsLabel' ? this.t('cursorModelsLabel')
+        : p.windowLabelKey === 'otherModelsLabel' ? this.t('otherModelsLabel')
+        : p.windowLabelKey === 'cursorIncludedLabel' ? this.t('cursorIncludedLabel')
         : null;
       const accountName = p.accountLabel ?? p.displayName;
       const label = windowLabel ? `${accountName}（${windowLabel}）` : accountName;
@@ -361,9 +364,8 @@ export class App implements AfterViewInit {
       if (existing) {
         existing.points.push({ x, y: p.percentUsed });
       } else {
-        // 次要視窗（7 天）畫虛線；沒有次要視窗概念的來源（單一視窗，windowLabelKey 是 null）跟
-        // 主要視窗（5 小時）一樣畫實線。
-        grouped.set(key, { accountId: p.accountId, label, dashed: p.windowLabelKey === 'sevenDayLabel', points: [{ x, y: p.percentUsed }] });
+        // 次要視窗畫虛線（Claude 7 天、Cursor 其他模型）；主要視窗與單視窗來源畫實線。
+        grouped.set(key, { accountId: p.accountId, label, dashed: p.windowLabelKey === 'sevenDayLabel' || p.windowLabelKey === 'otherModelsLabel', points: [{ x, y: p.percentUsed }] });
       }
     }
 
