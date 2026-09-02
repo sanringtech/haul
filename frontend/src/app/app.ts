@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   LucideArrowLeft,
+  LucideChartLine,
   LucideCheck,
   LucideChevronDown,
   LucideChevronUp,
@@ -29,10 +30,12 @@ import { ProgressComponent } from './components/ui/progress';
 import { InputDirective } from './components/ui/input';
 import { RangeSliderComponent } from './components/ui/range-slider';
 import { LineChartComponent, LineChartSeries } from './components/ui/line-chart';
+import { DonutGaugeComponent } from './components/ui/donut-gauge';
 import { SwitchComponent } from './components/ui/switch';
 import { SANRING_CARD_IMPORTS } from './components/ui/card';
 import { SANRING_ALERT_IMPORTS } from './components/ui/alert';
 import { AlertDialogService, SANRING_ALERT_DIALOG_IMPORTS } from './components/ui/alert-dialog';
+import { SANRING_DIALOG_IMPORTS } from './components/ui/dialog';
 import { SpinnerComponent } from './components/ui/spinner';
 import { SkeletonDirective } from './components/ui/skeleton';
 import { SANRING_TOOLTIP_IMPORTS } from './components/ui/tooltip';
@@ -119,6 +122,7 @@ interface CatalogEntry {
     InputDirective,
     RangeSliderComponent,
     LineChartComponent,
+    DonutGaugeComponent,
     SwitchComponent,
     SpinnerComponent,
     SkeletonDirective,
@@ -126,6 +130,7 @@ interface CatalogEntry {
     CdkDrag,
     CdkDragHandle,
     LucideArrowLeft,
+    LucideChartLine,
     LucideCheck,
     LucideChevronDown,
     LucideChevronUp,
@@ -148,6 +153,7 @@ interface CatalogEntry {
     ...SANRING_CARD_IMPORTS,
     ...SANRING_ALERT_IMPORTS,
     ...SANRING_ALERT_DIALOG_IMPORTS,
+    ...SANRING_DIALOG_IMPORTS,
     ...SANRING_TOOLTIP_IMPORTS,
   ],
   styleUrl: './app.css',
@@ -160,7 +166,7 @@ export class App implements AfterViewInit {
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
    *  記得一起改。 */
-  protected readonly appVersion = 'v0.3.1';
+  protected readonly appVersion = 'v0.3.2';
   protected readonly isDesktopHost = signal(typeof window.external?.sendMessage === 'function');
   protected readonly summaries = signal<UsageSummary[]>([]);
   protected readonly lastError = signal<string | null>(null);
@@ -307,22 +313,42 @@ export class App implements AfterViewInit {
   protected readonly usageHistory = signal<UsageHistoryPointWire[]>([]);
 
   /**
+   * 圖表現在收在「查看圖表」對話框裡，不是直接嵌在設定頁裡——原本折線圖固定畫在「記錄用量歷史」
+   * 卡片下面，使用者反饋擔心之後圖表種類一多（甜甜圈、之後可能的熱力圖）設定頁會被塞爆，改成
+   * 點按鈕才開對話框看，設定頁本身只留開關 + 匯出按鈕。chartMode 決定對話框裡畫哪一種圖，未來
+   * 真的要加熱力圖，這裡多一個 'heatmap' case 就好，不用重新設計。
+   */
+  protected readonly chartMode = signal<'line' | 'donut'>('line');
+
+  protected setChartMode(mode: 'line' | 'donut'): void {
+    this.chartMode.set(mode);
+  }
+
+  /**
    * 設定頁折線圖的資料——把 usageHistory() 依「帳號＋視窗」分組成一條條線。顏色刻意不用
    * success/warn/error 那組語意色（那些在別處代表「狀態」，這裡的顏色只是用來分辨「這是哪個
    * 帳號的哪個視窗」，兩件事混在一起會誤導），改用 primary/coral/sun/info 四個品牌色階輪流分配。
    */
+  private isChartedHistoryPoint(p: UsageHistoryPointWire): boolean {
+    return (
+      p.windowLabelKey === 'fiveHourLabel' ||
+      p.windowLabelKey === 'sevenDayLabel' ||
+      p.windowLabelKey === 'cursorModelsLabel' ||
+      p.windowLabelKey === 'otherModelsLabel'
+    );
+  }
+
   /**
-   * 5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算，含 Cursor 月結這類沒有次要視窗概念
-   * 的來源）分成兩張圖，不再混在一起——兩者代表的是完全不同的決策維度：5 小時決定「現在能不能
-   * 繼續用」，7 天／月則決定「這週/這個月的整體步調」，同一張圖同一個 Y 軸混著看，「7 天用了
-   * 61%」看起來會跟「5 小時用了 61%」一樣緊急，其實急迫程度差非常多。單一視窗來源（Cursor 等）
-   * 沒有「5 小時」這種爆發性節奏，歸進長週期那組比較合理，即使實際重置週期未必是 7 天。
+   * 5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算，含 Cursor 的月結模型桶）分成兩張圖。
+   * 舊的 Cursor 美元花費序列（沒有 windowLabelKey）不進圖——那不是設定頁在畫的東西。
    */
   protected readonly shortWindowChartSeries = computed(() =>
     this.buildChartSeries(this.usageHistory().filter((p) => p.windowLabelKey === 'fiveHourLabel')),
   );
   protected readonly longWindowChartSeries = computed(() =>
-    this.buildChartSeries(this.usageHistory().filter((p) => p.windowLabelKey !== 'fiveHourLabel')),
+    this.buildChartSeries(
+      this.usageHistory().filter((p) => p.windowLabelKey === 'sevenDayLabel' || p.windowLabelKey === 'cursorModelsLabel' || p.windowLabelKey === 'otherModelsLabel'),
+    ),
   );
 
   /** 帳號→顏色的對照表刻意跨兩張圖共用同一份（不是每張圖各自從頭分配）——同一個帳號在兩張圖
@@ -337,6 +363,7 @@ export class App implements AfterViewInit {
     ];
     const map = new Map<string, string>();
     for (const p of this.usageHistory()) {
+      if (!this.isChartedHistoryPoint(p)) continue;
       if (!map.has(p.accountId)) {
         map.set(p.accountId, palette[map.size % palette.length]);
       }
@@ -354,7 +381,6 @@ export class App implements AfterViewInit {
         : p.windowLabelKey === 'sevenDayLabel' ? this.t('sevenDayLabel')
         : p.windowLabelKey === 'cursorModelsLabel' ? this.t('cursorModelsLabel')
         : p.windowLabelKey === 'otherModelsLabel' ? this.t('otherModelsLabel')
-        : p.windowLabelKey === 'cursorIncludedLabel' ? this.t('cursorIncludedLabel')
         : null;
       const accountName = p.accountLabel ?? p.displayName;
       const label = windowLabel ? `${accountName}（${windowLabel}）` : accountName;
@@ -380,11 +406,11 @@ export class App implements AfterViewInit {
   /** X 軸時間範圍兩張圖共用同一個，不是各自貼合自己的資料——這樣兩張圖上下對齊時，同一個時間點
    *  在兩張圖的水平位置是一樣的，比較「這時候發生了什麼」才有意義。 */
   protected readonly chartMinX = computed(() => {
-    const allX = this.usageHistory().map((p) => new Date(p.recordedAtUtc).getTime());
+    const allX = this.usageHistory().filter((p) => this.isChartedHistoryPoint(p)).map((p) => new Date(p.recordedAtUtc).getTime());
     return allX.length > 0 ? Math.min(...allX) : 0;
   });
   protected readonly chartMaxX = computed(() => {
-    const allX = this.usageHistory().map((p) => new Date(p.recordedAtUtc).getTime());
+    const allX = this.usageHistory().filter((p) => this.isChartedHistoryPoint(p)).map((p) => new Date(p.recordedAtUtc).getTime());
     return allX.length > 0 ? Math.max(...allX) : 1;
   });
 
@@ -420,6 +446,18 @@ export class App implements AfterViewInit {
   /** 實際畫進 <sanring-line-chart> 的只有沒被關掉的系列。 */
   protected visibleSeries(series: LineChartSeries[]): LineChartSeries[] {
     return series.filter((s) => !this.hiddenChartSeries().has(s.label));
+  }
+
+  /**
+   * 甜甜圈量表模式：直接拿折線圖已經分好組、排好序的 series 來用，每個系列只取「最後一個點」
+   * （＝目前最新的值）——不重新查一次 usageHistory()，兩種畫法看的是同一份分組結果，只是折線圖
+   * 畫全部的點、這裡只看最新一點。跟圖例一樣尊重 hiddenChartSeries()：使用者在折線圖模式關掉的
+   * 系列，切到甜甜圈模式也應該保持關掉，不然「關掉」這個動作在兩種模式之間對不起來。
+   */
+  protected donutDataFor(series: LineChartSeries[]): { label: string; color: string; percent: number }[] {
+    return series
+      .filter((s) => !this.hiddenChartSeries().has(s.label))
+      .map((s) => ({ label: s.label, color: s.color, percent: s.points.at(-1)?.y ?? 0 }));
   }
 
   /**

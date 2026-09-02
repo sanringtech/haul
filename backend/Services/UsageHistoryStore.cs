@@ -141,6 +141,17 @@ public static class UsageHistoryStore
         command.CommandText = "DELETE FROM usage_history WHERE recorded_at < $cutoff;";
         command.Parameters.AddWithValue("$cutoff", cutoff);
         command.ExecuteNonQuery();
+
+        // Cursor 卡片改對齊設定頁兩個模型桶之後，舊的「totalSpend / $20」單一系列是錯的度量，
+        // 留在折線圖會跟 1%/2% 那兩條混在一起。只刪沒有桶標籤的舊列，內建模型／其他模型留下。
+        using var dropSpend = connection.CreateCommand();
+        dropSpend.CommandText = """
+            DELETE FROM usage_history
+            WHERE account_id = 'cursor'
+              AND (window_label_key IS NULL
+                   OR window_label_key NOT IN ('cursorModelsLabel', 'otherModelsLabel'));
+            """;
+        dropSpend.ExecuteNonQuery();
     }
 
     private static SqliteConnection Open()

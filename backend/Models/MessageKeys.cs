@@ -59,6 +59,4 @@ public static class MessageKeys
     public const string CursorCredentialsRejected = "cursorCredentialsRejected";
     public const string CursorModelsLabel = "cursorModelsLabel";
     public const string OtherModelsLabel = "otherModelsLabel";
-    public const string CursorIncludedLabel = "cursorIncludedLabel";
-    public const string CursorIncludedSpend = "cursorIncludedSpend";
 }

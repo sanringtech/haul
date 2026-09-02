@@ -512,83 +512,35 @@
       </div>
       <p class="text-[10px] text-[var(--sanring-muted)]">{{ t('usageHistoryDescription') }}</p>
 
-      <!-- 折線圖跟匯出按鈕收在開關「開」的狀態底下——開關關著代表使用者現在不想看/不想管這塊，
-           畫面上就不該一直露出這兩個跟它綁在一起的功能。開關關掉不會刪資料，只是不再寫新的，之前
-           錄到的還在 SQLite 裡，重新打開開關這兩塊就會回來，不是資料不見了。
+      <!-- 「查看圖表」按鈕跟匯出按鈕收在開關「開」的狀態底下——開關關著代表使用者現在不想看/不想管
+           這塊，畫面上就不該一直露出這兩個跟它綁在一起的功能。開關關掉不會刪資料，只是不再寫新的，
+           之前錄到的還在 SQLite 裡，重新打開開關這兩塊就會回來，不是資料不見了。
            開合要有過渡動畫，不能像 @if 那樣整塊瞬間消失/冒出來——這裡不用 @if，改用 CSS
            grid-template-rows 在 0fr/1fr 之間做 transition（單列 grid 的 1fr 軌道會撐開成內容的
            高度，這條軌道本身可以動畫，height:auto 沒辦法直接 transition 但這個可以，是目前
            純 CSS 做「展開/收合」動畫的標準寫法）。內層 overflow-hidden + min-h-0 是讓收合時內容
            確實被裁掉，不會在軌道還沒縮到 0 之前就先溢出來。這個專案沒有掛 @angular/animations，
-           故意不為了這一個地方多背一個模組，純 CSS 做得到就不用它。 -->
+           故意不為了這一個地方多背一個模組，純 CSS 做得到就不用它。
+
+           圖表本體改放進「查看圖表」對話框，不再直接嵌在設定頁裡——原本折線圖固定畫在這張卡片
+           下面，使用者反饋擔心之後圖表種類一多（甜甜圈量表、之後可能的熱力圖）設定頁會被塞爆，
+           改成點按鈕才開對話框看，設定頁本身只留開關、按鈕、匯出。 -->
       <div
         class="grid transition-[grid-template-rows] duration-200 ease-in-out"
         [style.grid-template-rows]="usageHistoryEnabled() ? '1fr' : '0fr'"
       >
         <div class="overflow-hidden min-h-0 flex flex-col gap-3">
-          <!-- 內容一直都在 DOM 裡，不再用 @if 整塊移除——收合動畫要看得到內容跟著縮小，
-               不是內容瞬間消失、外框才慢慢縮成 0（那樣使用者只會看到一個空殼在動畫）。
-
-               5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算）分兩張圖，不混在同一張——
-               兩者是完全不同的決策維度：5 小時決定「現在能不能繼續用」，7 天／月決定「這週/這個
-               月的整體步調」，同一個 Y 軸混著看，「7 天用了 61%」看起來會跟「5 小時用了 61%」
-               一樣緊急，其實急迫程度差很多。兩張圖共用同一份帳號→顏色對照跟 X 軸時間範圍
-               （見 app.ts 的 accountColorMap／chartMinX／chartMaxX），同一個帳號在兩張圖裡顏色
-               一樣、時間點對得起來，只是拆開看不同週期。 -->
-          @if (shortWindowChartSeries().length === 0 && longWindowChartSeries().length === 0) {
-            <p class="text-[10px] text-[var(--sanring-muted)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
-              {{ t('usageHistoryNoData') }}
-            </p>
-          } @else {
-            @if (shortWindowChartSeries().length > 0) {
-              <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-                <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartShortWindowTitle') }}</h4>
-                <ng-container
-                  *ngTemplateOutlet="chartBlock; context: { series: shortWindowChartSeries() }"
-                ></ng-container>
-              </div>
-            }
-            @if (longWindowChartSeries().length > 0) {
-              <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-                <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartLongWindowTitle') }}</h4>
-                <ng-container
-                  *ngTemplateOutlet="chartBlock; context: { series: longWindowChartSeries() }"
-                ></ng-container>
-              </div>
-            }
-          }
-
-          <!-- 折線圖 + 圖例本體——兩張圖（5 小時／7 天）共用同一份模板，不重複寫兩次。 -->
-          <ng-template #chartBlock let-series="series">
-            <sanring-line-chart [series]="visibleSeries(series)" [minX]="chartMinX()" [maxX]="chartMaxX()" [height]="100" />
-            <!-- 點圖例可以個別開關某一條線——跟一般圖表庫的圖例互動一樣。關掉的項目降低透明度、
-                 swatch 加一道刪除線當視覺回饋，不是直接整項消失（消失會讓人搞不清楚剛剛點了誰）。
-                 一個系列一行——原本用 flex-wrap 讓短項目擠在同一行（例如「Cursor」跟「Codex（5
-                 小時）」疊在一起），乍看會誤以為是同一列資料，改成直排每項獨占一行，速率靠右對齊
-                 方便掃視比較。 -->
-            <div class="flex flex-col gap-1">
-              @for (s of chartLegendFor(series); track s.label) {
-                <button
-                  type="button"
-                  class="flex items-center gap-1.5 cursor-pointer"
-                  [class.opacity-40]="s.hidden"
-                  [attr.aria-pressed]="!s.hidden"
-                  [title]="s.hidden ? t('chartSeriesHidden', { label: s.label }) : t('chartSeriesShown', { label: s.label })"
-                  (click)="toggleChartSeries(s.label)"
-                >
-                  <span
-                    class="h-0.5 w-3 shrink-0"
-                    [style.background]="s.dashed ? 'transparent' : s.color"
-                    [style.border-bottom]="s.dashed ? '2px dashed ' + s.color : 'none'"
-                  ></span>
-                  <span class="text-[10px] text-[var(--sanring-muted)] truncate flex-1 text-left" [class.line-through]="s.hidden">{{ s.label }}</span>
-                  @if (s.rateLabel) {
-                    <span class="text-[10px] text-[var(--sanring-muted)] font-mono shrink-0">{{ s.rateLabel }}</span>
-                  }
-                </button>
-              }
-            </div>
-          </ng-template>
+          <button
+            sanringBtn
+            type="button"
+            size="sm"
+            variant="secondary"
+            class="w-full inline-flex items-center justify-center gap-1.5"
+            [sanringDialogTrigger]="chartDialog"
+          >
+            <svg lucideChartLine class="size-3.5"></svg>
+            {{ t('viewCharts') }}
+          </button>
 
           <div class="flex items-center gap-2">
             <button
@@ -630,6 +582,114 @@
         </div>
       </div>
     </div>
+
+    <!-- 「查看圖表」對話框——內容跟開關本身是否開著無關（開關只決定還要不要繼續寫入新記錄），
+         對話框開著時永遠看目前 usageHistory() 裡已經有的資料，就算開關剛關掉，之前錄到的還在，
+         一樣看得到。 -->
+    <ng-template #chartDialog>
+      <sanring-dialog-content class="max-h-[85vh] overflow-y-auto">
+        <sanring-dialog-header>
+          <h2 sanringDialogTitle>{{ t('usageHistoryTitle') }}</h2>
+          <p sanringDialogDescription>{{ t('usageHistoryDescription') }}</p>
+        </sanring-dialog-header>
+
+        @if (shortWindowChartSeries().length === 0 && longWindowChartSeries().length === 0) {
+          <p class="text-[10px] text-[var(--sanring-muted)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
+            {{ t('usageHistoryNoData') }}
+          </p>
+        } @else {
+          <!-- 圖表種類切換——跟上面自動刷新間隔那組按鈕同一種「一排按鈕互斥選一個」寫法。目前只有
+               折線圖／甜甜圈量表兩種，之後真要加熱力圖，這裡多一顆按鈕、chartMode 多一個 union
+               member 就好。 -->
+          <div class="flex gap-2">
+            <button sanringBtn type="button" size="sm" [variant]="chartMode() === 'line' ? 'default' : 'secondary'" (click)="setChartMode('line')">
+              {{ t('chartModeLine') }}
+            </button>
+            <button sanringBtn type="button" size="sm" [variant]="chartMode() === 'donut' ? 'default' : 'secondary'" (click)="setChartMode('donut')">
+              {{ t('chartModeDonut') }}
+            </button>
+          </div>
+
+          <!-- 5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算）分兩組，不混在一起——兩者是
+               完全不同的決策維度：5 小時決定「現在能不能繼續用」，7 天／月決定「這週/這個月的整體
+               步調」，同一個尺度混著看，「7 天用了 61%」看起來會跟「5 小時用了 61%」一樣緊急，其實
+               急迫程度差很多。兩組共用同一份帳號→顏色對照（見 app.ts 的 accountColorMap），折線圖
+               另外共用同一段 X 軸時間範圍（chartMinX／chartMaxX），同一個帳號在兩張圖裡顏色一樣、
+               時間點對得起來，只是拆開看不同週期。 -->
+          @if (shortWindowChartSeries().length > 0) {
+            <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+              <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartShortWindowTitle') }}</h4>
+              @if (chartMode() === 'line') {
+                <ng-container *ngTemplateOutlet="chartBlock; context: { series: shortWindowChartSeries() }"></ng-container>
+              } @else {
+                <ng-container *ngTemplateOutlet="donutBlock; context: { series: shortWindowChartSeries() }"></ng-container>
+              }
+            </div>
+          }
+          @if (longWindowChartSeries().length > 0) {
+            <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+              <h4 class="text-[10px] font-semibold text-[var(--sanring-muted)]">{{ t('chartLongWindowTitle') }}</h4>
+              @if (chartMode() === 'line') {
+                <ng-container *ngTemplateOutlet="chartBlock; context: { series: longWindowChartSeries() }"></ng-container>
+              } @else {
+                <ng-container *ngTemplateOutlet="donutBlock; context: { series: longWindowChartSeries() }"></ng-container>
+              }
+            </div>
+          }
+        }
+
+        <!-- 折線圖 + 圖例本體——兩組（5 小時／7 天）共用同一份模板，不重複寫兩次。 -->
+        <ng-template #chartBlock let-series="series">
+          <sanring-line-chart [series]="visibleSeries(series)" [minX]="chartMinX()" [maxX]="chartMaxX()" [height]="100" />
+          <!-- 點圖例可以個別開關某一條線——跟一般圖表庫的圖例互動一樣。關掉的項目降低透明度、
+               swatch 加一道刪除線當視覺回饋，不是直接整項消失（消失會讓人搞不清楚剛剛點了誰）。
+               一個系列一行——原本用 flex-wrap 讓短項目擠在同一行（例如「Cursor」跟「Codex（5
+               小時）」疊在一起），乍看會誤以為是同一列資料，改成直排每項獨占一行，速率靠右對齊
+               方便掃視比較。切了甜甜圈模式再切回來，這裡關掉的系列狀態還在（hiddenChartSeries
+               是共用的），不會因為切換模式重置。 -->
+          <div class="flex flex-col gap-1">
+            @for (s of chartLegendFor(series); track s.label) {
+              <button
+                type="button"
+                class="flex items-center gap-1.5 cursor-pointer"
+                [class.opacity-40]="s.hidden"
+                [attr.aria-pressed]="!s.hidden"
+                [title]="s.hidden ? t('chartSeriesHidden', { label: s.label }) : t('chartSeriesShown', { label: s.label })"
+                (click)="toggleChartSeries(s.label)"
+              >
+                <span
+                  class="h-0.5 w-3 shrink-0"
+                  [style.background]="s.dashed ? 'transparent' : s.color"
+                  [style.border-bottom]="s.dashed ? '2px dashed ' + s.color : 'none'"
+                ></span>
+                <span class="text-[10px] text-[var(--sanring-muted)] truncate flex-1 text-left" [class.line-through]="s.hidden">{{ s.label }}</span>
+                @if (s.rateLabel) {
+                  <span class="text-[10px] text-[var(--sanring-muted)] font-mono shrink-0">{{ s.rateLabel }}</span>
+                }
+              </button>
+            }
+          </div>
+        </ng-template>
+
+        <!-- 甜甜圈量表本體——每個帳號＋視窗各自一個獨立量表，只畫「已用 vs 未用」，不是把多個
+             帳號的 % 拼進同一個圓餅（那樣切片加起來會是 100%，會誤導使用者以為這些帳號共用同一份
+             額度，但實際上每個帳號的用量 % 是各自獨立算的，詳見 app.ts donutDataFor 的註解）。 -->
+        <ng-template #donutBlock let-series="series">
+          <div class="grid grid-cols-3 gap-3">
+            @for (d of donutDataFor(series); track d.label) {
+              <div class="flex flex-col items-center gap-1">
+                <sanring-donut-gauge [percent]="d.percent" [color]="d.color" [size]="64" />
+                <span class="text-[9px] text-[var(--sanring-muted)] text-center truncate w-full" [title]="d.label">{{ d.label }}</span>
+              </div>
+            }
+          </div>
+        </ng-template>
+
+        <sanring-dialog-footer>
+          <button sanringBtn type="button" variant="secondary" sanringDialogClose>{{ t('closeDialog') }}</button>
+        </sanring-dialog-footer>
+      </sanring-dialog-content>
+    </ng-template>
 
     <!-- Claude 用量喚醒：Claude 的 5 小時／7 天視窗是懶初始化的（沒送過訊息、或上一輪視窗到期後
          還沒送新訊息，就停在「尚未開始」狀態，查證見 AI-LANDSCAPE.md），這個開關會每天對勾選的

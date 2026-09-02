@@ -13,10 +13,10 @@ namespace UsageMonitor.Desktop.Providers;
 /// 單一的美元進度。那兩條百分比來自設定頁自己打的 <c>GET /api/usage-summary</c>
 /// （<c>individualUsage.plan.autoPercentUsed</c> / <c>apiPercentUsed</c>），單位就是「百分之 N」，
 /// 不要再乘 100、也不要用 <c>totalSpend / limit</c> 去對那兩條——2026-09-02 對過：美元公式算出 35%，
-/// 官網 Cursor Models 卻是 1%。美元額度改放在次要視窗的附註。
+/// 官網 Cursor Models 卻是 1%。卡片只顯示那兩條百分比；美元花費不是設定頁在畫的東西，不算、不顯示。
 ///
-/// 舊端點 <c>GetCurrentPeriodUsage</c> 留作 fallback：usage-summary 沒有兩個桶欄位時，才退回
-/// <c>totalSpend / limit</c> 那條「內含額度」單棒，並標明它不是模型桶。
+/// 舊端點 <c>GetCurrentPeriodUsage</c> 留作 fallback：若它也帶 auto/api 兩個桶就用，沒有就當這次
+/// 讀不到設定頁那套資料，不退回 <c>totalSpend / limit</c> 那條會跟官網對不上的美元進度。
 /// </summary>
 public sealed class CursorUsageProvider : IUsageProvider
 {
@@ -40,21 +40,12 @@ public sealed class CursorUsageProvider : IUsageProvider
 
         try
         {
-            var summaryTask = TryGetDashboardSummaryAsync(token, ct);
-            var legacyTask = TryGetLegacyResponseAsync(token.AccessToken, ct);
-            await Task.WhenAll(summaryTask, legacyTask);
-
-            var summary = summaryTask.Result;
-            var legacy = legacyTask.Result;
             var planLabel = FormatPlanLabel(token.PlanType);
-
+            var summary = await TryGetDashboardSummaryAsync(token, ct);
             if (summary?.Plan is { AutoPercentUsed: not null, ApiPercentUsed: not null } plan)
-            {
-                // 美元附註只信 GetCurrentPeriodUsage 的美分（已對過 Pro $20 = 2000）；
-                // usage-summary 的 used/limit 在 Ultra 樣本裡是 40000，單位不是美分。
-                return BuildFromBuckets(account, plan, summary.BillingCycleEnd, legacy?.PlanUsage, settings, planLabel);
-            }
+                return BuildFromBuckets(account, plan, summary.BillingCycleEnd, settings, planLabel);
 
+            var legacy = await TryGetLegacyResponseAsync(token.AccessToken, ct);
             if (legacy is not null)
                 return BuildFromLegacy(account, legacy, settings, planLabel);
 
@@ -125,39 +116,16 @@ public sealed class CursorUsageProvider : IUsageProvider
                 AutoPercentUsed = plan.AutoPercentUsed,
                 ApiPercentUsed = plan.ApiPercentUsed,
             };
-            return BuildFromBuckets(account, buckets, parsed.BillingCycleEndMs?.ToString(CultureInfo.InvariantCulture), plan, settings, planLabel);
+            return BuildFromBuckets(account, buckets, parsed.BillingCycleEndMs?.ToString(CultureInfo.InvariantCulture), settings, planLabel);
         }
 
-        if (plan.Limit <= 0)
-            return Build(account, "invalid", L(MessageKeys.ParseError, ("body", "limit missing")));
-
-        var percent = plan.TotalSpend / plan.Limit * 100.0;
-        var attentionThreshold = settings.AttentionThresholdPercent;
-        var threshold = settings.NearLimitThresholdPercent;
-        LocalizedText? detail = parsed.BillingCycleEndMs is { } endMs
-            ? L(MessageKeys.WindowReset, ("time", FormatResetFromUnixMs(endMs) ?? "—"))
-            : null;
-
-        return new UsageSummary(
-            Source: account.AccountId,
-            DisplayName: DisplayName,
-            SourceType: SourceType,
-            PercentUsed: percent,
-            UsageState: ClassifyState(percent, attentionThreshold, threshold),
-            ConnectionState: "valid",
-            IsEstimated: false,
-            AsOf: DateTime.Now.ToString("HH:mm:ss"),
-            Detail: detail,
-            PercentUsedLabel: L(MessageKeys.CursorIncludedLabel),
-            AccountLabel: account.Label,
-            PlanLabel: planLabel);
+        return Build(account, "invalid", L(MessageKeys.ParseError, ("body", "no autoPercentUsed/apiPercentUsed")));
     }
 
     private UsageSummary BuildFromBuckets(
         TrackedAccount account,
         CursorSummaryPlan plan,
         string? billingCycleEnd,
-        CursorPlanUsage? spend,
         AppSettings settings,
         string? planLabel)
     {
@@ -168,9 +136,6 @@ public sealed class CursorUsageProvider : IUsageProvider
 
         var reset = FormatReset(billingCycleEnd);
         LocalizedText? resetDetail = reset is null ? null : L(MessageKeys.WindowReset, ("time", reset));
-        LocalizedText? spendDetail = spend is { Limit: > 0 }
-            ? L(MessageKeys.CursorIncludedSpend, ("amount", FormatUsd(spend.TotalSpend)), ("limit", FormatUsd(spend.Limit)))
-            : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -186,7 +151,7 @@ public sealed class CursorUsageProvider : IUsageProvider
             SecondaryPercentUsed: apiPct,
             SecondaryUsageState: ClassifyState(apiPct, attentionThreshold, threshold),
             SecondaryPercentUsedLabel: L(MessageKeys.OtherModelsLabel),
-            SecondaryDetail: spendDetail,
+            SecondaryDetail: resetDetail,
             AccountLabel: account.Label,
             PlanLabel: planLabel);
     }
@@ -203,9 +168,6 @@ public sealed class CursorUsageProvider : IUsageProvider
     private static string? FormatPlanLabel(string? value) => string.IsNullOrWhiteSpace(value)
         ? null
         : char.ToUpperInvariant(value.Trim()[0]) + value.Trim()[1..].ToLowerInvariant();
-
-    private static string FormatUsd(double cents) =>
-        (cents / 100.0).ToString("0.##", CultureInfo.InvariantCulture);
 
     private static string? FormatReset(string? value)
     {

@@ -93,8 +93,6 @@ export interface Translations {
   cursorCredentialsRejected: string;
   cursorModelsLabel: string;
   otherModelsLabel: string;
-  cursorIncludedLabel: string;
-  cursorIncludedSpend: string;
   deepSeekInvalidKey: string;
   deepSeekHttpError: string;
   deepSeekParseError: string;
@@ -153,6 +151,10 @@ export interface Translations {
   chartSeriesHidden: string;
   chartShortWindowTitle: string;
   chartLongWindowTitle: string;
+  viewCharts: string;
+  chartModeLine: string;
+  chartModeDonut: string;
+  closeDialog: string;
   exportMd: string;
   exportXlsx: string;
   saveSettings: string;
@@ -265,8 +267,6 @@ export const translations: Record<Lang, Translations> = {
     cursorCredentialsRejected: 'Cursor 拒絕了目前的登入憑證，請重新打開 Cursor 登入',
     cursorModelsLabel: '內建模型',
     otherModelsLabel: '其他模型',
-    cursorIncludedLabel: '內含額度',
-    cursorIncludedSpend: '已花費 ${amount} / ${limit}',
     deepSeekInvalidKey: 'API KEY 被拒絕（撤銷或格式錯誤）',
     deepSeekHttpError: 'DeepSeek 回應錯誤：HTTP {status}',
     deepSeekParseError: 'DeepSeek 回應內容無法解析：{body}',
@@ -323,6 +323,10 @@ export const translations: Record<Lang, Translations> = {
     chartSeriesHidden: '{label}目前已隱藏，點一下顯示',
     chartShortWindowTitle: '5 小時視窗（短週期／突發額度）',
     chartLongWindowTitle: '7 天／其他視窗（長週期／總預算）',
+    viewCharts: '查看圖表',
+    chartModeLine: '折線圖',
+    chartModeDonut: '甜甜圈量表',
+    closeDialog: '關閉',
     exportMd: '匯出 Markdown',
     exportXlsx: '匯出 Excel',
     saveSettings: '儲存',
@@ -345,7 +349,7 @@ export const translations: Record<Lang, Translations> = {
     infoGrokTitle: 'Grok',
     infoGrokBody: '目前不支援 API KEY（xAI 官方沒有對應的查詢端點）；訂閱走本機估算（ccusage grok）。官方訂閱端點雖然已經查到，但認證複雜、不確定性偏高，暫時沒有實作。',
     infoCursorTitle: 'Cursor',
-    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session。卡片兩條進度對齊設定頁「Included in Pro」：內建模型（Cursor Models，含 Grok / Composer）與其他模型（Other Models）。美元內含額度改顯示在其他模型下方的附註，不再拿「花費 / $20」去當那兩條的百分比。',
+    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session。卡片兩條進度對齊設定頁「Included in Pro」：內建模型（Cursor Models，含 Grok / Composer）與其他模型（Other Models）。',
     infoDisclaimerTitle: '關於非公開端點',
     infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
 
@@ -430,8 +434,6 @@ export const translations: Record<Lang, Translations> = {
     cursorCredentialsRejected: 'Cursor rejected the current login credentials — open Cursor and log in again',
     cursorModelsLabel: 'Cursor Models',
     otherModelsLabel: 'Other Models',
-    cursorIncludedLabel: 'Included',
-    cursorIncludedSpend: 'Spent ${amount} / ${limit}',
     deepSeekInvalidKey: 'API KEY was rejected (revoked or malformed)',
     deepSeekHttpError: 'DeepSeek returned an error: HTTP {status}',
     deepSeekParseError: "Could not parse DeepSeek's response: {body}",
@@ -488,6 +490,10 @@ export const translations: Record<Lang, Translations> = {
     chartSeriesHidden: '{label} is hidden — click to show',
     chartShortWindowTitle: '5-hour windows (short cycle / burst limit)',
     chartLongWindowTitle: '7-day & other windows (long cycle / total budget)',
+    viewCharts: 'View charts',
+    chartModeLine: 'Line chart',
+    chartModeDonut: 'Donut gauge',
+    closeDialog: 'Close',
     exportMd: 'Export Markdown',
     exportXlsx: 'Export Excel',
     saveSettings: 'Save',
@@ -510,7 +516,7 @@ export const translations: Record<Lang, Translations> = {
     infoGrokTitle: 'Grok',
     infoGrokBody: "API KEY isn't supported (xAI has no corresponding query endpoint); subscription uses a local estimate (ccusage grok). An official subscription endpoint was found but its complexity/uncertainty is high, so it hasn't been implemented yet.",
     infoCursorTitle: 'Cursor',
-    infoCursorBody: "Single account, reads the local Cursor login session. The two bars match Settings → Included in Pro: Cursor Models (Grok / Composer) and Other Models. Dollar included-spend is a caption under Other Models — not the percentage on those bars.",
+    infoCursorBody: "Single account, reads the local Cursor login session. The two bars match Settings → Included in Pro: Cursor Models (Grok / Composer) and Other Models.",
     infoDisclaimerTitle: 'About undocumented endpoints',
     infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
 
