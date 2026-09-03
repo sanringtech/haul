@@ -23,12 +23,14 @@ backend/
 │   ├── CodexUsageProvider.cs    打 ChatGPT 後端的（非公開）用量端點（見下），不再靠 ccusage 估算
 │   ├── DeepSeekUsageProvider.cs / KimiUsageProvider.cs   打官方 balance API，key 從 Keychain 讀（API key 制）
 │   ├── KimiSubscriptionUsageProvider.cs   打 Kimi Code CLI 的用量端點（見下，⚠️ 未實測）（訂閱制，SourceId="kimi-subscription"，跟上面的 "kimi" 是同一個 AI 類型的不同存取類型）
+│   ├── GrokUsageProvider.cs   打 Grok Build CLI 的用量端點（cli-chat-proxy `/billing?format=credits`，本機無 ~/.grok 時 not_configured）
+│   ├── CursorUsageProvider.cs
 │   ├── CcusageDtos.cs
 │   └── ShellCommandRunner.cs    透過使用者登入 shell 執行指令，繞開 GUI app 沒有 PATH 的問題
 └── Security/
     ├── ISecretStore.cs / MacKeychainSecretStore.cs / WindowsSecretStore.cs / SecretStoreFactory.cs
     │     使用者提供的 API key 存這裡（DeepSeek/Kimi），2026-08-31 起 key 是 accountId 不是 sourceId（多帳號支援）
-    ├── ClaudeAuthReader.cs / CodexAuthReader.cs / KimiCliAuthReader.cs
+    ├── ClaudeAuthReader.cs / CodexAuthReader.cs / KimiCliAuthReader.cs / GrokAuthReader.cs / CursorAuthReader.cs
     │     唯讀讀取各 CLI 自己的本機 session（見下），不寫入不刷新
 ```
 
@@ -45,6 +47,8 @@ macOS 打包（`.app` bundle）另見 `backend/packaging/macos/`（`Info.plist` 
 Claude 多帳號靠偵測本機是否裝了選用的 `cswap`——有裝就 shell out 呼叫 `cswap list --json`，把回報的每個帳號各自變成一個 `TrackedAccount`（`AccountId` 用 email 識別，不用 cswap 的 account number，那只是清單序號，帳號增減會變動）；沒裝就退回原本的單帳號行為。`ShellCommandRunner` 用 `-ilc`（login + interactive）呼叫外部指令，不是只有 `-lc`——`~/.local/bin` 這類 pipx/uv tool 常見的安裝路徑很多人是加在 `~/.zshrc`，zsh 只有互動式 shell 才會載入它，單純 login 不夠（2026-08-31 實測抓到：cswap 明明裝了，偵測卻靜默失敗退回單帳號模式，因為 Finder 啟動的 app 給的是最小 PATH，`-lc` 找不到 `~/.local/bin` 底下的 `cswap`）。
 
 **Codex（2026-08-31 同樣升級過）**：一開始也是 `ccusage codex` 估算 token 數，沒有百分比。後來從 [`openai/codex` 官方 repo 的一則 bug report](https://github.com/openai/codex/issues/10869) 發現 Codex CLI 自己會定期打一支非公開端點 `GET https://chatgpt.com/backend-api/wham/usage`，帶本機 `~/.codex/auth.json` 裡的 ChatGPT 登入憑證（`Authorization: Bearer` + `chatgpt-account-id` header）。**已實測打通並跟 ChatGPT 設定裡的「使用情況」頁面數字比對一致**（5 小時窗 + 每週窗，兩者結構跟 Claude 幾乎一樣）。`CodexAuthReader.cs` 一樣是純讀取、不碰 Codex CLI 的 session。風險跟 Claude 那支一樣：非公開端點，OpenAI 可能無預告改版；壞掉的話 fallback 是退回 ccusage 估算。
+
+**Grok（2026-09-03）**：不包 `ccusage grok`、也不打 xAI 公開 API（沒有餘額端點）。從開源 [`xai-org/grok-build`](https://github.com/xai-org/grok-build) 的 `extensions/billing.rs` 讀出 CLI 自己打的 `GET https://cli-chat-proxy.grok.com/v1/billing?format=credits`，帶 `Authorization` + `X-XAI-Token-Auth: xai-grok-cli` + `x-userid` + `x-grok-client-version` + `x-grok-client-mode: interactive`。憑證只讀 `$GROK_HOME/auth.json`（預設 `~/.grok/auth.json`）裡的 OAuth2 scope（`https://auth.x.ai::<client-id>`），跳過 `web_login` / `api_key`。不寫回、不 refresh。本開發機沒有 `grok login`，路徑在沒有登入檔時是 `not_configured`。
 
 其他 provider 的風險/未實測狀態見 [`RISKS.md`](RISKS.md)。
 

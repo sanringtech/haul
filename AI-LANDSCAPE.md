@@ -2,7 +2,7 @@
 
 主流 AI 工具的訂閱方案 + API key 能不能查到用量/餘額，作為決定要不要新增來源的依據。**技術可行性一律要反查真實端點行為才算數，不能用猜的**——這是這個專案從 Claude/Codex 那次就一路堅持的規矩，見 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
-最後更新：2026-09-02。訂閱方案/價格會變，這裡記錄的是查證當下的快照，之後要用請重新確認。
+最後更新：2026-09-03。訂閱方案/價格會變，這裡記錄的是查證當下的快照，之後要用請重新確認。
 
 ## Claude 視窗「懶初始化」行為 + 喚醒用量視窗（2026-09-02，已實測）
 
@@ -45,7 +45,7 @@ Content-Type: application/json
 | **DeepSeek** | 無分層方案，純預付額度 | ✅ 官方 balance API 可用 | ✅ API key 制 |
 | **Kimi**（Moonshot AI）| 消費端助理方案 Free ～ $199/mo「Vivace」 | ✅ API key 制官方 balance／訂閱制：本機有 Kimi Code 登入；reader 已改讀 `kimi-code-env-*.json`；2026-09-02 打 `GET api.kimi.com/coding/v1/usages` 回 **401**（access token 過期約 61h）。Haul **不**自己 refresh（refresh token 近乎一次性，不能寫回 CLI 檔）。請在 Kimi Code 裡用一次讓 CLI 換票後再新增來源 | ✅ API key 已支援；訂閱制路徑已接上、等 CLI 換票 |
 | **Cursor**（AI 編輯器）| Hobby Free / Pro $20 / Pro+ $60 / Ultra $200 / Teams $40/user / Enterprise | 未評估（不是「用 API key」這種模式，讀本機登入 session） | ✅ 訂閱制（2026-09-01 新增，已實測，含方案標籤——`stripeMembershipType` 本機就有）。完整查證見下方段落 |
-| **Grok**（xAI）| Free / SuperGrok Lite $10 / SuperGrok $30 / SuperGrok Heavy $300，或走 X 訂閱包（X Premium $8 / X Premium+ $40） | ❌ 已查證沒有查詢端點 | ❌ **沒有實作**（2026-09-01 更正：之前這裡跟 README 都寫「✅ 訂閱制（ccusage）」，掃過 `backend/` 完全沒有任何 Grok 相關程式碼，是文件寫錯，不是功能被拿掉——`i18n.ts` 裡的 `infoGrokBody` 自己都寫了「暫時沒有實作」，這條路本來就沒做完） |
+| **Grok**（xAI）| Free / SuperGrok Lite $10 / SuperGrok $30 / SuperGrok Heavy $300，或走 X 訂閱包（X Premium $8 / X Premium+ $40） | ❌ 已查證沒有查詢端點 | 🟡 **訂閱制已接上、等 `grok login` 實測**（2026-09-03：讀 `~/.grok/auth.json`，打 grok-build 自己的 `GET cli-chat-proxy.grok.com/v1/billing?format=credits`。不包 ccusage、不寫回登入檔。本開發機還沒裝 Grok CLI） |
 
 ## 查證過但還沒支援
 
@@ -150,6 +150,24 @@ cswap 那套 strike/quarantine 機制）⑤ 新增帳號的 UI 流程（使用�
 | Team/Enterprise 開了強制 SSO（domain capture）| ❌ 個人帳號登入直接被擋；Codex 這邊 CLI 登入本身還有已知 bug |
 
 **結論**：這個 app 的架構本質上只能讀「本機 CLI 自己登入產生的 session」，天生是**個人視角**的工具——沒有 admin API 存取權，SSO 帳號很多情況下連本機都登不進去，不該假裝能做團隊管理員視角的東西。目標族群清楚是「個人開發者／自由接案者，管理自己（可能好幾個）的訂閱額度」。
+
+## 候選清單（未查證，待反查真實端點才能升級進上面的表格）
+
+使用者提議、但還沒有對真實端點做過任何驗證的名單，先記下來當 backlog，不代表技術可行——按這份文件的規矩，沒反查過就不能寫「✅/❌」結論。
+
+**CLI 訂閱類**（同一類「偵測本機已登入帳號」的架構，還沒查過本機憑證存放位置、有沒有唯讀用量端點）：
+- Qwen Code（阿里通義千問的 CLI coding agent）
+- Aider（開源、可接多種底層模型的 CLI coding assistant——因為不綁定單一 AI 廠商，「用量」概念可能要另外設計）
+- Amazon Q Developer CLI
+- OpenCode / Continue CLI（開源 agentic coding 工具）
+
+**API Key 類**（還沒查過官方是否有 balance／用量查詢端點）：
+- OpenAI 直接 API key（跟 Codex CLI 訂閱制是不同路徑，要分開評估）
+- Anthropic 直接 API key（跟 Claude Code CLI 訂閱制是不同路徑，要分開評估）
+- 智譜 GLM（Zhipu AI）
+- Mistral
+- 通義千問 Qwen API
+- 零一萬物 Yi
 
 ## Sources
 
