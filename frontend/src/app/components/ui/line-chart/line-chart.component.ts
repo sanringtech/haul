@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 
 /** One series' worth of (x, y) points — x 是時間戳（epoch ms），y 是百分比（0-100）。 */
 export interface LineChartSeries {
+  /** 圖例 @for track 用——同一個顯示名稱可能對到兩個 accountId（升級前後的 Codex），label 不夠當 key。 */
+  id?: string;
   label: string;
   /** CSS 顏色（含 CSS var），直接塞進 SVG 的 stroke 屬性。同一個帳號的所有視窗共用同一個顏色——
    *  顏色代表「這是哪個帳號」，用 dashed 分辨「這是哪個視窗」，兩件事分開表達，不要混在一起用

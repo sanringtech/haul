@@ -71,10 +71,28 @@ public sealed class UsageService
     public Task PingWakeUpsAsync(CancellationToken ct = default) =>
         ClaudeActivationPinger.PingIfDueAsync(_snapshots, ct);
 
+    /// <summary>
+    /// 擷取升級後若殘留字面 <c>claude</c>/<c>codex</c> 跟 <c>{source}:{email}</c> 並存，首頁會出現兩張同名卡。
+    /// 有已擷取帳號時拿掉舊 live-reader 那筆。
+    /// </summary>
+    private static void CollapseLegacyTrackedAccounts(AppSettings settings)
+    {
+        var changed = false;
+        foreach (var sourceId in new[] { "claude", "codex" })
+        {
+            if (!settings.TrackedAccounts.Any(a => a.AccountId.StartsWith(sourceId + ":", StringComparison.Ordinal)))
+                continue;
+            changed |= settings.TrackedAccounts.RemoveAll(a => a.AccountId == sourceId) > 0;
+            changed |= settings.HiddenAccountIds.Remove(sourceId);
+        }
+        if (changed) SettingsStore.Save(settings);
+    }
+
     /// <summary>Only accounts the user has explicitly added and not hidden. A fresh install returns an empty array.</summary>
     public async Task<UsageSummary[]> GetSummariesAsync(CancellationToken ct = default)
     {
         var settings = SettingsStore.Load();
+        CollapseLegacyTrackedAccounts(settings);
         var visible = settings.TrackedAccounts.Where(a => !settings.HiddenAccountIds.Contains(a.AccountId));
         return await Task.WhenAll(visible.Select(a => GetOneAsync(a, settings, ct)));
     }
@@ -194,6 +212,7 @@ public sealed class UsageService
             settings.TrackedAccounts.Add(new TrackedAccount(snap.AccountId, sourceId, snap.Email));
         settings.HiddenAccountIds.Remove(snap.AccountId);
         SettingsStore.Save(settings);
+        UsageHistoryStore.RemapAccountId(sourceId, snap.AccountId, snap.Email);
 
         var tracked = settings.TrackedAccounts.First(a => a.AccountId == snap.AccountId);
         return [await GetOneAsync(tracked, settings, ct)];

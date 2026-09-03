@@ -106,6 +106,17 @@ public static class UsageHistoryStore
         }
     }
 
+    /// <summary>
+    /// 舊版 live-reader 的 <c>claude</c>/<c>codex</c> 升級成 <c>{source}:{email}</c> 時，
+    /// 把 usage_history 裡還沒改過的列一起搬過去。擷取當下呼叫；QueryAll 開庫時也會把殘留的舊 id 收斂一次。
+    /// </summary>
+    public static void RemapAccountId(string fromId, string toId, string? label)
+    {
+        if (string.IsNullOrEmpty(fromId) || string.IsNullOrEmpty(toId) || fromId == toId) return;
+        using var connection = Open();
+        RemapAccountId(connection, fromId, toId, label);
+    }
+
     /// <summary>All points within the retention window, oldest first — ready to hand to the exporter.</summary>
     public static List<UsageHistoryPoint> QueryAll()
     {
@@ -159,7 +170,41 @@ public static class UsageHistoryStore
         var connection = new SqliteConnection($"Data Source={AppPaths.UsageHistoryDbPath}");
         connection.Open();
         EnsureSchema(connection);
+        CollapseLegacyIds(connection);
         return connection;
+    }
+
+    private static void CollapseLegacyIds(SqliteConnection connection)
+    {
+        foreach (var prefix in new[] { "claude", "codex" })
+        {
+            using var find = connection.CreateCommand();
+            find.CommandText = """
+                SELECT account_id FROM usage_history
+                WHERE account_id LIKE $pattern
+                ORDER BY recorded_at DESC LIMIT 1;
+                """;
+            find.Parameters.AddWithValue("$pattern", prefix + ":%");
+            var toId = find.ExecuteScalar() as string;
+            if (toId is null) continue;
+            var email = toId.Length > prefix.Length + 1 ? toId[(prefix.Length + 1)..] : null;
+            RemapAccountId(connection, prefix, toId, email);
+        }
+    }
+
+    private static void RemapAccountId(SqliteConnection connection, string fromId, string toId, string? label)
+    {
+        using var update = connection.CreateCommand();
+        update.CommandText = """
+            UPDATE usage_history
+            SET account_id = $to,
+                account_label = COALESCE(NULLIF(account_label, ''), $label)
+            WHERE account_id = $from;
+            """;
+        update.Parameters.AddWithValue("$from", fromId);
+        update.Parameters.AddWithValue("$to", toId);
+        update.Parameters.AddWithValue("$label", (object?)label ?? DBNull.Value);
+        update.ExecuteNonQuery();
     }
 
     private static void EnsureSchema(SqliteConnection connection)
