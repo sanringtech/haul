@@ -29,103 +29,132 @@
          一堆 <rect>——跟 index.html 的 favicon 用同一份圖，同一套相對路徑解析，不用另外處理。 -->
     <img src="logo.svg" [alt]="title()" class="h-5 w-auto shrink-0" />
     <span class="text-[10px] text-[var(--sanring-muted)] font-mono shrink-0">{{ appVersion }}</span>
-    <!-- info/語言/主題原本因為要幫文字標題騰空間而搬進設定頁，現在標題文字整個拿掉了，header 空間
-         夠用，搬回來——不用為了進設定頁再多點一層。 -->
-    <div class="flex-1"></div>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2"
-      [title]="t('infoAria')"
-      (click)="openInfoView()"
-    >
-      <svg lucideInfo class="size-4"></svg>
-    </button>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2"
-      [title]="t('ledgerAria')"
-      (click)="openLedgerView()"
-    >
-      <svg lucideBookOpen class="size-4"></svg>
-    </button>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2"
-      [title]="t('settingsAria')"
-      (click)="openSettingsView()"
-    >
-      <svg lucideSettings class="size-4"></svg>
-    </button>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2 text-xs"
-      [title]="lang() === 'zh-TW' ? t('switchToEnglish') : t('switchToChinese')"
-      (click)="toggleLang()"
-    >
-      {{ lang() === 'zh-TW' ? 'EN' : '中' }}
-    </button>
-    <button
-      sanringBtn
-      type="button"
-      variant="ghost"
-      size="sm"
-      class="px-2"
-      [title]="theme() === 'dark' ? t('switchToLight') : t('switchToDark')"
-      (click)="toggleTheme()"
-    >
-      <!-- 圖示是「切過去會變成的樣子」：深色模式下顯示太陽（按下去變淺色） -->
-      @if (theme() === 'dark') {
-        <svg lucideSun class="size-4"></svg>
-      } @else {
-        <svg lucideMoon class="size-4"></svg>
-      }
-    </button>
-    <!-- 原本是常駐文字 badge，改成一顆點——跟卡片的連線狀態點同一套視覺語言，字只在 hover 時透過 tooltip 顯示 -->
+    <!-- 連線點跟版本放一起：那是「這個視窗現在接的是誰」，不是工具列動作。 -->
     <sanring-tooltip>
       <span
         sanringTooltipTrigger
+        role="img"
         class="h-2.5 w-2.5 rounded-full shrink-0"
         [class]="isDesktopHost() ? 'bg-[var(--sanring-badge-online)]' : 'bg-[var(--sanring-badge-offline)]'"
+        [attr.aria-label]="isDesktopHost() ? t('connectedDesktop') : t('browserMode')"
       ></span>
       <sanring-tooltip-content>{{ isDesktopHost() ? t('connectedDesktop') : t('browserMode') }}</sanring-tooltip-content>
     </sanring-tooltip>
+    <div class="flex-1"></div>
+    <!-- 圖示列：p-0 + 無 gap，不要再疊 header 的 gap-2 跟按鈕 px-3。 -->
+    <div class="flex items-center">
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-8 w-8 p-0"
+          [attr.aria-label]="t('infoAria')"
+          (click)="openInfoView()"
+        >
+          <svg lucideInfo class="size-4"></svg>
+        </button>
+        <sanring-tooltip-content>{{ t('infoAria') }}</sanring-tooltip-content>
+      </sanring-tooltip>
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-8 w-8 p-0"
+          [attr.aria-label]="t('ledgerAria')"
+          (click)="openLedgerView()"
+        >
+          <svg lucideBookOpen class="size-4"></svg>
+        </button>
+        <sanring-tooltip-content>{{ t('ledgerAria') }}</sanring-tooltip-content>
+      </sanring-tooltip>
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-8 w-8 p-0"
+          [attr.aria-label]="t('settingsAria')"
+          (click)="openSettingsView()"
+        >
+          <svg lucideSettings class="size-4"></svg>
+        </button>
+        <sanring-tooltip-content>{{ t('settingsAria') }}</sanring-tooltip-content>
+      </sanring-tooltip>
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-8 w-8 p-0 text-xs"
+          [attr.aria-label]="lang() === 'zh-TW' ? t('switchToEnglish') : t('switchToChinese')"
+          (click)="toggleLang()"
+        >
+          {{ lang() === 'zh-TW' ? 'EN' : '中' }}
+        </button>
+        <sanring-tooltip-content>{{ lang() === 'zh-TW' ? t('switchToEnglish') : t('switchToChinese') }}</sanring-tooltip-content>
+      </sanring-tooltip>
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-8 w-8 p-0"
+          [attr.aria-label]="theme() === 'dark' ? t('switchToLight') : t('switchToDark')"
+          (click)="toggleTheme()"
+        >
+          @if (theme() === 'dark') {
+            <svg lucideSun class="size-4"></svg>
+          } @else {
+            <svg lucideMoon class="size-4"></svg>
+          }
+        </button>
+        <sanring-tooltip-content>{{ theme() === 'dark' ? t('switchToLight') : t('switchToDark') }}</sanring-tooltip-content>
+      </sanring-tooltip>
+    </div>
   </header>
 
   @if (view() === 'list') {
     <div class="flex items-center gap-2">
       <!-- 文字換成 icon——跟主題/語言切換那幾顆同樣走「hover 才看到文字」的模式，title 屬性補上文字。 -->
-      <button
-        sanringBtn
-        type="button"
-        variant="ghost"
-        size="sm"
-        class="px-2"
-        [disabled]="isLoading()"
-        [title]="isLoading() ? t('refreshing') : t('refresh')"
-        [attr.aria-label]="isLoading() ? t('refreshing') : t('refresh')"
-        (click)="refresh()"
-      >
-        @if (isLoading()) {
-          <sanring-spinner size="sm" />
-        } @else {
-          <svg lucideRefreshCw class="size-4"></svg>
-        }
-      </button>
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="px-2"
+          [disabled]="isLoading()"
+          [attr.aria-label]="isLoading() ? t('refreshing') : t('refresh')"
+          (click)="refresh()"
+        >
+          @if (isLoading()) {
+            <sanring-spinner size="sm" />
+          } @else {
+            <svg lucideRefreshCw class="size-4"></svg>
+          }
+        </button>
+        <sanring-tooltip-content>{{ isLoading() ? t('refreshing') : t('refresh') }}</sanring-tooltip-content>
+      </sanring-tooltip>
       @if (lastRefreshedAt()) {
         <!-- 每張卡片的 asOf 幾乎同一時刻，拿掉逐卡重複顯示，這裡放一次就好 -->
-        <span class="text-[10px] text-[var(--sanring-muted)]">{{ t('lastUpdated', { time: lastRefreshedAt()! }) }}</span>
+        <span
+          class="text-[10px] transition-colors duration-500"
+          [class.text-[var(--sanring-foreground)]]="justRefreshed()"
+          [class.text-[var(--sanring-muted)]]="!justRefreshed()"
+        >{{ t('lastUpdated', { time: lastRefreshedAt()! }) }}</span>
       }
     </div>
 
@@ -142,7 +171,8 @@
          同一列的兩個子元素（icon + 文字）明確垂直置中。 -->
     @if (usageHealth(); as health) {
       <div
-        class="w-full h-12 flex items-center justify-start gap-3 px-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)]"
+        class="w-full h-12 flex items-center justify-start gap-3 px-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] transition-opacity duration-200"
+        [class.opacity-50]="isLoading() && summaries().length > 0"
       >
         <svg lucideHeartPulse class="size-5 shrink-0" [class]="healthIconClass(health.state)"></svg>
         <span class="text-sm font-semibold" [class]="healthIconClass(health.state)">
@@ -151,7 +181,13 @@
       </div>
     }
 
-    <div class="flex flex-col gap-3" cdkDropList (cdkDropListDropped)="onDrop($event)">
+    <div
+      class="flex flex-col gap-3 transition-opacity duration-200"
+      cdkDropList
+      [class.opacity-50]="isLoading() && summaries().length > 0"
+      [attr.aria-busy]="isLoading()"
+      (cdkDropListDropped)="onDrop($event)"
+    >
       @if (isLoading() && summaries().length === 0) {
         <!-- 第一次載入還沒有任何資料時的骨架屏，避免空白卡片閃一下 -->
         @for (i of [1, 2, 3]; track i) {
@@ -166,10 +202,27 @@
           <sanring-card-header class="p-3 pb-2">
             <div class="flex items-center gap-2">
               <!-- 拖曳排序用的把手，跟改名點擊區分開，才不會兩個手勢互搶 -->
-              <span cdkDragHandle class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none" [title]="t('dragHandleTitle')">
-                <svg lucideGripVertical class="size-4"></svg>
-              </span>
-              <span class="h-2.5 w-2.5 rounded-full shrink-0" [class]="connectionDotClass(item.connectionState)"></span>
+              <sanring-tooltip>
+                <span
+                  cdkDragHandle
+                  sanringTooltipTrigger
+                  class="shrink-0 text-[var(--sanring-muted)] cursor-grab active:cursor-grabbing select-none"
+                  [attr.aria-label]="t('dragHandleTitle')"
+                >
+                  <svg lucideGripVertical class="size-4"></svg>
+                </span>
+                <sanring-tooltip-content>{{ t('dragHandleTitle') }}</sanring-tooltip-content>
+              </sanring-tooltip>
+              <sanring-tooltip>
+                <span
+                  sanringTooltipTrigger
+                  role="img"
+                  class="h-2.5 w-2.5 rounded-full shrink-0"
+                  [class]="connectionDotClass(item.connectionState)"
+                  [attr.aria-label]="connectionStateLabel(item.connectionState)"
+                ></span>
+                <sanring-tooltip-content>{{ connectionStateLabel(item.connectionState) }}</sanring-tooltip-content>
+              </sanring-tooltip>
               <!-- 標題本身可點擊改名：預設顯示 AI 類型（如 "Codex"），改過名字後顯示自訂標籤蓋過去。
                    底層存的還是 accountLabel，displayName 沒被動到——只是畫面上不再分兩行顯示。 -->
               <div class="flex-1 min-w-0">
@@ -222,7 +275,7 @@
                     @if (w.label) {
                       <span class="text-[10px] text-[var(--sanring-muted)] shrink-0">{{ w.label }}</span>
                     }
-                    <sanring-progress class="flex-1" [value]="w.percent" [barClass]="usageBarClass(w.state)" />
+                    <sanring-progress class="flex-1" [value]="w.percent" [shimmer]="isLoading()" [barClass]="usageBarClass(w.state)" />
                     <sanring-tooltip>
                       <span sanringTooltipTrigger sanringBadge [class]="usageBadgeClass(w.state) + ' text-xs shrink-0'">
                         {{ w.percent.toFixed(0) }}%
@@ -367,15 +420,19 @@
 
     <!-- 右下角固定的新增按鈕，清單不為空時才需要——empty state 已經有自己的大按鈕了 -->
     @if (summaries().length > 0) {
-      <button
-        sanringBtn
-        type="button"
-        (click)="openAddView()"
-        class="fixed bottom-4 right-4 h-11 w-11 rounded-full p-0 shadow-lg inline-flex items-center justify-center"
-        [attr.aria-label]="t('addSourceAria')"
-      >
-        <svg lucidePlus class="size-5"></svg>
-      </button>
+      <sanring-tooltip>
+        <button
+          sanringBtn
+          sanringTooltipTrigger
+          type="button"
+          (click)="openAddView()"
+          class="fixed bottom-4 right-4 h-11 w-11 rounded-full p-0 shadow-lg inline-flex items-center justify-center"
+          [attr.aria-label]="t('addSourceAria')"
+        >
+          <svg lucidePlus class="size-5"></svg>
+        </button>
+        <sanring-tooltip-content>{{ t('addSourceAria') }}</sanring-tooltip-content>
+      </sanring-tooltip>
     }
   } @else if (view() === 'add') {
     <!-- ── 新增來源畫面 ─────────────────────────────────────────── -->
@@ -515,139 +572,190 @@
       </button>
       <h2 class="text-lg font-semibold">{{ t('ledgerTitle') }}</h2>
       <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerDescription') }}</p>
-      @if (!usageHistoryEnabled()) {
-        <p class="text-xs leading-relaxed text-[var(--sanring-warn-fg)]">{{ t('ledgerRecordingOff') }}</p>
-      }
     </div>
 
-    <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-      <div class="flex items-baseline gap-2">
-        <h3 class="text-sm font-semibold">{{ t('ledgerTokenTitle') }}</h3>
-        <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--sanring-surface)] text-[var(--sanring-helper)]" [title]="t('estimatedTooltip')">{{ t('estimated') }}</span>
-        <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--sanring-surface)] text-[var(--sanring-helper)]">{{ t('ledgerTokenLocalCombined') }}</span>
+    <sanring-card class="p-4 flex flex-col gap-3">
+      <div class="flex items-center gap-1.5">
+        <h3 class="text-base font-semibold">{{ t('ledgerSectionTokens') }}</h3>
+        <sanring-tooltip>
+          <button
+            sanringBtn
+            sanringTooltipTrigger
+            type="button"
+            variant="ghost"
+            size="sm"
+            class="h-7 w-7 shrink-0 p-0 text-[var(--sanring-muted)]"
+            [attr.aria-label]="t('ledgerSectionTokensInfoAria')"
+          >
+            <svg lucideInfo class="size-3.5"></svg>
+          </button>
+          <sanring-tooltip-content class="max-w-72">{{ t('ledgerSectionTokensHint') }}</sanring-tooltip-content>
+        </sanring-tooltip>
       </div>
-      <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerTokenHint') }}</p>
-      @if (!isDesktopHost()) {
-        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerTokenNeedDesktop') }}</p>
-      } @else if ((claudeTokenLedger()?.models.length ?? 0) === 0) {
-        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerTokenEmpty') }}</p>
+
+      @for (card of tokenProviderCards(); track card.id) {
+        <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+          <div class="flex items-center gap-1.5">
+            <h4 class="text-sm font-semibold min-w-0 truncate flex-1">{{ t(card.titleKey) }}</h4>
+            <sanring-tooltip>
+              <span
+                sanringTooltipTrigger
+                class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--sanring-surface)] text-[var(--sanring-helper)]"
+              >{{ t('estimated') }}</span>
+              <sanring-tooltip-content>{{ t('estimatedTooltip') }}</sanring-tooltip-content>
+            </sanring-tooltip>
+            <sanring-tooltip>
+              <span
+                sanringTooltipTrigger
+                class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--sanring-surface)] text-[var(--sanring-helper)]"
+              >{{ t('ledgerTokenLocalCombined') }}</span>
+              <sanring-tooltip-content>{{ t('ledgerTokenLocalCombinedHint') }}</sanring-tooltip-content>
+            </sanring-tooltip>
+          </div>
+          @if (!isDesktopHost()) {
+            <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerTokenNeedDesktop') }}</p>
+          } @else if ((card.ledger?.models.length ?? 0) === 0) {
+            <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t(card.emptyKey) }}</p>
+          } @else {
+            <ng-container *ngTemplateOutlet="tokenMetrics; context: { rows: card.ledger!.models, totals: card.totals }"></ng-container>
+          }
+        </div>
+      }
+    </sanring-card>
+
+    <sanring-card class="p-4 flex flex-col gap-3">
+      <div class="flex flex-col gap-1">
+        <h3 class="text-base font-semibold">{{ t('ledgerSectionCharts') }}</h3>
+        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerSectionChartsHint') }}</p>
+        @if (!usageHistoryEnabled()) {
+          <p class="text-xs leading-relaxed text-[var(--sanring-warn-fg)]">{{ t('ledgerRecordingOff') }}</p>
+        }
+      </div>
+      @if (shortWindowChartSeries().length === 0 && longWindowChartSeries().length === 0) {
+        <p class="text-xs leading-relaxed text-[var(--sanring-helper)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+          {{ t('usageHistoryNoData') }}
+        </p>
       } @else {
-        <div class="overflow-x-auto">
-          <table class="w-full text-[11px] text-left">
-            <thead class="text-[var(--sanring-helper)]">
-              <tr>
-                <th class="font-medium py-1 pr-2">{{ t('ledgerColModel') }}</th>
-                <th class="font-medium py-1 pr-2 text-right">{{ t('ledgerColInput') }}</th>
-                <th class="font-medium py-1 pr-2 text-right">{{ t('ledgerColOutput') }}</th>
-                <th class="font-medium py-1 pr-2 text-right">{{ t('ledgerColCacheWrite') }}</th>
-                <th class="font-medium py-1 pr-2 text-right">{{ t('ledgerColCacheRead') }}</th>
-                <th class="font-medium py-1 text-right">{{ t('ledgerColEstUsd') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of claudeTokenLedger()!.models; track row.model) {
-                <tr>
-                  <td class="py-1 pr-2 font-mono truncate max-w-[7rem]" [title]="row.model">{{ row.model }}</td>
-                  <td class="py-1 pr-2 text-right font-mono">{{ formatCount(row.inputTokens) }}</td>
-                  <td class="py-1 pr-2 text-right font-mono">{{ formatCount(row.outputTokens) }}</td>
-                  <td class="py-1 pr-2 text-right font-mono">{{ formatCount(cacheWriteTokens(row)) }}</td>
-                  <td class="py-1 pr-2 text-right font-mono">{{ formatCount(row.cacheReadTokens) }}</td>
-                  <td class="py-1 text-right font-mono">{{ formatUsd(row.estimatedCostUsd) }}</td>
-                </tr>
-              }
-            </tbody>
-            <tfoot>
-              <tr class="border-t border-[var(--sanring-border)]">
-                <td class="py-1 pr-2 font-semibold">{{ t('ledgerTokenTotal') }}</td>
-                <td class="py-1 pr-2 text-right font-mono">{{ formatCount(claudeTokenTotals().input) }}</td>
-                <td class="py-1 pr-2 text-right font-mono">{{ formatCount(claudeTokenTotals().output) }}</td>
-                <td class="py-1 pr-2 text-right font-mono">{{ formatCount(claudeTokenTotals().cacheWrite) }}</td>
-                <td class="py-1 pr-2 text-right font-mono">{{ formatCount(claudeTokenTotals().cacheRead) }}</td>
-                <td class="py-1 text-right font-mono font-semibold">{{ formatUsd(claudeTokenTotals().cost) }}</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div class="flex gap-2">
+          <button sanringBtn type="button" size="sm" [variant]="chartMode() === 'line' ? 'default' : 'secondary'" (click)="setChartMode('line')">
+            {{ t('chartModeLine') }}
+          </button>
+          <button sanringBtn type="button" size="sm" [variant]="chartMode() === 'donut' ? 'default' : 'secondary'" (click)="setChartMode('donut')">
+            {{ t('chartModeDonut') }}
+          </button>
         </div>
+        @if (shortWindowChartSeries().length > 0) {
+          <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+            <h4 class="text-xs font-semibold text-[var(--sanring-helper)]">{{ t('chartShortWindowTitle') }}</h4>
+            @if (chartMode() === 'line') {
+              <ng-container *ngTemplateOutlet="chartBlock; context: { series: shortWindowChartSeries() }"></ng-container>
+            } @else {
+              <ng-container *ngTemplateOutlet="donutBlock; context: { series: shortWindowChartSeries() }"></ng-container>
+            }
+          </div>
+        }
+        @if (longWindowChartSeries().length > 0) {
+          <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
+            <h4 class="text-xs font-semibold text-[var(--sanring-helper)]">{{ t('chartLongWindowTitle') }}</h4>
+            @if (chartMode() === 'line') {
+              <ng-container *ngTemplateOutlet="chartBlock; context: { series: longWindowChartSeries() }"></ng-container>
+            } @else {
+              <ng-container *ngTemplateOutlet="donutBlock; context: { series: longWindowChartSeries() }"></ng-container>
+            }
+          </div>
+        }
       }
-    </div>
+    </sanring-card>
 
-    <div class="flex items-center gap-2">
-      <button
-        sanringBtn
-        type="button"
-        size="sm"
-        variant="secondary"
-        class="flex-1 inline-flex items-center justify-center gap-1.5"
-        [disabled]="historyExportStatus() === 'pending'"
-        (click)="exportUsageHistory('md')"
-      >
-        @if (historyExportStatus() === 'pending') {
-          <sanring-spinner size="sm" />
-        } @else {
-          <svg lucideFileText class="size-3.5"></svg>
-        }
-        {{ t('exportMd') }}
-      </button>
-      <button
-        sanringBtn
-        type="button"
-        size="sm"
-        variant="secondary"
-        class="flex-1 inline-flex items-center justify-center gap-1.5"
-        [disabled]="historyExportStatus() === 'pending'"
-        (click)="exportUsageHistory('xlsx')"
-      >
-        @if (historyExportStatus() === 'pending') {
-          <sanring-spinner size="sm" />
-        } @else {
-          <svg lucideFileSpreadsheet class="size-3.5"></svg>
-        }
-        {{ t('exportXlsx') }}
-      </button>
-    </div>
-    @if (historyExportStatus() === 'error' && historyExportError()) {
-      <p class="text-xs text-[var(--sanring-error-fg)]">{{ historyExportError() }}</p>
-    }
-
-    @if (shortWindowChartSeries().length === 0 && longWindowChartSeries().length === 0) {
-      <p class="text-xs leading-relaxed text-[var(--sanring-helper)] rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3 text-center">
-        {{ t('usageHistoryNoData') }}
-      </p>
-    } @else {
-      <div class="flex gap-2">
-        <button sanringBtn type="button" size="sm" [variant]="chartMode() === 'line' ? 'default' : 'secondary'" (click)="setChartMode('line')">
-          {{ t('chartModeLine') }}
+    <sanring-card class="p-4 flex flex-col gap-3">
+      <div class="flex flex-col gap-1">
+        <h3 class="text-base font-semibold">{{ t('ledgerSectionExport') }}</h3>
+        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerSectionExportHint') }}</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          sanringBtn
+          type="button"
+          size="sm"
+          variant="secondary"
+          class="flex-1 inline-flex items-center justify-center gap-1.5"
+          [disabled]="historyExportStatus() === 'pending'"
+          (click)="exportUsageHistory('md')"
+        >
+          @if (historyExportStatus() === 'pending') {
+            <sanring-spinner size="sm" />
+          } @else {
+            <svg lucideFileText class="size-3.5"></svg>
+          }
+          {{ t('exportMd') }}
         </button>
-        <button sanringBtn type="button" size="sm" [variant]="chartMode() === 'donut' ? 'default' : 'secondary'" (click)="setChartMode('donut')">
-          {{ t('chartModeDonut') }}
+        <button
+          sanringBtn
+          type="button"
+          size="sm"
+          variant="secondary"
+          class="flex-1 inline-flex items-center justify-center gap-1.5"
+          [disabled]="historyExportStatus() === 'pending'"
+          (click)="exportUsageHistory('xlsx')"
+        >
+          @if (historyExportStatus() === 'pending') {
+            <sanring-spinner size="sm" />
+          } @else {
+            <svg lucideFileSpreadsheet class="size-3.5"></svg>
+          }
+          {{ t('exportXlsx') }}
         </button>
       </div>
-      @if (shortWindowChartSeries().length > 0) {
-        <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-          <h4 class="text-xs font-semibold text-[var(--sanring-helper)]">{{ t('chartShortWindowTitle') }}</h4>
-          @if (chartMode() === 'line') {
-            <ng-container *ngTemplateOutlet="chartBlock; context: { series: shortWindowChartSeries() }"></ng-container>
-          } @else {
-            <ng-container *ngTemplateOutlet="donutBlock; context: { series: shortWindowChartSeries() }"></ng-container>
-          }
-        </div>
+      @if (historyExportStatus() === 'error' && historyExportError()) {
+        <p class="text-xs text-[var(--sanring-error-fg)]">{{ historyExportError() }}</p>
       }
-      @if (longWindowChartSeries().length > 0) {
-        <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
-          <h4 class="text-xs font-semibold text-[var(--sanring-helper)]">{{ t('chartLongWindowTitle') }}</h4>
-          @if (chartMode() === 'line') {
-            <ng-container *ngTemplateOutlet="chartBlock; context: { series: longWindowChartSeries() }"></ng-container>
-          } @else {
-            <ng-container *ngTemplateOutlet="donutBlock; context: { series: longWindowChartSeries() }"></ng-container>
-          }
-        </div>
-      }
-    }
+    </sanring-card>
+
+    <ng-template #tokenMetrics let-rows="rows" let-totals="totals">
+      <div class="flex flex-col">
+        @for (row of rows; track row.model) {
+          <div class="flex flex-col gap-1.5 py-2 border-b border-[var(--sanring-border)] last:border-b-0">
+            <div class="flex items-start justify-between gap-2">
+              <span class="text-xs font-mono break-all min-w-0">{{ row.model }}</span>
+              <span class="text-xs font-mono shrink-0">{{ formatUsd(row.estimatedCostUsd) }}</span>
+            </div>
+            <dl class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-xs">
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColInput') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(row.inputTokens) }}</dd>
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColOutput') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(row.outputTokens) }}</dd>
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColCacheWrite') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(cacheWriteTokens(row)) }}</dd>
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColCacheRead') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(row.cacheReadTokens) }}</dd>
+            </dl>
+          </div>
+        }
+        @if (rows.length > 1) {
+          <div class="flex flex-col gap-1.5 pt-2">
+            <div class="flex items-start justify-between gap-2">
+              <span class="text-xs font-semibold">{{ t('ledgerTokenTotal') }}</span>
+              <span class="text-xs font-mono font-semibold shrink-0">{{ formatUsd(totals.cost) }}</span>
+            </div>
+            <dl class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-xs">
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColInput') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(totals.input) }}</dd>
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColOutput') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(totals.output) }}</dd>
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColCacheWrite') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(totals.cacheWrite) }}</dd>
+              <dt class="text-[var(--sanring-helper)]">{{ t('ledgerColCacheRead') }}</dt>
+              <dd class="text-right font-mono tabular-nums">{{ formatCount(totals.cacheRead) }}</dd>
+            </dl>
+          </div>
+        }
+      </div>
+    </ng-template>
 
     <ng-template #chartBlock let-series="series">
       <sanring-line-chart [series]="visibleSeries(series)" [minX]="chartMinX()" [maxX]="chartMaxX()" [height]="100" />
       <div class="flex flex-col gap-1">
-        @for (s of chartLegendFor(series); track s.label) {
+        @for (s of chartLegendFor(series); track s.id ?? s.label) {
           <button
             type="button"
             class="flex items-center gap-1.5 cursor-pointer"
@@ -911,6 +1019,7 @@
             [ariaLabel]="t('balanceAlertToggleAria', { provider: 'DeepSeek' })"
             (checkedChange)="onBalanceAlertToggle('deepseek', $event)"
           />
+          <span class="text-xs text-[var(--sanring-muted)] shrink-0">$</span>
           <input sanringInput type="number" min="0" step="0.01" inputmode="decimal" class="h-9 w-28 text-right"
             [attr.aria-label]="t('balanceAmountAria', { provider: 'DeepSeek' })"
             [disabled]="!draftDeepSeekBalanceAlertEnabled()"
@@ -949,6 +1058,7 @@
             [ariaLabel]="t('balanceAlertToggleAria', { provider: 'Kimi' })"
             (checkedChange)="onBalanceAlertToggle('kimi', $event)"
           />
+          <span class="text-xs text-[var(--sanring-muted)] shrink-0">$</span>
           <input sanringInput type="number" min="0" step="0.01" inputmode="decimal" class="h-9 w-28 text-right"
             [attr.aria-label]="t('balanceAmountAria', { provider: 'Kimi' })"
             [disabled]="!draftKimiBalanceAlertEnabled()"
@@ -1000,47 +1110,27 @@
     </ng-template>
   } @else {
     <!-- ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況，純靜態內容） ──────────── -->
-    <div class="flex flex-col gap-1">
-      <button sanringBtn type="button" size="sm" variant="ghost" class="self-start inline-flex items-center gap-1.5" (click)="closeInfoView()">
+    <div class="flex flex-col gap-4 mb-1">
+      <button sanringBtn type="button" size="sm" variant="secondary" class="self-start inline-flex items-center gap-1.5" (click)="closeInfoView()">
         <svg lucideArrowLeft class="size-4"></svg>
         {{ t('back') }}
       </button>
       <h2 class="text-lg font-semibold">{{ t('infoTitle') }}</h2>
     </div>
 
-    <div class="flex flex-col gap-4 text-sm">
-      <div class="flex flex-col gap-1">
-        <h3 class="font-semibold">{{ t('infoClaudeTitle') }}</h3>
-        <p class="text-[var(--sanring-muted)]">{{ t('infoClaudeBody') }}</p>
-      </div>
-      <div class="flex flex-col gap-1">
-        <h3 class="font-semibold">{{ t('infoCodexTitle') }}</h3>
-        <p class="text-[var(--sanring-muted)]">{{ t('infoCodexBody') }}</p>
-      </div>
-      <div class="flex flex-col gap-1">
-        <h3 class="font-semibold">{{ t('infoApiKeyTitle') }}</h3>
-        <p class="text-[var(--sanring-muted)]">{{ t('infoApiKeyBody') }}</p>
-      </div>
-      <div class="flex flex-col gap-1">
-        <h3 class="font-semibold">{{ t('infoKimiSubTitle') }}</h3>
-        <p class="text-[var(--sanring-muted)]">{{ t('infoKimiSubBody') }}</p>
-      </div>
-      <div class="flex flex-col gap-1">
-        <h3 class="font-semibold">{{ t('infoGrokTitle') }}</h3>
-        <p class="text-[var(--sanring-muted)]">{{ t('infoGrokBody') }}</p>
-      </div>
-      <div class="flex flex-col gap-1">
-        <h3 class="font-semibold">{{ t('infoCursorTitle') }}</h3>
-        <p class="text-[var(--sanring-muted)]">{{ t('infoCursorBody') }}</p>
-      </div>
+    @for (section of infoSections; track section.titleKey) {
+      <sanring-card class="p-4 flex flex-col gap-2">
+        <h3 class="text-base font-semibold">{{ t(section.titleKey) }}</h3>
+        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t(section.bodyKey) }}</p>
+      </sanring-card>
+    }
 
-      <sanring-alert class="text-xs">
-        <svg lucideInfo class="size-4"></svg>
-        <p sanringAlertDescription>
-          <span class="font-semibold block mb-0.5">{{ t('infoDisclaimerTitle') }}</span>
-          {{ t('infoDisclaimerBody') }}
-        </p>
-      </sanring-alert>
-    </div>
+    <sanring-alert class="text-xs">
+      <svg lucideInfo class="size-4"></svg>
+      <p sanringAlertDescription>
+        <span class="font-semibold block mb-0.5">{{ t('infoDisclaimerTitle') }}</span>
+        {{ t('infoDisclaimerBody') }}
+      </p>
+    </sanring-alert>
   }
 </main>

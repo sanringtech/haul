@@ -19,6 +19,10 @@ export const LANG_STORAGE_KEY = 'sanring-usage-monitor:lang';
 export interface Translations {
   connectedDesktop: string;
   browserMode: string;
+  connectionValid: string;
+  connectionInvalid: string;
+  connectionExpired: string;
+  connectionNotConfigured: string;
   refresh: string;
   refreshing: string;
   lastUpdated: string;
@@ -127,12 +131,21 @@ export interface Translations {
   ledgerAria: string;
   ledgerTitle: string;
   ledgerDescription: string;
+  ledgerSectionTokens: string;
+  ledgerSectionTokensHint: string;
+  ledgerSectionTokensInfoAria: string;
+  ledgerSectionCharts: string;
+  ledgerSectionChartsHint: string;
+  ledgerSectionExport: string;
+  ledgerSectionExportHint: string;
   ledgerRecordingOff: string;
   ledgerTokenTitle: string;
-  ledgerTokenHint: string;
   ledgerTokenNeedDesktop: string;
   ledgerTokenEmpty: string;
+  ledgerCodexTitle: string;
+  ledgerCodexEmpty: string;
   ledgerTokenLocalCombined: string;
+  ledgerTokenLocalCombinedHint: string;
   ledgerColModel: string;
   ledgerColInput: string;
   ledgerColOutput: string;
@@ -218,6 +231,10 @@ export const translations: Record<Lang, Translations> = {
   'zh-TW': {
     connectedDesktop: '已連接桌面殼層',
     browserMode: '瀏覽器模式',
+    connectionValid: '連線正常',
+    connectionInvalid: '連線失效',
+    connectionExpired: '憑證過期',
+    connectionNotConfigured: '尚未設定',
     refresh: '重新整理用量',
     refreshing: '重新整理中…',
     lastUpdated: '上次更新 {time}',
@@ -302,12 +319,12 @@ export const translations: Record<Lang, Translations> = {
     deepSeekInvalidKey: 'API KEY 被拒絕（撤銷或格式錯誤）',
     deepSeekHttpError: 'DeepSeek 回應錯誤：HTTP {status}',
     deepSeekParseError: 'DeepSeek 回應內容無法解析：{body}',
-    deepSeekBalance: '剩餘額度 {currency} {balance}',
+    deepSeekBalance: '剩餘額度 ${balance}',
     deepSeekCallFailed: '呼叫 DeepSeek 用量端點失敗：{message}',
     kimiInvalidKey: 'API KEY 被拒絕（撤銷、格式錯誤，或這是 platform.kimi.ai 而非 moonshot.ai 發的 API KEY）',
     kimiHttpError: 'Kimi 回應錯誤：HTTP {status}',
     kimiParseError: 'Kimi 回應內容無法解析或回報失敗：{body}',
-    kimiBalance: '剩餘額度 {balance}',
+    kimiBalance: '剩餘額度 ${balance}',
     kimiCallFailed: '呼叫 Kimi 用量端點失敗：{message}',
     kimiSubCredentialsNotFound: '找不到 Kimi Code 的登入憑證，請先在 Kimi Code CLI 裡執行 `/login`',
     kimiSubCredentialsRejected: 'Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`',
@@ -320,23 +337,32 @@ export const translations: Record<Lang, Translations> = {
 
     settingsTitle: '設定',
     settingsAria: '設定',
-    ledgerAria: '流水帳',
-    ledgerTitle: '流水帳',
-    ledgerDescription: '本機已經發生的紀錄：官方配額歷史，以及 Claude JSONL 分模型 token／估算金額。這不是未來用量預測，估算美元也不是帳單。',
+    ledgerAria: '用量紀錄',
+    ledgerTitle: '用量紀錄',
+    ledgerDescription: '已經發生的本機紀錄，不是未來用量預測。估算美元不是帳單。',
+    ledgerSectionTokens: '本機用量',
+    ledgerSectionTokensHint: '只加總本機 Claude Code（~/.claude/projects JSONL）與 Codex CLI（~/.codex/sessions，每檔取最後累計）。切過帳號仍合計在這台機器。金額依官方 API 標價估算，不是帳單；Codex 官價表沒有的模型不估。Cursor、DeepSeek、Kimi 沒有同等 JSONL，訂閱制百分比在下面「配額走勢」。',
+    ledgerSectionTokensInfoAria: '本機用量說明',
+    ledgerSectionCharts: '配額走勢',
+    ledgerSectionChartsHint: '設定開啟「記錄用量歷史」後，把各訂閱制帳號的用量百分比存下來畫圖，含 Cursor 的內建／其他模型桶。',
+    ledgerSectionExport: '匯出',
+    ledgerSectionExportHint: '匯出的是「配額走勢」那份百分比時間序列（帳號、視窗、用量 %），不是上面 Claude／Codex 的 token 表。',
     ledgerRecordingOff: '目前沒有繼續寫入新的配額歷史。到設定開啟「記錄用量歷史」。',
     ledgerTokenTitle: 'Claude 本機用量',
-    ledgerTokenHint: '讀本機 ~/.claude/projects JSONL，切過帳標本機合計。金額依官方 API 標價估算，不是帳單。',
     ledgerTokenNeedDesktop: '要讀本機 JSONL 需要桌面殼，ng serve 純前端看不到這張表。',
     ledgerTokenEmpty: '最近 30 天找不到 Claude Code 的本機 session 紀錄。',
+    ledgerCodexTitle: 'Codex 本機用量',
+    ledgerCodexEmpty: '最近 30 天找不到 Codex CLI 的本機 session 紀錄。',
     ledgerTokenLocalCombined: '本機合計',
+    ledgerTokenLocalCombinedHint: '這台機器上所有切過的帳號加總，不是單一帳號帳單。',
     ledgerColModel: '模型',
     ledgerColInput: '輸入',
     ledgerColOutput: '輸出',
     ledgerColCacheWrite: 'Cache 寫入',
     ledgerColCacheRead: 'Cache 讀取',
-    ledgerColEstUsd: '估算 USD',
+    ledgerColEstUsd: '估算 $',
     ledgerTokenTotal: '合計',
-    usageHistorySettingsHint: '圖表與匯出改到「流水帳」頁，這裡只決定要不要繼續記錄。',
+    usageHistorySettingsHint: '圖表與匯出改到「用量紀錄」頁，這裡只決定要不要繼續記錄。',
     refreshIntervalLabel: '自動刷新頻率',
     nearLimitLabel: '用量達到多少時提醒',
     usageAlertTitle: '訂閱用量提醒',
@@ -409,6 +435,10 @@ export const translations: Record<Lang, Translations> = {
   en: {
     connectedDesktop: 'Connected to desktop shell',
     browserMode: 'Browser mode',
+    connectionValid: 'Connected',
+    connectionInvalid: 'Connection failed',
+    connectionExpired: 'Credentials expired',
+    connectionNotConfigured: 'Not configured',
     refresh: 'Refresh usage',
     refreshing: 'Refreshing…',
     lastUpdated: 'Last updated {time}',
@@ -493,12 +523,12 @@ export const translations: Record<Lang, Translations> = {
     deepSeekInvalidKey: 'API KEY was rejected (revoked or malformed)',
     deepSeekHttpError: 'DeepSeek returned an error: HTTP {status}',
     deepSeekParseError: "Could not parse DeepSeek's response: {body}",
-    deepSeekBalance: 'Remaining balance {currency} {balance}',
+    deepSeekBalance: 'Remaining balance ${balance}',
     deepSeekCallFailed: "Failed to call DeepSeek's usage endpoint: {message}",
     kimiInvalidKey: 'API KEY was rejected (revoked, malformed, or this is a platform.kimi.ai API KEY rather than moonshot.ai)',
     kimiHttpError: 'Kimi returned an error: HTTP {status}',
     kimiParseError: "Could not parse Kimi's response, or it reported failure: {body}",
-    kimiBalance: 'Remaining balance {balance}',
+    kimiBalance: 'Remaining balance ${balance}',
     kimiCallFailed: "Failed to call Kimi's usage endpoint: {message}",
     kimiSubCredentialsNotFound: "Couldn't find Kimi Code's login credentials — run `/login` inside the Kimi Code CLI first",
     kimiSubCredentialsRejected: 'Kimi Code rejected the current login credentials — run `/login` again',
@@ -511,23 +541,32 @@ export const translations: Record<Lang, Translations> = {
 
     settingsTitle: 'Settings',
     settingsAria: 'Settings',
-    ledgerAria: 'Ledger',
-    ledgerTitle: 'Ledger',
-    ledgerDescription: 'What already happened on this machine: official quota history, plus Claude JSONL per-model tokens and estimated cost. Not a forecast. Estimated dollars are not a bill.',
+    ledgerAria: 'Usage records',
+    ledgerTitle: 'Usage records',
+    ledgerDescription: 'What already happened on this machine — not a forecast. Estimated dollars are not a bill.',
+    ledgerSectionTokens: 'Local usage',
+    ledgerSectionTokensHint: 'Only Claude Code (~/.claude/projects JSONL) and Codex CLI (~/.codex/sessions, last cumulative total per file) are totaled here. Switched accounts stay combined on this machine. Dollars use official API list prices — estimate, not a bill. Codex models missing from the list stay unpriced. Cursor, DeepSeek, and Kimi have no equivalent JSONL; subscription percentages appear under Quota trend below.',
+    ledgerSectionTokensInfoAria: 'About local usage',
+    ledgerSectionCharts: 'Quota trend',
+    ledgerSectionChartsHint: 'When “Record usage history” is on, subscription percentages are stored and charted — including Cursor’s two model buckets.',
+    ledgerSectionExport: 'Export',
+    ledgerSectionExportHint: 'This exports the Quota trend percentage series (account, window, usage %), not the Claude/Codex token tables above.',
     ledgerRecordingOff: 'New quota-history samples are not being written. Turn on “Record usage history” in Settings.',
     ledgerTokenTitle: 'Claude local usage',
-    ledgerTokenHint: 'Reads ~/.claude/projects JSONL on this machine. Switched accounts stay as a local combined total. Dollars use official API list prices — estimate, not a bill.',
     ledgerTokenNeedDesktop: 'Reading local JSONL needs the desktop shell. This table is empty under ng serve.',
     ledgerTokenEmpty: 'No Claude Code session logs found in the last 30 days.',
+    ledgerCodexTitle: 'Codex local usage',
+    ledgerCodexEmpty: 'No Codex CLI session logs found in the last 30 days.',
     ledgerTokenLocalCombined: 'Local combined',
+    ledgerTokenLocalCombinedHint: 'All accounts ever used on this machine, not a single-account bill.',
     ledgerColModel: 'Model',
     ledgerColInput: 'Input',
     ledgerColOutput: 'Output',
     ledgerColCacheWrite: 'Cache write',
     ledgerColCacheRead: 'Cache read',
-    ledgerColEstUsd: 'Est. USD',
+    ledgerColEstUsd: 'Est. $',
     ledgerTokenTotal: 'Total',
-    usageHistorySettingsHint: 'Charts and export live on the Ledger page. This switch only controls whether new samples are recorded.',
+    usageHistorySettingsHint: 'Charts and export live on the Usage records page. This switch only controls whether new samples are recorded.',
     refreshIntervalLabel: 'Auto-refresh interval',
     nearLimitLabel: 'Warn when usage reaches',
     usageAlertTitle: 'Subscription usage alerts',

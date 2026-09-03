@@ -87,8 +87,8 @@ interface UsageWindow {
   detail: string | null;
 }
 
-/** Mirrors backend ClaudeJsonlLedger.ClaudeTokenRow —— 帳簿頁分模型 token／估算金額。 */
-interface ClaudeTokenRowWire {
+/** Mirrors backend TokenRow —— 帳簿頁分模型 token／估算金額。 */
+interface TokenRowWire {
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -98,11 +98,11 @@ interface ClaudeTokenRowWire {
   estimatedCostUsd: number | null;
 }
 
-interface ClaudeTokenLedgerWire {
+interface TokenLedgerWire {
   source: string;
   bucket: string;
-  models: ClaudeTokenRowWire[];
-  assistantMessages: number;
+  models: TokenRowWire[];
+  entries: number;
   oldestUtc: string | null;
   newestUtc: string | null;
 }
@@ -116,6 +116,24 @@ interface UsageHistoryPointWire {
   windowLabelKey: string | null;
   percentUsed: number;
   usageState: UsageState;
+}
+
+/** `codex:user@x.com` / `claude:user@x.com` 沒有自訂標籤時，圖例用 email 而不是都叫「Codex」。 */
+function emailFromAccountId(accountId: string): string | null {
+  const colon = accountId.indexOf(':');
+  if (colon < 0) return null;
+  const suffix = accountId.slice(colon + 1);
+  return suffix.includes('@') ? suffix : null;
+}
+
+/**
+ * 擷取升級後 usage_history 常同時留下字面 `codex`/`claude` 跟 `codex:email`。
+ * 後端會 remap，圖表這邊也收斂一次——舊桌面殼還沒重開時圖例仍會變一條。
+ */
+function canonicalHistoryAccountId(accountId: string, ids: Iterable<string>): string {
+  if (accountId !== 'codex' && accountId !== 'claude') return accountId;
+  const prefixed = [...ids].filter((id) => id.startsWith(`${accountId}:`));
+  return prefixed.length === 1 ? prefixed[0]! : accountId;
 }
 
 /** 卡片列表最上方的彙總健康度——見 usageHealth() 的算法說明。 */
@@ -195,6 +213,9 @@ export class App implements AfterViewInit {
   protected readonly isLoading = signal(false);
   /** Shown once next to the refresh button instead of once per card — every card's `asOf` is effectively the same refresh instant. */
   protected readonly lastRefreshedAt = signal<string | null>(null);
+  /** 刷新結束後短暫亮一下「上次更新」，數字沒變時也看得到動作完成。 */
+  protected readonly justRefreshed = signal(false);
+  private justRefreshedTimer?: ReturnType<typeof setTimeout>;
 
   /** 以最嚴重的訂閱用量代表整體健康狀態；API KEY 餘額由來源卡片各自呈現。 */
   protected readonly usageHealth = computed<UsageHealth | null>(() => {
@@ -332,25 +353,56 @@ export class App implements AfterViewInit {
   protected readonly historyExportStatus = signal<'idle' | 'pending' | 'success' | 'error'>('idle');
   protected readonly historyExportError = signal<string | null>(null);
   protected readonly usageHistory = signal<UsageHistoryPointWire[]>([]);
-  protected readonly claudeTokenLedger = signal<ClaudeTokenLedgerWire | null>(null);
-  protected readonly claudeTokenTotals = computed(() => {
-    const rows = this.claudeTokenLedger()?.models ?? [];
+  protected readonly claudeTokenLedger = signal<TokenLedgerWire | null>(null);
+  protected readonly codexTokenLedger = signal<TokenLedgerWire | null>(null);
+  protected readonly claudeTokenTotals = computed(() => this.tokenTotals(this.claudeTokenLedger()));
+  protected readonly codexTokenTotals = computed(() => this.tokenTotals(this.codexTokenLedger()));
+  protected readonly tokenProviderCards = computed(() => [
+    {
+      id: 'claude',
+      titleKey: 'ledgerTokenTitle' as const,
+      emptyKey: 'ledgerTokenEmpty' as const,
+      ledger: this.claudeTokenLedger(),
+      totals: this.claudeTokenTotals(),
+    },
+    {
+      id: 'codex',
+      titleKey: 'ledgerCodexTitle' as const,
+      emptyKey: 'ledgerCodexEmpty' as const,
+      ledger: this.codexTokenLedger(),
+      totals: this.codexTokenTotals(),
+    },
+  ]);
+
+  protected readonly infoSections = [
+    { titleKey: 'infoClaudeTitle', bodyKey: 'infoClaudeBody' },
+    { titleKey: 'infoCodexTitle', bodyKey: 'infoCodexBody' },
+    { titleKey: 'infoApiKeyTitle', bodyKey: 'infoApiKeyBody' },
+    { titleKey: 'infoKimiSubTitle', bodyKey: 'infoKimiSubBody' },
+    { titleKey: 'infoCursorTitle', bodyKey: 'infoCursorBody' },
+    { titleKey: 'infoGrokTitle', bodyKey: 'infoGrokBody' },
+  ] as const;
+
+  private tokenTotals(ledger: TokenLedgerWire | null): { input: number; output: number; cacheWrite: number; cacheRead: number; cost: number | null } {
+    const rows = ledger?.models ?? [];
     let input = 0;
     let output = 0;
     let cacheWrite = 0;
     let cacheRead = 0;
     let cost = 0;
-    let costKnown = true;
+    let hasCost = false;
     for (const r of rows) {
       input += r.inputTokens;
       output += r.outputTokens;
       cacheWrite += r.cacheCreation5mTokens + r.cacheCreation1hTokens;
       cacheRead += r.cacheReadTokens;
-      if (r.estimatedCostUsd == null) costKnown = false;
-      else cost += r.estimatedCostUsd;
+      if (r.estimatedCostUsd != null) {
+        cost += r.estimatedCostUsd;
+        hasCost = true;
+      }
     }
-    return { input, output, cacheWrite, cacheRead, cost: costKnown && rows.length > 0 ? cost : null };
-  });
+    return { input, output, cacheWrite, cacheRead, cost: hasCost ? cost : null };
+  }
 
   /**
    * 圖表現在收在「查看圖表」對話框裡，不是直接嵌在設定頁裡——原本折線圖固定畫在「記錄用量歷史」
@@ -399,11 +451,14 @@ export class App implements AfterViewInit {
       'var(--sanring-sun-50)',
       'var(--sanring-info-50)',
     ];
+    const history = this.usageHistory();
+    const ids = history.map((p) => p.accountId);
     const map = new Map<string, string>();
-    for (const p of this.usageHistory()) {
+    for (const p of history) {
       if (!this.isChartedHistoryPoint(p)) continue;
-      if (!map.has(p.accountId)) {
-        map.set(p.accountId, palette[map.size % palette.length]);
+      const accountId = canonicalHistoryAccountId(p.accountId, ids);
+      if (!map.has(accountId)) {
+        map.set(accountId, palette[map.size % palette.length]);
       }
     }
     return map;
@@ -411,16 +466,23 @@ export class App implements AfterViewInit {
 
   private buildChartSeries(points: UsageHistoryPointWire[]): LineChartSeries[] {
     const accountColor = this.accountColorMap();
-    const grouped = new Map<string, { accountId: string; label: string; dashed: boolean; points: { x: number; y: number }[] }>();
+    const ids = this.usageHistory().map((p) => p.accountId);
+    const grouped = new Map<string, { accountId: string; windowKey: string; label: string; dashed: boolean; points: { x: number; y: number }[] }>();
 
     for (const p of points) {
-      const key = `${p.accountId}::${p.windowLabelKey ?? ''}`;
+      const accountId = canonicalHistoryAccountId(p.accountId, ids);
+      const windowKey = p.windowLabelKey ?? '';
+      const key = `${accountId}::${windowKey}`;
       const windowLabel = p.windowLabelKey === 'fiveHourLabel' ? this.t('fiveHourLabel')
         : p.windowLabelKey === 'sevenDayLabel' ? this.t('sevenDayLabel')
         : p.windowLabelKey === 'cursorModelsLabel' ? this.t('cursorModelsLabel')
         : p.windowLabelKey === 'otherModelsLabel' ? this.t('otherModelsLabel')
         : null;
-      const accountName = p.accountLabel ?? p.displayName;
+      const email = emailFromAccountId(accountId);
+      const accountName =
+        p.accountLabel && p.accountLabel !== p.displayName
+          ? p.accountLabel
+          : (email ?? p.accountLabel ?? p.displayName);
       const label = windowLabel ? `${accountName}（${windowLabel}）` : accountName;
       const x = new Date(p.recordedAtUtc).getTime();
 
@@ -429,11 +491,18 @@ export class App implements AfterViewInit {
         existing.points.push({ x, y: p.percentUsed });
       } else {
         // 次要視窗畫虛線（Claude 7 天、Cursor 其他模型）；主要視窗與單視窗來源畫實線。
-        grouped.set(key, { accountId: p.accountId, label, dashed: p.windowLabelKey === 'sevenDayLabel' || p.windowLabelKey === 'otherModelsLabel', points: [{ x, y: p.percentUsed }] });
+        grouped.set(key, {
+          accountId,
+          windowKey,
+          label,
+          dashed: p.windowLabelKey === 'sevenDayLabel' || p.windowLabelKey === 'otherModelsLabel',
+          points: [{ x, y: p.percentUsed }],
+        });
       }
     }
 
     return [...grouped.values()].map((series) => ({
+      id: `${series.accountId}::${series.windowKey}`,
       label: series.label,
       color: accountColor.get(series.accountId)!,
       dashed: series.dashed,
@@ -598,7 +667,7 @@ export class App implements AfterViewInit {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
   }
 
-  protected cacheWriteTokens(row: ClaudeTokenRowWire): number {
+  protected cacheWriteTokens(row: TokenRowWire): number {
     return row.cacheCreation5mTokens + row.cacheCreation1hTokens;
   }
 
@@ -625,6 +694,12 @@ export class App implements AfterViewInit {
 
   protected refresh(): void {
     this.send({ type: 'get-usage-summary' });
+  }
+
+  private pulseJustRefreshed(): void {
+    this.justRefreshed.set(true);
+    clearTimeout(this.justRefreshedTimer);
+    this.justRefreshedTimer = setTimeout(() => this.justRefreshed.set(false), 900);
   }
 
   protected openAddView(): void {
@@ -938,6 +1013,19 @@ export class App implements AfterViewInit {
     )[state];
   }
 
+  protected connectionStateLabel(state: ConnectionState): string {
+    return this.t(
+      (
+        {
+          valid: 'connectionValid',
+          invalid: 'connectionInvalid',
+          expired: 'connectionExpired',
+          not_configured: 'connectionNotConfigured',
+        } as const
+      )[state],
+    );
+  }
+
   /** 憲法 §4：用量狀態 正常=綠(0-80%) / 接近上限=橘(80-99%) / 超額=紅(100%) — badge 覆寫色。 */
   protected usageBadgeClass(state: UsageState): string {
     return (
@@ -1046,7 +1134,8 @@ export class App implements AfterViewInit {
         settings?: UserSettingsWire;
         hiddenAccounts?: HiddenAccountEntry[];
         usageHistory?: UsageHistoryPointWire[];
-        claudeTokenLedger?: ClaudeTokenLedgerWire;
+        claudeTokenLedger?: TokenLedgerWire;
+        codexTokenLedger?: TokenLedgerWire;
         error?: string;
       };
 
@@ -1063,6 +1152,7 @@ export class App implements AfterViewInit {
       if (payload.type === 'usage-history') {
         if (payload.usageHistory) this.usageHistory.set(payload.usageHistory);
         this.claudeTokenLedger.set(payload.claudeTokenLedger ?? null);
+        this.codexTokenLedger.set(payload.codexTokenLedger ?? null);
         return;
       }
 
@@ -1121,6 +1211,7 @@ export class App implements AfterViewInit {
         this.summaries.set(payload.data);
         this.lastError.set(null);
         this.lastRefreshedAt.set(payload.data[0]?.asOf ?? null);
+        this.pulseJustRefreshed();
         return;
       }
 
