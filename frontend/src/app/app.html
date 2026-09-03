@@ -589,9 +589,101 @@
           >
             <svg lucideInfo class="size-3.5"></svg>
           </button>
-          <sanring-tooltip-content class="max-w-72">{{ t('ledgerSectionTokensHint') }}</sanring-tooltip-content>
+          <sanring-tooltip-content class="max-w-80">
+            <ul class="list-disc space-y-1 pl-4 text-left">
+              <li>{{ t('ledgerSectionTokensHintSources') }}</li>
+              <li>{{ t('ledgerSectionTokensHintRange') }}</li>
+              <li>{{ t('ledgerSectionTokensHintAccounts') }}</li>
+              <li>{{ t('ledgerSectionTokensHintPricing') }}</li>
+              <li>{{ t('ledgerSectionTokensHintUnsupported') }}</li>
+            </ul>
+          </sanring-tooltip-content>
         </sanring-tooltip>
       </div>
+      <div class="flex flex-wrap gap-2">
+        <button sanringBtn type="button" size="sm" [variant]="tokenSliceMode() === 'models' ? 'default' : 'secondary'" (click)="setTokenSliceMode('models')">
+          {{ t('ledgerSliceModels') }}
+        </button>
+        <button sanringBtn type="button" size="sm" [variant]="tokenSliceMode() === 'month' ? 'default' : 'secondary'" (click)="setTokenSliceMode('month')">
+          {{ t('ledgerSliceMonth') }}
+        </button>
+        <button sanringBtn type="button" size="sm" [variant]="tokenSliceMode() === 'week' ? 'default' : 'secondary'" (click)="setTokenSliceMode('week')">
+          {{ t('ledgerSliceWeek') }}
+        </button>
+        <button sanringBtn type="button" size="sm" [variant]="tokenSliceMode() === 'day' ? 'default' : 'secondary'" (click)="setTokenSliceMode('day')">
+          {{ t('ledgerSliceDays') }}
+        </button>
+      </div>
+      @if (tokenSliceMode() !== 'models') {
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            sanringBtn
+            type="button"
+            size="sm"
+            variant="ghost"
+            class="h-9 w-9 shrink-0 p-0"
+            [attr.aria-label]="t('ledgerSlicePrev')"
+            (click)="shiftTokenSlice(-1)"
+          >
+            <svg lucideChevronLeft class="size-4"></svg>
+          </button>
+          <sanring-popover
+            [isOpen]="datePickerOpen()"
+            (isOpenChange)="datePickerOpen.set($event)"
+            align="start"
+          >
+            <button
+              sanringBtn
+              sanringPopoverTrigger
+              type="button"
+              size="sm"
+              variant="secondary"
+              class="min-w-[9.5rem]"
+              [attr.aria-label]="tokenSliceMode() === 'month' ? t('ledgerSliceMonthAria') : t('ledgerSliceDateAria')"
+            >
+              {{ tokenSliceTriggerLabel() }}
+            </button>
+            <sanring-popover-content class="w-auto p-3">
+              @if (tokenSliceMode() === 'month') {
+                <sanring-date-picker
+                  size="sm"
+                  granularity="month"
+                  mode="single"
+                  [allowDeselect]="false"
+                  [locale]="calendarLocale()"
+                  [disabled]="tokenSliceDisabled()"
+                  (selectedDateChange)="onTokenSlicePicked($event)"
+                  [ariaLabel]="t('ledgerSliceMonthAria')"
+                />
+              } @else {
+                <sanring-calendar
+                  size="sm"
+                  mode="single"
+                  [allowDeselect]="false"
+                  [locale]="calendarLocale()"
+                  [disabled]="tokenSliceDisabled()"
+                  (selectedDateChange)="onTokenSlicePicked($event)"
+                />
+              }
+            </sanring-popover-content>
+          </sanring-popover>
+          <button
+            sanringBtn
+            type="button"
+            size="sm"
+            variant="ghost"
+            class="h-9 w-9 shrink-0 p-0"
+            [attr.aria-label]="t('ledgerSliceNext')"
+            (click)="shiftTokenSlice(1)"
+          >
+            <svg lucideChevronRight class="size-4"></svg>
+          </button>
+          @if (tokenSliceMode() === 'week') {
+            <span class="text-xs text-[var(--sanring-helper)]">{{ tokenSliceWeekLabel() }}</span>
+          }
+        </div>
+        <p class="text-[10px] leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerSlicePeriodHint') }}</p>
+      }
 
       @for (card of tokenProviderCards(); track card.id) {
         <div class="flex flex-col gap-2 rounded-[var(--sanring-radius)] bg-[var(--sanring-surface-strong)] p-3">
@@ -616,11 +708,52 @@
             <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerTokenNeedDesktop') }}</p>
           } @else if ((card.ledger?.models.length ?? 0) === 0) {
             <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t(card.emptyKey) }}</p>
-          } @else {
+          } @else if (tokenSliceMode() === 'models') {
             <ng-container *ngTemplateOutlet="tokenMetrics; context: { rows: card.ledger!.models, totals: card.totals }"></ng-container>
+          } @else if (tokenPeriodRows(card.ledger).length === 0) {
+            <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerSliceEmpty') }}</p>
+          } @else {
+            <ng-container *ngTemplateOutlet="tokenMetrics; context: { rows: tokenPeriodRows(card.ledger), totals: tokenPeriodTotals(card.ledger) }"></ng-container>
           }
         </div>
       }
+      <div class="flex flex-col gap-2 border-t border-[var(--sanring-border)] pt-3">
+        <div class="flex items-center gap-1.5">
+          <button
+            sanringBtn
+            type="button"
+            size="sm"
+            variant="secondary"
+            class="inline-flex items-center justify-center gap-1.5"
+            [disabled]="localUsageExportStatus() === 'pending' || !isDesktopHost()"
+            (click)="exportLocalUsage()"
+          >
+            @if (localUsageExportStatus() === 'pending') {
+              <sanring-spinner size="sm" />
+            } @else {
+              <svg lucideFileSpreadsheet class="size-3.5"></svg>
+            }
+            {{ t('ledgerLocalExportXlsx') }}
+          </button>
+          <sanring-tooltip>
+            <button
+              sanringBtn
+              sanringTooltipTrigger
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-7 w-7 shrink-0 p-0 text-[var(--sanring-muted)]"
+              [attr.aria-label]="t('ledgerLocalExportInfoAria')"
+            >
+              <svg lucideInfo class="size-3.5"></svg>
+            </button>
+            <sanring-tooltip-content class="max-w-72">{{ t('ledgerLocalExportHint') }}</sanring-tooltip-content>
+          </sanring-tooltip>
+        </div>
+        @if (localUsageExportStatus() === 'error' && localUsageExportError()) {
+          <p class="text-xs text-[var(--sanring-error-fg)]">{{ localUsageExportError() }}</p>
+        }
+      </div>
     </sanring-card>
 
     <sanring-card class="p-4 flex flex-col gap-3">
@@ -665,50 +798,45 @@
           </div>
         }
       }
-    </sanring-card>
-
-    <sanring-card class="p-4 flex flex-col gap-3">
-      <div class="flex flex-col gap-1">
-        <h3 class="text-base font-semibold">{{ t('ledgerSectionExport') }}</h3>
-        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('ledgerSectionExportHint') }}</p>
+      <div class="flex flex-col gap-2 border-t border-[var(--sanring-border)] pt-3">
+        <div class="flex items-center gap-2">
+          <button
+            sanringBtn
+            type="button"
+            size="sm"
+            variant="secondary"
+            class="flex-1 inline-flex items-center justify-center gap-1.5"
+            [disabled]="historyExportStatus() === 'pending'"
+            (click)="exportUsageHistory('md')"
+          >
+            @if (historyExportStatus() === 'pending') {
+              <sanring-spinner size="sm" />
+            } @else {
+              <svg lucideFileText class="size-3.5"></svg>
+            }
+            {{ t('exportMd') }}
+          </button>
+          <button
+            sanringBtn
+            type="button"
+            size="sm"
+            variant="secondary"
+            class="flex-1 inline-flex items-center justify-center gap-1.5"
+            [disabled]="historyExportStatus() === 'pending'"
+            (click)="exportUsageHistory('xlsx')"
+          >
+            @if (historyExportStatus() === 'pending') {
+              <sanring-spinner size="sm" />
+            } @else {
+              <svg lucideFileSpreadsheet class="size-3.5"></svg>
+            }
+            {{ t('exportXlsx') }}
+          </button>
+        </div>
+        @if (historyExportStatus() === 'error' && historyExportError()) {
+          <p class="text-xs text-[var(--sanring-error-fg)]">{{ historyExportError() }}</p>
+        }
       </div>
-      <div class="flex items-center gap-2">
-        <button
-          sanringBtn
-          type="button"
-          size="sm"
-          variant="secondary"
-          class="flex-1 inline-flex items-center justify-center gap-1.5"
-          [disabled]="historyExportStatus() === 'pending'"
-          (click)="exportUsageHistory('md')"
-        >
-          @if (historyExportStatus() === 'pending') {
-            <sanring-spinner size="sm" />
-          } @else {
-            <svg lucideFileText class="size-3.5"></svg>
-          }
-          {{ t('exportMd') }}
-        </button>
-        <button
-          sanringBtn
-          type="button"
-          size="sm"
-          variant="secondary"
-          class="flex-1 inline-flex items-center justify-center gap-1.5"
-          [disabled]="historyExportStatus() === 'pending'"
-          (click)="exportUsageHistory('xlsx')"
-        >
-          @if (historyExportStatus() === 'pending') {
-            <sanring-spinner size="sm" />
-          } @else {
-            <svg lucideFileSpreadsheet class="size-3.5"></svg>
-          }
-          {{ t('exportXlsx') }}
-        </button>
-      </div>
-      @if (historyExportStatus() === 'error' && historyExportError()) {
-        <p class="text-xs text-[var(--sanring-error-fg)]">{{ historyExportError() }}</p>
-      }
     </sanring-card>
 
     <ng-template #tokenMetrics let-rows="rows" let-totals="totals">
@@ -1109,7 +1237,7 @@
       </sanring-alert-dialog-content>
     </ng-template>
   } @else {
-    <!-- ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況，純靜態內容） ──────────── -->
+    <!-- ── 說明頁：共通事項與用量來源放在同一層，來源細節以單一手風琴收合 ─────── -->
     <div class="flex flex-col gap-4 mb-1">
       <button sanringBtn type="button" size="sm" variant="secondary" class="self-start inline-flex items-center gap-1.5" (click)="closeInfoView()">
         <svg lucideArrowLeft class="size-4"></svg>
@@ -1118,19 +1246,42 @@
       <h2 class="text-lg font-semibold">{{ t('infoTitle') }}</h2>
     </div>
 
-    @for (section of infoSections; track section.titleKey) {
+    <section
+      class="flex gap-3 rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-warn-60)] bg-[color-mix(in_srgb,var(--sanring-warn-50)_12%,var(--sanring-surface))] p-4 text-xs"
+      aria-labelledby="undocumented-endpoints-title"
+    >
+      <svg lucideCircleAlert class="mt-0.5 size-4 shrink-0 text-[var(--sanring-warn-fg)]"></svg>
+      <div class="min-w-0">
+        <h3 id="undocumented-endpoints-title" class="mb-1 font-semibold text-[var(--sanring-warn-fg)]">{{ t('infoDisclaimerTitle') }}</h3>
+        <p class="leading-relaxed text-[var(--sanring-foreground)]">{{ t('infoDisclaimerBody') }}</p>
+      </div>
+    </section>
+
+    @for (notice of infoNotices; track notice.titleKey) {
       <sanring-card class="p-4 flex flex-col gap-2">
-        <h3 class="text-base font-semibold">{{ t(section.titleKey) }}</h3>
-        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t(section.bodyKey) }}</p>
+        <h3 class="text-base font-semibold">{{ t(notice.titleKey) }}</h3>
+        <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t(notice.bodyKey) }}</p>
       </sanring-card>
     }
 
-    <sanring-alert class="text-xs">
-      <svg lucideInfo class="size-4"></svg>
-      <p sanringAlertDescription>
-        <span class="font-semibold block mb-0.5">{{ t('infoDisclaimerTitle') }}</span>
-        {{ t('infoDisclaimerBody') }}
-      </p>
-    </sanring-alert>
+    <details class="group overflow-hidden rounded-[var(--sanring-radius-lg)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)] shadow-sm">
+      <summary class="flex cursor-pointer list-none items-center gap-3 p-4 select-none transition-colors hover:bg-[var(--sanring-surface-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sanring-border-strong)] [&::-webkit-details-marker]:hidden">
+        <div class="min-w-0 flex-1">
+          <h3 class="text-base font-semibold">{{ t('infoSourcesTitle') }}</h3>
+          <p class="mt-1 text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t('infoSourcesHint') }}</p>
+        </div>
+        <svg lucideChevronDown class="size-4 shrink-0 text-[var(--sanring-muted)] transition-transform duration-200 group-open:rotate-180"></svg>
+      </summary>
+      <div class="border-t border-[var(--sanring-border)] bg-[var(--sanring-surface-strong)] p-3">
+        <div class="overflow-hidden rounded-[var(--sanring-radius)] border border-[var(--sanring-border)] bg-[var(--sanring-surface)]">
+          @for (section of infoSections; track section.titleKey; let first = $first) {
+            <section class="flex flex-col gap-1.5 border-[var(--sanring-border)] p-3" [class.border-t]="!first">
+              <h4 class="text-sm font-semibold">{{ t(section.titleKey) }}</h4>
+              <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">{{ t(section.bodyKey) }}</p>
+            </section>
+          }
+        </div>
+      </div>
+    </details>
   }
 </main>

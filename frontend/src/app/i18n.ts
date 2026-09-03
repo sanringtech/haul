@@ -132,12 +132,17 @@ export interface Translations {
   ledgerTitle: string;
   ledgerDescription: string;
   ledgerSectionTokens: string;
-  ledgerSectionTokensHint: string;
+  ledgerSectionTokensHintSources: string;
+  ledgerSectionTokensHintRange: string;
+  ledgerSectionTokensHintAccounts: string;
+  ledgerSectionTokensHintPricing: string;
+  ledgerSectionTokensHintUnsupported: string;
   ledgerSectionTokensInfoAria: string;
+  ledgerLocalExportHint: string;
+  ledgerLocalExportInfoAria: string;
+  ledgerLocalExportXlsx: string;
   ledgerSectionCharts: string;
   ledgerSectionChartsHint: string;
-  ledgerSectionExport: string;
-  ledgerSectionExportHint: string;
   ledgerRecordingOff: string;
   ledgerTokenTitle: string;
   ledgerTokenNeedDesktop: string;
@@ -153,6 +158,20 @@ export interface Translations {
   ledgerColCacheRead: string;
   ledgerColEstUsd: string;
   ledgerTokenTotal: string;
+  ledgerSliceModels: string;
+  ledgerSliceMonth: string;
+  ledgerSliceWeek: string;
+  ledgerSliceDays: string;
+  ledgerSliceSessions: string;
+  ledgerSliceEntries: string;
+  ledgerSliceReplies: string;
+  ledgerSliceEmpty: string;
+  ledgerSlicePrev: string;
+  ledgerSliceNext: string;
+  ledgerSliceDateAria: string;
+  ledgerSliceMonthAria: string;
+  ledgerSliceWeekRange: string;
+  ledgerSlicePeriodHint: string;
   usageHistorySettingsHint: string;
   refreshIntervalLabel: string;
   nearLimitLabel: string;
@@ -202,9 +221,15 @@ export interface Translations {
   unhideSource: string;
   hiddenSourcesTitle: string;
 
-  // ── 用量來源說明頁（各 AI 類型多帳號/資料來源現況）──
+  // ── 說明頁（共通注意事項；用量來源說明以手風琴收合）──
   infoAria: string;
   infoTitle: string;
+  infoTestingTitle: string;
+  infoTestingBody: string;
+  infoUsdTitle: string;
+  infoUsdBody: string;
+  infoSourcesTitle: string;
+  infoSourcesHint: string;
   infoClaudeTitle: string;
   infoClaudeBody: string;
   infoCodexTitle: string;
@@ -341,12 +366,17 @@ export const translations: Record<Lang, Translations> = {
     ledgerTitle: '用量紀錄',
     ledgerDescription: '已經發生的本機紀錄，不是未來用量預測。估算美元不是帳單。',
     ledgerSectionTokens: '本機用量',
-    ledgerSectionTokensHint: '只加總本機 Claude Code（~/.claude/projects JSONL）與 Codex CLI（~/.codex/sessions，每檔取最後累計）。切過帳號仍合計在這台機器。金額依官方 API 標價估算，不是帳單；Codex 官價表沒有的模型不估。Cursor、DeepSeek、Kimi 沒有同等 JSONL，訂閱制百分比在下面「配額走勢」。',
+    ledgerSectionTokensHintSources: '只加總本機 Claude Code（~/.claude/projects JSONL）與 Codex CLI（~/.codex/sessions，每檔取最後累計）。',
+    ledgerSectionTokensHintRange: '合計為最近 30 天；按月／按周／按日可選日期範圍（週從週一起算）。超出掃描窗的日期會顯示為空。',
+    ledgerSectionTokensHintAccounts: '切換過的帳號仍會合計在這台機器上。',
+    ledgerSectionTokensHintPricing: '金額依官方 API 標價估算，不是帳單；Codex 官價表沒有的模型不估算。',
+    ledgerSectionTokensHintUnsupported: 'Cursor、DeepSeek、Kimi 沒有同等 JSONL；訂閱制百分比請見下方「配額走勢」。',
     ledgerSectionTokensInfoAria: '本機用量說明',
+    ledgerLocalExportHint: '匯出最近 30 天完整本機紀錄，不受目前月／週／日篩選影響。Excel 含 Claude 與 Codex 兩個工作表。',
+    ledgerLocalExportInfoAria: '本機用量匯出說明',
+    ledgerLocalExportXlsx: '匯出本機用量 Excel',
     ledgerSectionCharts: '配額走勢',
     ledgerSectionChartsHint: '設定開啟「記錄用量歷史」後，把各訂閱制帳號的用量百分比存下來畫圖，含 Cursor 的內建／其他模型桶。',
-    ledgerSectionExport: '匯出',
-    ledgerSectionExportHint: '匯出的是「配額走勢」那份百分比時間序列（帳號、視窗、用量 %），不是上面 Claude／Codex 的 token 表。',
     ledgerRecordingOff: '目前沒有繼續寫入新的配額歷史。到設定開啟「記錄用量歷史」。',
     ledgerTokenTitle: 'Claude 本機用量',
     ledgerTokenNeedDesktop: '要讀本機 JSONL 需要桌面殼，ng serve 純前端看不到這張表。',
@@ -362,6 +392,20 @@ export const translations: Record<Lang, Translations> = {
     ledgerColCacheRead: 'Cache 讀取',
     ledgerColEstUsd: '估算 $',
     ledgerTokenTotal: '合計',
+    ledgerSliceModels: '合計',
+    ledgerSliceMonth: '按月',
+    ledgerSliceWeek: '按周',
+    ledgerSliceDays: '按日',
+    ledgerSliceSessions: '按對話',
+    ledgerSliceEntries: '{count} 筆',
+    ledgerSliceReplies: '{count} 則回覆',
+    ledgerSliceEmpty: '這邊目前沒有紀錄。',
+    ledgerSlicePrev: '上一段',
+    ledgerSliceNext: '下一段',
+    ledgerSliceDateAria: '選擇日期',
+    ledgerSliceMonthAria: '選擇月份',
+    ledgerSliceWeekRange: '{start}–{end}',
+    ledgerSlicePeriodHint: '只含最近 30 天掃到的本機紀錄。',
     usageHistorySettingsHint: '圖表與匯出改到「用量紀錄」頁，這裡只決定要不要繼續記錄。',
     refreshIntervalLabel: '自動刷新頻率',
     nearLimitLabel: '用量達到多少時提醒',
@@ -410,8 +454,14 @@ export const translations: Record<Lang, Translations> = {
     unhideSource: '顯示',
     hiddenSourcesTitle: '已隱藏的來源',
 
-    infoAria: '用量來源說明',
-    infoTitle: '用量來源說明',
+    infoAria: '說明',
+    infoTitle: '說明',
+    infoTestingTitle: '測試階段',
+    infoTestingBody: 'Haul 還在測試，數字跟畫面都可能再改。看到的用量請當參考，不要當成正式帳單。',
+    infoUsdTitle: '美金計價',
+    infoUsdBody: '金額一律用美元（$）顯示。本機用量是依官方 API 標價估算，不是服務商開給你的帳單，也不是新台幣。',
+    infoSourcesTitle: '用量來源說明',
+    infoSourcesHint: '各 AI 類型怎麼讀取用量、是否支援多帳號。點擊展開詳細說明。',
     infoClaudeTitle: 'Claude',
     infoClaudeBody: '支援多帳號：每次擷取目前 Claude Code 已登入的那個帳號。升級時若本機有 cswap，會一次性匯入既有帳號，之後不再呼叫 cswap。',
     infoCodexTitle: 'Codex',
@@ -429,7 +479,7 @@ export const translations: Record<Lang, Translations> = {
 
     disclosureTitle: '本機資料存取聲明',
     disclosureBody: '本 App 僅讀取各 AI 官方 CLI 的本機登入資訊，以及您提供的 API KEY，皆不會外傳。',
-    disclosureInfoHint: '完整用量來源說明請點選右上角圖示查看',
+    disclosureInfoHint: '更多說明請點選右上角圖示',
     disclosureAck: '了解',
   },
   en: {
@@ -545,12 +595,17 @@ export const translations: Record<Lang, Translations> = {
     ledgerTitle: 'Usage records',
     ledgerDescription: 'What already happened on this machine — not a forecast. Estimated dollars are not a bill.',
     ledgerSectionTokens: 'Local usage',
-    ledgerSectionTokensHint: 'Only Claude Code (~/.claude/projects JSONL) and Codex CLI (~/.codex/sessions, last cumulative total per file) are totaled here. Switched accounts stay combined on this machine. Dollars use official API list prices — estimate, not a bill. Codex models missing from the list stay unpriced. Cursor, DeepSeek, and Kimi have no equivalent JSONL; subscription percentages appear under Quota trend below.',
+    ledgerSectionTokensHintSources: 'Only local Claude Code (~/.claude/projects JSONL) and Codex CLI (~/.codex/sessions, last cumulative total per file) are totaled here.',
+    ledgerSectionTokensHintRange: 'All covers the last 30 days; Month / Week / Day select a date range (weeks start Monday). Dates outside the scan window are empty.',
+    ledgerSectionTokensHintAccounts: 'Accounts switched on this machine remain combined in the total.',
+    ledgerSectionTokensHintPricing: 'Dollar amounts use official API list prices and are estimates, not bills. Codex models missing from the price list remain unpriced.',
+    ledgerSectionTokensHintUnsupported: 'Cursor, DeepSeek, and Kimi have no equivalent JSONL; see Quota trend below for subscription percentages.',
     ledgerSectionTokensInfoAria: 'About local usage',
+    ledgerLocalExportHint: 'Exports the complete last 30 days of local records, regardless of the selected month, week, or day. The workbook contains separate Claude and Codex sheets.',
+    ledgerLocalExportInfoAria: 'About local usage export',
+    ledgerLocalExportXlsx: 'Export local usage Excel',
     ledgerSectionCharts: 'Quota trend',
     ledgerSectionChartsHint: 'When “Record usage history” is on, subscription percentages are stored and charted — including Cursor’s two model buckets.',
-    ledgerSectionExport: 'Export',
-    ledgerSectionExportHint: 'This exports the Quota trend percentage series (account, window, usage %), not the Claude/Codex token tables above.',
     ledgerRecordingOff: 'New quota-history samples are not being written. Turn on “Record usage history” in Settings.',
     ledgerTokenTitle: 'Claude local usage',
     ledgerTokenNeedDesktop: 'Reading local JSONL needs the desktop shell. This table is empty under ng serve.',
@@ -566,6 +621,20 @@ export const translations: Record<Lang, Translations> = {
     ledgerColCacheRead: 'Cache read',
     ledgerColEstUsd: 'Est. $',
     ledgerTokenTotal: 'Total',
+    ledgerSliceModels: 'All',
+    ledgerSliceMonth: 'Month',
+    ledgerSliceWeek: 'Week',
+    ledgerSliceDays: 'Day',
+    ledgerSliceSessions: 'Conversations',
+    ledgerSliceEntries: '{count} entries',
+    ledgerSliceReplies: '{count} replies',
+    ledgerSliceEmpty: 'Nothing to show here.',
+    ledgerSlicePrev: 'Previous',
+    ledgerSliceNext: 'Next',
+    ledgerSliceDateAria: 'Choose a date',
+    ledgerSliceMonthAria: 'Choose a month',
+    ledgerSliceWeekRange: '{start}–{end}',
+    ledgerSlicePeriodHint: 'Only local records from the last 30 days.',
     usageHistorySettingsHint: 'Charts and export live on the Usage records page. This switch only controls whether new samples are recorded.',
     refreshIntervalLabel: 'Auto-refresh interval',
     nearLimitLabel: 'Warn when usage reaches',
@@ -614,8 +683,14 @@ export const translations: Record<Lang, Translations> = {
     unhideSource: 'Show',
     hiddenSourcesTitle: 'Hidden sources',
 
-    infoAria: 'Usage sources info',
-    infoTitle: 'Usage sources',
+    infoAria: 'About',
+    infoTitle: 'About',
+    infoTestingTitle: 'Testing preview',
+    infoTestingBody: 'Haul is still in testing. Numbers and screens may change. Treat usage figures as a reference, not an official bill.',
+    infoUsdTitle: 'US dollar pricing',
+    infoUsdBody: 'All amounts are shown in US dollars ($). Local usage is estimated from official API list prices — not the bill your provider sends you, and not a local-currency total.',
+    infoSourcesTitle: 'Usage sources',
+    infoSourcesHint: 'How each AI type reads usage and whether multiple accounts are supported. Select to expand.',
     infoClaudeTitle: 'Claude',
     infoClaudeBody: 'Multiple accounts: capture whichever account Claude Code is currently logged into. If cswap was already in use, existing accounts are imported once on upgrade — cswap is not called at runtime after that.',
     infoCodexTitle: 'Codex',
@@ -633,7 +708,7 @@ export const translations: Record<Lang, Translations> = {
 
     disclosureTitle: 'Local data access notice',
     disclosureBody: "This app only reads local login info from each AI's official CLI, and any API keys you provide — none of it is ever sent elsewhere.",
-    disclosureInfoHint: 'For the full explanation, tap the icon in the top-right corner',
+    disclosureInfoHint: 'Tap the icon in the top-right corner for more about Haul',
     disclosureAck: 'Got it',
   },
 };

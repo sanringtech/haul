@@ -210,6 +210,7 @@ related_adrs: []
 - [ ] Given 用量來自本機 JSONL 加總，when 顯示分模型 token／金額，then 必須標「估算」（憲法 R3/I3），不可寫成官方帳單
 - [ ] Given 本機 JSONL 曾切過帳，when 加總 token／金額，then 標本機合計，不硬拆到各帳號
 - [ ] Given 記錄開關關閉，when 之後刷新，then 不再寫入新流水帳；已寫入的紀錄仍可在帳簿頁查看／匯出，直到保留期或手動清除
+- [ ] Given 本機用量已有 JSONL 合計，when 切「按月／按周／按日」，then 用日期選擇器看該段估算；按對話暫不顯示。切面只在帳簿頁，不出現在首頁
 
 ## 5. 技術選型 (Tech Stack)
 
@@ -462,6 +463,7 @@ interface UsageSummary {
 | L1 帳簿頁搬遷 | 既有％歷史圖（折線／甜甜圈）與 Markdown/Excel 匯出從設定搬到與設定同級的帳簿頁；設定只留「要不要記帳」開關；首頁維持配額燈號 | Story 12 中「與設定分開／首頁不被取代」Acceptance Criteria 通過 |
 | L2 Claude JSONL | 本機解析 Claude JSONL，寫入流水帳（分模型 token＋估算金額，標 `isEstimated`）；切過帳 log 標本機合計 | 帳簿頁能看到 Claude 分模型 token／估算金額，且標「估算」；取消追蹤刪該帳號流水帳（Story 7） |
 | L3 Codex JSONL | 同樣能力擴到 Codex JSONL | Codex 帳號在帳簿頁有對應 token／估算金額；不引入 `npx ccusage` |
+| L4 按月／按周／按日 | 同一輪 JSONL 的 days 在前端加總成月／周／日；帳簿「本機用量」可切合計／按月／按周／按日，後三者用日期選擇器（週從周一起）。按對話暫藏。掃描窗 30 天，窗外為空。不做預測燒盡 | 選定區間的模型表由 days 加總；標估算；不出現在首頁 |
 
 - M6 上線後：實際使用 1–2 週後，review 估算值與官方數字的落差是否在可接受範圍（呼應憲法 Decision 1 的風險）
 - 觀察是否需要系統匣常駐圖示（tray icon）——目前排除於本期範圍，若使用者回報「工具視窗常被關閉導致漏看警示」，應評估另開 PRD 增修或 ADR

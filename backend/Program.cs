@@ -205,6 +205,10 @@ async void OnWebMessageReceived(object? sender, string message)
                 await ExportUsageHistoryAsync(request.ExportFormat, request.Lang == "en" ? "en" : "zh-TW");
                 break;
 
+            case "export-local-token-usage" when request.ExportFormat is "xlsx":
+                await ExportLocalTokenUsageAsync(request.Lang == "en" ? "en" : "zh-TW");
+                break;
+
             case "quit":
             case "quit-app":
                 Volatile.Write(ref quitRequested, 1);
@@ -293,6 +297,32 @@ async void OnWebMessageReceived(object? sender, string message)
 
         host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("usage-history-exported", null, null), jsonOptions));
     }
+
+    async Task ExportLocalTokenUsageAsync(string lang)
+    {
+        var claude = ClaudeJsonlLedger.Scan();
+        var codex = CodexJsonlLedger.Scan();
+        var zhTw = lang != "en";
+        var suggestedName = $"haul_local_usage_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+        var downloadsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+
+        var chosenPath = await host.ShowSaveFileAsync(
+            title: zhTw ? "匯出本機用量" : "Export local usage",
+            defaultPath: Path.Combine(downloadsDir, suggestedName),
+            filters: [(zhTw ? "Excel 檔案" : "Excel workbook", new[] { "xlsx" })]);
+        if (string.IsNullOrEmpty(chosenPath))
+        {
+            host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("local-token-usage-export-cancelled", null, null), jsonOptions));
+            return;
+        }
+
+        var chosenDir = Path.GetDirectoryName(chosenPath) ?? downloadsDir;
+        if (Path.GetFileNameWithoutExtension(chosenPath).Equals("Untitled", StringComparison.OrdinalIgnoreCase))
+            chosenPath = Path.Combine(chosenDir, suggestedName);
+
+        await File.WriteAllBytesAsync(chosenPath, LocalTokenUsageExporter.BuildXlsx(claude, codex, zhTw));
+        host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("local-token-usage-exported", null, null), jsonOptions));
+    }
 }
 
 file sealed record HostRequest(
@@ -312,7 +342,7 @@ file sealed record HostRequest(
     bool? UsageHistoryEnabled = null,
     bool? ClaudeWakeUpEnabled = null,
     Dictionary<string, int>? ClaudeWakeUpAccountHours = null,
-    // export-usage-history 專用："md" | "xlsx"，lang 決定匯出檔案表頭文字語言（前端目前選的 UI 語言）。
+    // 匯出專用：歷史支援 "md" | "xlsx"，本機 token 支援 "xlsx"；lang 決定檔案內文字語言。
     string? ExportFormat = null,
     string? Lang = null);
 

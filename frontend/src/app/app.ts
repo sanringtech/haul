@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, TemplateRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, TemplateRef, ViewChild, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
@@ -6,6 +6,8 @@ import {
   LucideBookOpen,
   LucideCheck,
   LucideChevronDown,
+  LucideChevronLeft,
+  LucideChevronRight,
   LucideChevronUp,
   LucideCircleAlert,
   LucideCircleCheck,
@@ -40,6 +42,10 @@ import { SANRING_DIALOG_IMPORTS } from './components/ui/dialog';
 import { SpinnerComponent } from './components/ui/spinner';
 import { SkeletonDirective } from './components/ui/skeleton';
 import { SANRING_TOOLTIP_IMPORTS } from './components/ui/tooltip';
+import { DatePickerComponent, SANRING_DATE_PICKER_IMPORTS } from './components/ui/date-picker';
+import { CalendarComponent, SANRING_CALENDAR_IMPORTS } from './components/ui/calendar';
+import { SANRING_POPOVER_IMPORTS } from './components/ui/popover';
+import { CalendarLocale, DisabledInput } from '@sanring/date-picker-core';
 import { Lang, LANG_STORAGE_KEY, Translations, translations } from './i18n';
 import { ConnectionState, HiddenAccountEntry, LocalizedMessage, SourceType, UsageState, UsageSummary } from './shared/wire-types';
 
@@ -98,6 +104,15 @@ interface TokenRowWire {
   estimatedCostUsd: number | null;
 }
 
+interface TokenSliceWire {
+  key: string;
+  label: string;
+  models: TokenRowWire[];
+  entries: number;
+  oldestUtc: string | null;
+  newestUtc: string | null;
+}
+
 interface TokenLedgerWire {
   source: string;
   bucket: string;
@@ -105,6 +120,69 @@ interface TokenLedgerWire {
   entries: number;
   oldestUtc: string | null;
   newestUtc: string | null;
+  days?: TokenSliceWire[];
+  sessions?: TokenSliceWire[];
+}
+
+type TokenSliceMode = 'models' | 'month' | 'week' | 'day';
+
+const CALENDAR_LOCALE_ZH: CalendarLocale = {
+  weekStartsOn: 1,
+  weekdayLabels: ['日', '一', '二', '三', '四', '五', '六'],
+  monthLabels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+};
+
+const CALENDAR_LOCALE_EN: CalendarLocale = {
+  weekStartsOn: 1,
+  weekdayLabels: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+  monthLabels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+};
+
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseYmd(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+function mondayOf(value: string): Date {
+  const d = parseYmd(value);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
+
+function mergeTokenRows(rows: TokenRowWire[]): TokenRowWire[] {
+  const map = new Map<string, TokenRowWire>();
+  for (const row of rows) {
+    const cur = map.get(row.model);
+    if (!cur) {
+      map.set(row.model, { ...row });
+      continue;
+    }
+    const cost =
+      cur.estimatedCostUsd == null && row.estimatedCostUsd == null
+        ? null
+        : (cur.estimatedCostUsd ?? 0) + (row.estimatedCostUsd ?? 0);
+    map.set(row.model, {
+      model: row.model,
+      inputTokens: cur.inputTokens + row.inputTokens,
+      outputTokens: cur.outputTokens + row.outputTokens,
+      cacheCreation5mTokens: cur.cacheCreation5mTokens + row.cacheCreation5mTokens,
+      cacheCreation1hTokens: cur.cacheCreation1hTokens + row.cacheCreation1hTokens,
+      cacheReadTokens: cur.cacheReadTokens + row.cacheReadTokens,
+      estimatedCostUsd: cost == null ? null : Math.round(cost * 10_000) / 10_000,
+    });
+  }
+  return [...map.values()].sort(
+    (a, b) =>
+      (b.estimatedCostUsd ?? 0) - (a.estimatedCostUsd ?? 0)
+      || b.inputTokens + b.outputTokens + b.cacheReadTokens - (a.inputTokens + a.outputTokens + a.cacheReadTokens),
+  );
 }
 
 /** Mirrors backend's UsageHistoryStore.UsageHistoryPoint（camelCase on the wire）——帳簿頁折線圖用。 */
@@ -172,6 +250,8 @@ interface CatalogEntry {
     LucideBookOpen,
     LucideCheck,
     LucideChevronDown,
+    LucideChevronLeft,
+    LucideChevronRight,
     LucideChevronUp,
     LucideCircleAlert,
     LucideCircleCheck,
@@ -195,6 +275,9 @@ interface CatalogEntry {
     ...SANRING_ALERT_DIALOG_IMPORTS,
     ...SANRING_DIALOG_IMPORTS,
     ...SANRING_TOOLTIP_IMPORTS,
+    ...SANRING_DATE_PICKER_IMPORTS,
+    ...SANRING_CALENDAR_IMPORTS,
+    ...SANRING_POPOVER_IMPORTS,
   ],
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -352,6 +435,8 @@ export class App implements AfterViewInit {
   /** 匯出用量歷史（md/xlsx）的按鈕狀態——跟 addStatus/settingsSaveStatus 同一種「按下去到有結果」模式。 */
   protected readonly historyExportStatus = signal<'idle' | 'pending' | 'success' | 'error'>('idle');
   protected readonly historyExportError = signal<string | null>(null);
+  protected readonly localUsageExportStatus = signal<'idle' | 'pending' | 'success' | 'error'>('idle');
+  protected readonly localUsageExportError = signal<string | null>(null);
   protected readonly usageHistory = signal<UsageHistoryPointWire[]>([]);
   protected readonly claudeTokenLedger = signal<TokenLedgerWire | null>(null);
   protected readonly codexTokenLedger = signal<TokenLedgerWire | null>(null);
@@ -374,6 +459,11 @@ export class App implements AfterViewInit {
     },
   ]);
 
+  protected readonly infoNotices = [
+    { titleKey: 'infoTestingTitle' as const, bodyKey: 'infoTestingBody' as const },
+    { titleKey: 'infoUsdTitle' as const, bodyKey: 'infoUsdBody' as const },
+  ];
+
   protected readonly infoSections = [
     { titleKey: 'infoClaudeTitle', bodyKey: 'infoClaudeBody' },
     { titleKey: 'infoCodexTitle', bodyKey: 'infoCodexBody' },
@@ -383,7 +473,7 @@ export class App implements AfterViewInit {
     { titleKey: 'infoGrokTitle', bodyKey: 'infoGrokBody' },
   ] as const;
 
-  private tokenTotals(ledger: TokenLedgerWire | null): { input: number; output: number; cacheWrite: number; cacheRead: number; cost: number | null } {
+  private tokenTotals(ledger: TokenLedgerWire | { models: TokenRowWire[] } | null): { input: number; output: number; cacheWrite: number; cacheRead: number; cost: number | null } {
     const rows = ledger?.models ?? [];
     let input = 0;
     let output = 0;
@@ -409,9 +499,146 @@ export class App implements AfterViewInit {
    * 卡片下面。圖表現在在帳簿頁，chartMode 決定畫哪一種；之後加熱力圖這裡多一個 union 即可。
    */
   protected readonly chartMode = signal<'line' | 'donut'>('line');
+  protected readonly tokenSliceMode = signal<TokenSliceMode>('models');
+  protected readonly tokenSliceAnchor = signal(ymd(new Date()));
+  protected readonly datePickerOpen = signal(false);
+  protected readonly tokenSliceSelectedDate = computed(() => parseYmd(this.tokenSliceAnchor()));
+  private readonly periodDatePicker = viewChild(DatePickerComponent);
+  private readonly periodCalendar = viewChild(CalendarComponent);
+  protected readonly tokenSliceDisabled = computed<DisabledInput>(() => {
+    const min = this.tokenSliceMinDate();
+    const max = this.tokenSliceMaxDate();
+    const mode = this.tokenSliceMode();
+    return (date: Date) => {
+      const key = ymd(date);
+      if (mode === 'month') {
+        const month = key.slice(0, 7);
+        return month < min.slice(0, 7) || month > max.slice(0, 7);
+      }
+      if (mode === 'week') {
+        const start = ymd(mondayOf(key));
+        const end = parseYmd(start);
+        end.setDate(end.getDate() + 6);
+        return ymd(end) < min || start > max;
+      }
+      return key < min || key > max;
+    };
+  });
+
+  protected calendarLocale(): CalendarLocale {
+    return this.lang() === 'en' ? CALENDAR_LOCALE_EN : CALENDAR_LOCALE_ZH;
+  }
+
+  protected tokenSliceTriggerLabel(): string {
+    if (this.tokenSliceMode() === 'week') return this.tokenSliceWeekLabel();
+    if (this.tokenSliceMode() === 'month') return this.tokenSliceMonthValue();
+    return this.tokenSliceAnchor();
+  }
+
+  protected onTokenSlicePicked(date: Date | null): void {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+    const next = ymd(date);
+    const current = this.tokenSliceAnchor();
+    const mode = this.tokenSliceMode();
+    const unchanged =
+      mode === 'month'
+        ? next.slice(0, 7) === current.slice(0, 7)
+        : mode === 'week'
+          ? ymd(mondayOf(next)) === ymd(mondayOf(current))
+          : next === current;
+    if (unchanged) return;
+    this.tokenSliceAnchor.set(next);
+    this.datePickerOpen.set(false);
+  }
 
   protected setChartMode(mode: 'line' | 'donut'): void {
     this.chartMode.set(mode);
+  }
+
+  protected setTokenSliceMode(mode: TokenSliceMode): void {
+    if (this.tokenSliceMode() === 'models' && mode !== 'models') {
+      this.tokenSliceAnchor.set(this.tokenSliceMaxDate());
+    }
+    this.tokenSliceMode.set(mode);
+  }
+
+  private allLedgerDayKeys(): string[] {
+    const keys = new Set<string>();
+    for (const day of this.claudeTokenLedger()?.days ?? []) keys.add(day.key);
+    for (const day of this.codexTokenLedger()?.days ?? []) keys.add(day.key);
+    return [...keys].sort();
+  }
+
+  protected tokenSliceMinDate(): string {
+    return this.allLedgerDayKeys()[0] ?? ymd(new Date());
+  }
+
+  protected tokenSliceMaxDate(): string {
+    return this.allLedgerDayKeys().at(-1) ?? ymd(new Date());
+  }
+
+  protected tokenSliceMonthValue(): string {
+    return this.tokenSliceAnchor().slice(0, 7);
+  }
+
+  protected tokenSliceWeekLabel(): string {
+    const start = mondayOf(this.tokenSliceAnchor());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return this.t('ledgerSliceWeekRange', {
+      start: `${start.getMonth() + 1}/${start.getDate()}`,
+      end: `${end.getMonth() + 1}/${end.getDate()}`,
+    });
+  }
+
+  protected shiftTokenSlice(delta: number): void {
+    const next = parseYmd(this.tokenSliceAnchor());
+    const mode = this.tokenSliceMode();
+    if (mode === 'month') next.setMonth(next.getMonth() + delta);
+    else if (mode === 'week') next.setDate(next.getDate() + delta * 7);
+    else next.setDate(next.getDate() + delta);
+    let value = ymd(next);
+    const min = this.tokenSliceMinDate();
+    const max = this.tokenSliceMaxDate();
+    if (value < min) value = min;
+    if (value > max) value = max;
+    this.tokenSliceAnchor.set(value);
+  }
+
+  private periodDayKeys(): Set<string> {
+    const anchor = this.tokenSliceAnchor();
+    const mode = this.tokenSliceMode();
+    if (mode === 'day') return new Set([anchor]);
+    if (mode === 'month') {
+      const prefix = anchor.slice(0, 7);
+      const keys = new Set<string>();
+      const cursor = parseYmd(`${prefix}-01`);
+      while (ymd(cursor).startsWith(prefix)) {
+        keys.add(ymd(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return keys;
+    }
+    if (mode === 'week') {
+      const start = mondayOf(anchor);
+      const keys = new Set<string>();
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(start);
+        day.setDate(start.getDate() + i);
+        keys.add(ymd(day));
+      }
+      return keys;
+    }
+    return new Set();
+  }
+
+  protected tokenPeriodRows(ledger: TokenLedgerWire | null): TokenRowWire[] {
+    const wanted = this.periodDayKeys();
+    return mergeTokenRows((ledger?.days ?? []).filter((day) => wanted.has(day.key)).flatMap((day) => day.models));
+  }
+
+  protected tokenPeriodTotals(ledger: TokenLedgerWire | null) {
+    return this.tokenTotals({ models: this.tokenPeriodRows(ledger) });
   }
 
   /**
@@ -625,6 +852,12 @@ export class App implements AfterViewInit {
       onCleanup(() => clearInterval(id));
     });
 
+    effect(() => {
+      const date = this.tokenSliceSelectedDate();
+      this.periodDatePicker()?.writeValue(date);
+      this.periodCalendar()?.writeValue(date);
+    });
+
     // 啟動時就要抓一次設定，不是只有打開設定頁才抓——不然自動刷新 timer 永遠只會用預設的
     // 60 分鐘，使用者上次存的值要等他自己點進設定頁才會套用，不合理。
     this.send({ type: 'get-settings' });
@@ -735,6 +968,8 @@ export class App implements AfterViewInit {
     this.view.set('ledger');
     this.historyExportStatus.set('idle');
     this.historyExportError.set(null);
+    this.localUsageExportStatus.set('idle');
+    this.localUsageExportError.set(null);
     this.sendSilent({ type: 'get-usage-history' });
   }
 
@@ -887,6 +1122,13 @@ export class App implements AfterViewInit {
     this.historyExportStatus.set('pending');
     this.historyExportError.set(null);
     this.sendSilent({ type: 'export-usage-history', exportFormat: format, lang: this.lang() });
+  }
+
+  /** 匯出最近 30 天完整本機掃描結果，不跟著畫面上目前的月／週／日篩選。 */
+  protected exportLocalUsage(): void {
+    this.localUsageExportStatus.set('pending');
+    this.localUsageExportError.set(null);
+    this.sendSilent({ type: 'export-local-token-usage', exportFormat: 'xlsx', lang: this.lang() });
   }
 
   protected selectAddSource(sourceId: string): void {
@@ -1227,10 +1469,24 @@ export class App implements AfterViewInit {
         return;
       }
 
+      if (payload.type === 'local-token-usage-exported') {
+        this.localUsageExportStatus.set('success');
+        setTimeout(() => this.localUsageExportStatus.set('idle'), 1500);
+        return;
+      }
+
+      if (payload.type === 'local-token-usage-export-cancelled') {
+        this.localUsageExportStatus.set('idle');
+        return;
+      }
+
       if (payload.error) {
         // 匯出中發生的錯誤（例如還沒有任何記錄）顯示在設定頁按鈕旁邊，不是清單頁那個全域的
         // lastError——使用者這時人在設定頁，清單頁的錯誤提示他根本看不到。
-        if (this.historyExportStatus() === 'pending') {
+        if (this.localUsageExportStatus() === 'pending') {
+          this.localUsageExportStatus.set('error');
+          this.localUsageExportError.set(payload.error);
+        } else if (this.historyExportStatus() === 'pending') {
           this.historyExportStatus.set('error');
           this.historyExportError.set(payload.error);
         } else {

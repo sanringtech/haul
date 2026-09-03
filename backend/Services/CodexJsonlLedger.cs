@@ -25,6 +25,8 @@ public static class CodexJsonlLedger
     {
         var cutoff = DateTime.UtcNow.AddDays(-RetentionDays);
         var byModel = new Dictionary<string, Acc>(StringComparer.Ordinal);
+        var byDay = new Dictionary<string, SliceAcc>(StringComparer.Ordinal);
+        var bySession = new Dictionary<string, SliceAcc>(StringComparer.Ordinal);
         long sessions = 0;
         DateTime? oldest = null;
         DateTime? newest = null;
@@ -42,21 +44,22 @@ public static class CodexJsonlLedger
                 byModel[model] = existing;
             }
             existing.Add(acc);
+            var at = last != default ? last : first;
+            // ponytail: Codex 只有檔尾累計，跨日 session 整桶算在最後一天。
+            if (at != default)
+                AddSlice(byDay, at.ToLocalTime().ToString("yyyy-MM-dd"), model, acc, at);
+            AddSlice(bySession, file, model, acc, first != default ? first : at, at);
         }
-
-        var models = byModel
-            .Select(kv => kv.Value.ToRow(kv.Key))
-            .OrderByDescending(r => r.EstimatedCostUsd ?? 0)
-            .ThenByDescending(r => r.InputTokens + r.OutputTokens + r.CacheReadTokens)
-            .ToArray();
 
         return new TokenLedger(
             "codex",
             "local-combined",
-            models,
+            ToRows(byModel),
             sessions,
             oldest?.ToString("o"),
-            newest?.ToString("o"));
+            newest?.ToString("o"),
+            ToDaySlices(byDay),
+            ToSessionSlices(bySession));
     }
 
     private static IEnumerable<string> EnumerateJsonlFiles()
@@ -220,6 +223,52 @@ public static class CodexJsonlLedger
         if (m is "gpt-5" or "gpt-5-chat")
             return new Rates(1.25, 0.125, 0, 10);
         return null;
+    }
+
+    private static void AddSlice(Dictionary<string, SliceAcc> map, string key, string model, Acc delta, DateTime at, DateTime? newest = null)
+    {
+        if (!map.TryGetValue(key, out var slice))
+        {
+            slice = new SliceAcc();
+            map[key] = slice;
+        }
+        slice.Entries++;
+        var end = newest ?? at;
+        if (at != default && (slice.Oldest is null || at < slice.Oldest)) slice.Oldest = at;
+        if (end != default && (slice.Newest is null || end > slice.Newest)) slice.Newest = end;
+        if (!slice.Models.TryGetValue(model, out var acc))
+        {
+            acc = new Acc();
+            slice.Models[model] = acc;
+        }
+        acc.Add(delta);
+    }
+
+    private static TokenRow[] ToRows(Dictionary<string, Acc> byModel) =>
+        [.. byModel
+            .Select(kv => kv.Value.ToRow(kv.Key))
+            .OrderByDescending(r => r.EstimatedCostUsd ?? 0)
+            .ThenByDescending(r => r.InputTokens + r.OutputTokens + r.CacheReadTokens)];
+
+    private static TokenSlice[] ToDaySlices(Dictionary<string, SliceAcc> byDay) =>
+        [.. byDay
+            .OrderByDescending(kv => kv.Key, StringComparer.Ordinal)
+            .Select(kv => kv.Value.ToSlice(kv.Key, kv.Key))];
+
+    private static TokenSlice[] ToSessionSlices(Dictionary<string, SliceAcc> bySession) =>
+        [.. bySession
+            .OrderByDescending(kv => kv.Value.Newest ?? DateTime.MinValue)
+            .Select(kv => kv.Value.ToSlice(kv.Key, TokenSliceUi.SessionLabel(kv.Key, kv.Value.Oldest, kv.Value.Newest)))];
+
+    private sealed class SliceAcc
+    {
+        public readonly Dictionary<string, Acc> Models = new(StringComparer.Ordinal);
+        public long Entries;
+        public DateTime? Oldest;
+        public DateTime? Newest;
+
+        public TokenSlice ToSlice(string key, string label) =>
+            new(key, label, ToRows(Models), Entries, Oldest?.ToString("o"), Newest?.ToString("o"));
     }
 
     private readonly record struct Rates(double Input, double CachedInput, double CacheWrite, double Output);

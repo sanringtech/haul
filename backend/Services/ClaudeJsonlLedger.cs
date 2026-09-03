@@ -25,6 +25,8 @@ public static class ClaudeJsonlLedger
         var cutoff = DateTime.UtcNow.AddDays(-RetentionDays);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var byModel = new Dictionary<string, Acc>(StringComparer.Ordinal);
+        var byDay = new Dictionary<string, SliceAcc>(StringComparer.Ordinal);
+        var bySession = new Dictionary<string, SliceAcc>(StringComparer.Ordinal);
         long messages = 0;
         DateTime? oldest = null;
         DateTime? newest = null;
@@ -46,6 +48,7 @@ public static class ClaudeJsonlLedger
                         {
                             if (oldest is null || at < oldest) oldest = at;
                             if (newest is null || at > newest) newest = at;
+                            AddSlice(byDay, at.ToLocalTime().ToString("yyyy-MM-dd"), model, delta, at);
                         }
                         if (!byModel.TryGetValue(model, out var acc))
                         {
@@ -53,6 +56,9 @@ public static class ClaudeJsonlLedger
                             byModel[model] = acc;
                         }
                         acc.Add(delta);
+                        // agent-* 是主對話拉出來的子任務，合計／按日仍算進去，按對話不單列。
+                        if (!TokenSliceUi.IsClaudeSubagent(file))
+                            AddSlice(bySession, file, model, delta, at);
                     }
                     catch (JsonException)
                     {
@@ -69,19 +75,16 @@ public static class ClaudeJsonlLedger
             }
         }
 
-        var models = byModel
-            .Select(kv => kv.Value.ToRow(kv.Key))
-            .OrderByDescending(r => r.EstimatedCostUsd ?? 0)
-            .ThenByDescending(r => r.InputTokens + r.OutputTokens + r.CacheReadTokens)
-            .ToArray();
-
+        var models = ToRows(byModel);
         return new TokenLedger(
             "claude",
             "local-combined",
             models,
             messages,
             oldest?.ToString("o"),
-            newest?.ToString("o"));
+            newest?.ToString("o"),
+            ToDaySlices(byDay),
+            ToSessionSlices(bySession));
     }
 
     private static IEnumerable<string> EnumerateJsonlFiles()
@@ -221,6 +224,54 @@ public static class ClaudeJsonlLedger
         if (m.Contains("haiku-3", StringComparison.Ordinal))
             return new Rates(0.8, 1, 1.6, 0.08, 4);
         return null;
+    }
+
+    private static void AddSlice(Dictionary<string, SliceAcc> map, string key, string model, Acc delta, DateTime at)
+    {
+        if (!map.TryGetValue(key, out var slice))
+        {
+            slice = new SliceAcc();
+            map[key] = slice;
+        }
+        slice.Entries++;
+        if (at != default)
+        {
+            if (slice.Oldest is null || at < slice.Oldest) slice.Oldest = at;
+            if (slice.Newest is null || at > slice.Newest) slice.Newest = at;
+        }
+        if (!slice.Models.TryGetValue(model, out var acc))
+        {
+            acc = new Acc();
+            slice.Models[model] = acc;
+        }
+        acc.Add(delta);
+    }
+
+    private static TokenRow[] ToRows(Dictionary<string, Acc> byModel) =>
+        [.. byModel
+            .Select(kv => kv.Value.ToRow(kv.Key))
+            .OrderByDescending(r => r.EstimatedCostUsd ?? 0)
+            .ThenByDescending(r => r.InputTokens + r.OutputTokens + r.CacheReadTokens)];
+
+    private static TokenSlice[] ToDaySlices(Dictionary<string, SliceAcc> byDay) =>
+        [.. byDay
+            .OrderByDescending(kv => kv.Key, StringComparer.Ordinal)
+            .Select(kv => kv.Value.ToSlice(kv.Key, kv.Key))];
+
+    private static TokenSlice[] ToSessionSlices(Dictionary<string, SliceAcc> bySession) =>
+        [.. bySession
+            .OrderByDescending(kv => kv.Value.Newest ?? DateTime.MinValue)
+            .Select(kv => kv.Value.ToSlice(kv.Key, TokenSliceUi.SessionLabel(kv.Key, kv.Value.Oldest, kv.Value.Newest)))];
+
+    private sealed class SliceAcc
+    {
+        public readonly Dictionary<string, Acc> Models = new(StringComparer.Ordinal);
+        public long Entries;
+        public DateTime? Oldest;
+        public DateTime? Newest;
+
+        public TokenSlice ToSlice(string key, string label) =>
+            new(key, label, ToRows(Models), Entries, Oldest?.ToString("o"), Newest?.ToString("o"));
     }
 
     private readonly record struct Rates(double Input, double Cache5m, double Cache1h, double CacheRead, double Output);

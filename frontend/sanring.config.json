@@ -86,7 +86,28 @@
     "dialog/dialog-trigger.directive.ts": "cbb268133d8bb59472aed1a92e2c868dc40a9cc72e092ef80c0c58e3e35f4adf",
     "dialog/dialog-close.directive.ts": "99d4f3ddd0f739e9d56681942a59f53bce291b5b28f26282055ea59678ff07a2",
     "dialog/dialog.styles.ts": "6288c6bab4f167f1d0c7a87f6ae7a844dde75530b0ecb1eef79ce130d759b0bf",
-    "dialog/index.ts": "b58ecfb5ca9007ee9d240bc8d1ecc93b0f6eab6a4b707992d67e17b291f26a38"
+    "dialog/index.ts": "b58ecfb5ca9007ee9d240bc8d1ecc93b0f6eab6a4b707992d67e17b291f26a38",
+    "shared/component-timing.ts": "6e9329b76f97d51e6f6e88821a4f22e549adc30d90e91aae9ccb42951bf44d01",
+    "date-picker/date-picker.component.ts": "ef3de9ec117a221fea1aac549fec17df240a01c6e1918cb57b8c99b06cb8c7b4",
+    "date-picker/date-picker-cell.directive.ts": "14b56ef391ef639d7687806ee46bd02c4ee952dc5a0f5c8499eb2b1b809e76fd",
+    "date-picker/date-picker.styles.ts": "48a549d852b36bfb0e2ef7d86793588f6aa824f3502e07a992769795a7e5bc9f",
+    "date-picker/date-picker.type.ts": "2179ada28854788b60223381bf77213b9c443c5a8ecccd9c31c060b6cdd6c2e3",
+    "date-picker/index.ts": "2c5166441e1676f793e82c3b2f20aca00e5c0d02f48de2270c10145ba8cf2fe2",
+    "calendar/calendar.component.ts": "b9d95c69bd2582e2c3370236cf439388fca1f623a7d3a649a89960f327a1e7fb",
+    "calendar/calendar-day.directive.ts": "df9fa87ddb8abed162623631c3f69eaf04f8400d4cd70b6ce88825feffc510ba",
+    "calendar/calendar-header.component.ts": "ffa4f34d8051aba41d1d477f3de57c51d7ba3993cd792894e02b76e727a55955",
+    "calendar/calendar.styles.ts": "5af2d4b91792b3cea4553e8418336cb262af9af3901d5b5aa1c80ab1529c70bb",
+    "calendar/calendar.type.ts": "6341d2deeb4e77188bbaab55248add820231146ae9679fe24ca65180cccb107c",
+    "calendar/index.ts": "bb47c0590c2ef8f8b9d8913769c3161308fd5eed734d67e8a647fafa71a5dbb3",
+    "popover/popover.component.ts": "c213ba902003cb20669e58441c1f743f75a657ea7abef1fdd579c58b50c1da37",
+    "popover/popover-trigger.directive.ts": "b6831a3545e40528099115c3f4306bf5563937288a133b96f05ffd7db81128cf",
+    "popover/popover-content.component.ts": "a096781f5cc26f97fa4f2d1f55c974bd38f66187a9878d45a7dc014392dc3d9b",
+    "popover/popover-header.component.ts": "ce288673219e8f0a6fc24162fc6a9606bf75afd4fa2800e0c0055b48ec664fdb",
+    "popover/popover-title.component.ts": "6e6c1375e5650eab8a8ef7bea7db956e39f5e44e26da05940f776c84eee6e5c5",
+    "popover/popover-description.component.ts": "2a683c92d9338ecdcca21a7f0f4cd88bd2a9b3a8433ce81c55b5440d5855fc77",
+    "popover/popover.styles.ts": "4d12d4ebc055a60c8f088ed0c985d2726654c51ae3c401a77c954a680fd18f85",
+    "popover/popover.type.ts": "355d3fee06874e12bd6d7f90b81be436f2f5490c2273bbf826bff603839bfe9e",
+    "popover/index.ts": "299eb148e28dab2a734a8f5ea2fa1e7cf7775851cfa0d910db5439e31ff352b5"
   },
   "installedVersions": {
     "button": "0.24.1",
@@ -104,6 +125,9 @@
     "switch": "0.24.1",
     "skeleton": "0.24.1",
     "tooltip": "0.24.1",
-    "dialog": "0.24.1"
+    "dialog": "0.24.1",
+    "date-picker": "0.24.1",
+    "calendar": "0.24.1",
+    "popover": "0.24.1"
   }
 }

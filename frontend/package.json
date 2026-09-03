@@ -19,6 +19,7 @@
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
     "@lucide/angular": "^1.37.0",
+    "@sanring/date-picker-core": "^0.5.0",
     "clsx": "^2.1.1",
     "rxjs": "~7.8.0",
     "tailwind-merge": "^3.6.0",
