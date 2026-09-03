@@ -3,29 +3,6 @@ using System.Text.Json;
 
 namespace UsageMonitor.Desktop.Services;
 
-/// <summary>One model's aggregated tokens over the scan window. Cost is API-list 估算, never a bill.</summary>
-public sealed record ClaudeTokenRow(
-    string Model,
-    long InputTokens,
-    long OutputTokens,
-    long CacheCreation5mTokens,
-    long CacheCreation1hTokens,
-    long CacheReadTokens,
-    double? EstimatedCostUsd);
-
-/// <summary>
-/// Claude Code 本機 JSONL 加總——吸 ccusage 的「讀 log、分模型加總」能力，不呼叫 ccusage。
-/// 切過帳的 session 混在同一棵 <c>projects/</c> 裡、JSONL 也沒有可靠帳號欄位，所以整桶標
-/// <c>local-combined</c>，不硬拆到各 Claude 帳號。
-/// </summary>
-public sealed record ClaudeTokenLedger(
-    string Source,
-    string Bucket,
-    ClaudeTokenRow[] Models,
-    long AssistantMessages,
-    string? OldestUtc,
-    string? NewestUtc);
-
 /// <summary>
 /// 掃描 Claude Code 本機 session JSONL（唯讀），產出帳簿頁的分模型 token／估算金額。
 ///
@@ -43,7 +20,7 @@ public static class ClaudeJsonlLedger
 {
     public const int RetentionDays = 30;
 
-    public static ClaudeTokenLedger Scan()
+    public static TokenLedger Scan()
     {
         var cutoff = DateTime.UtcNow.AddDays(-RetentionDays);
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -98,7 +75,7 @@ public static class ClaudeJsonlLedger
             .ThenByDescending(r => r.InputTokens + r.OutputTokens + r.CacheReadTokens)
             .ToArray();
 
-        return new ClaudeTokenLedger(
+        return new TokenLedger(
             "claude",
             "local-combined",
             models,
@@ -265,7 +242,7 @@ public static class ClaudeJsonlLedger
             CacheRead += other.CacheRead;
         }
 
-        public ClaudeTokenRow ToRow(string model)
+        public TokenRow ToRow(string model)
         {
             var rates = RatesFor(model);
             double? usd = rates is { } r
@@ -278,7 +255,7 @@ public static class ClaudeJsonlLedger
                     4,
                     MidpointRounding.AwayFromZero)
                 : null;
-            return new ClaudeTokenRow(model, Input, Output, Cache5m, Cache1h, CacheRead, usd);
+            return new TokenRow(model, Input, Output, Cache5m, Cache1h, CacheRead, usd);
         }
     }
 }

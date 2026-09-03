@@ -37,6 +37,13 @@ if (args.Contains("--print-claude-ledger"))
     return;
 }
 
+if (args.Contains("--print-codex-ledger"))
+{
+    var ledger = CodexJsonlLedger.Scan();
+    Console.WriteLine(JsonSerializer.Serialize(ledger, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
+    return;
+}
+
 if (args.Contains("--probe-kimi-sub"))
 {
     var kimi = new UsageMonitor.Desktop.Providers.KimiSubscriptionUsageProvider();
@@ -158,14 +165,15 @@ async void OnWebMessageReceived(object? sender, string message)
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("hidden-accounts", null, null, HiddenAccounts: usageService.GetHiddenAccounts()), jsonOptions));
                 break;
 
-            // 帳簿頁用——％歷史點＋ Claude JSONL 分模型加總。圖表跟匯出走同一份 usage_history。
+            // 帳簿頁用——％歷史點＋ Claude／Codex JSONL 分模型加總。圖表跟匯出走同一份 usage_history。
             case "get-usage-history":
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(
                     "usage-history",
                     null,
                     null,
                     UsageHistory: [.. UsageHistoryStore.QueryAll()],
-                    ClaudeTokenLedger: ClaudeJsonlLedger.Scan()), jsonOptions));
+                    ClaudeTokenLedger: ClaudeJsonlLedger.Scan(),
+                    CodexTokenLedger: CodexJsonlLedger.Scan()), jsonOptions));
                 break;
 
             case "get-settings":
@@ -318,4 +326,5 @@ file sealed record HostResponse(
     UserSettings? Settings = null,
     HiddenAccountEntry[]? HiddenAccounts = null,
     UsageHistoryPoint[]? UsageHistory = null,
-    ClaudeTokenLedger? ClaudeTokenLedger = null);
+    TokenLedger? ClaudeTokenLedger = null,
+    TokenLedger? CodexTokenLedger = null);

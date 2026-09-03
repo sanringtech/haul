@@ -235,7 +235,7 @@ related_adrs: []
 | Deploy | `dotnet publish` self-contained（macOS `.app` / Windows `.exe`），對應既有 `scripts/build.sh` | 桌面應用打包，非容器化，不適用 Docker/k8s/serverless |
 | 監控 | **無**（不適用桌面小工具） | 若需除錯，改用本機 log 檔（TODO：格式與框架待定，見 §12） |
 
-> **2026-09-03 流水帳 how（不改上表選型）**：即時配額路徑維持既有官方端點。流水帳的分模型 token／金額：吸 ccusage 的 JSONL 解析**能力**進 C# 本機實作，執行期不 `npx ccusage`、不 fork cswap。cswap 僅一次性匯入既有 Claude 帳號（既有 `CswapImporter`），之後不再呼叫。切過帳的 log 標本機合計。Claude 路徑／欄位／官方 API 單價已查證（見 §6）；Codex 屬 L3。
+> **2026-09-03 流水帳 how（不改上表選型）**：即時配額路徑維持既有官方端點。流水帳的分模型 token／金額：吸 ccusage 的 JSONL 解析**能力**進 C# 本機實作，執行期不 `npx ccusage`、不 fork cswap。cswap 僅一次性匯入既有 Claude 帳號（既有 `CswapImporter`），之後不再呼叫。切過帳的 log 標本機合計。Claude／Codex 路徑／欄位／官方 API 單價已查證（見 §6）。
 
 ## 6. 資料模型 (Data Model)
 
@@ -314,7 +314,7 @@ Settings {
 - [ ] **本機資料實際檔案格式**：單一 JSON 檔 vs SQLite 單檔（注意：SQLite 單檔屬本機檔案，非「伺服器資料庫」，若採用需在此明確排除誤解為違反 I1）
 - [ ] **既有單帳號模型資料遷移策略**：既有程式碼 4 個固定 sourceId（claude/codex/deepseek/kimi）的 Keychain 項目與 `AppSettings.HiddenSources: List<string>` 是以 AI 類型名稱為 key，多帳號模型改成以 `accountId` 為 key 後，既有使用者升級時如何映射（例如既有 `"deepseek"` 這筆資料要自動轉成一個 `accountId` 明確的 `TrackedAccount`）——未拍板，需在實作前另外規劃
 - [ ] **`AppSettings` 中依 AI 類型命名的欄位需重新設計**：例如 `DeepSeekLowBalanceThresholdUsd` / `KimiLowBalanceThresholdUsd` 目前是「一個 AI 類型一個全域門檻」，與 R5「帳號彼此獨立」精神有潛在衝突（同類型的兩個帳號可能想設不同門檻）——是否要改成 per-account 設定，未拍板
-- [x] **流水帳 token／金額欄位與 JSONL 對照（Claude，2026-09-03）**：路徑 `~/.claude/projects/**/*.jsonl` 與 `~/.config/claude/projects/`（`CLAUDE_CONFIG_DIR` 可覆寫）。欄位：`type=assistant`、`message.model`、`message.usage.{input_tokens,output_tokens,cache_creation_input_tokens,cache_read_input_tokens,cache_creation.ephemeral_5m/1h}`、`requestId` 去重、`timestamp`。本機樣本無 `costUSD`。估算單價來源：官方 API 標價 https://platform.claude.com/docs/en/about-claude/pricing（2026-09-03）。桶識別：`local-combined`（JSONL 無可靠帳號欄，切過帳不硬拆）。Codex 屬 L3，仍待查。
+- [x] **流水帳 token／金額欄位與 JSONL 對照（Claude + Codex，2026-09-03）**：Claude 路徑 `~/.claude/projects/**/*.jsonl` 與 `~/.config/claude/projects/`。欄位：`type=assistant`、`message.model`、`message.usage.*`、`requestId` 去重。單價：https://platform.claude.com/docs/en/about-claude/pricing。Codex 路徑 `$CODEX_HOME/sessions/**/*.jsonl`（預設 `~/.codex/sessions`）。欄位：`turn_context.payload.model`、`event_msg/token_count/info.total_token_usage`（每檔只取最後累計，因 `last_token_usage` 有重複列）。單價：https://developers.openai.com/api/docs/pricing Standard 短上下文（2026-09-03）；`input` 含 cache，未命中 = input − cached；官價沒列的模型（如 `codex-auto-review`）不估。桶：`local-combined`。
 - [x] **既有 `usage_history` 是否原地加欄或另表**：不改表。Claude token／金額掃描 JSONL 即時加總，不寫進 SQLite（百分比序列仍走 `usage_history`）
 
 ## 7. 前後端訊息契約 (Message Contract)
@@ -492,6 +492,6 @@ interface UsageSummary {
 - [ ] TODO（**新增，2026-08-31**）：`credentialRef` 的 key 產生規則與 `accountId` 產生方式（見 §6）
 - [ ] TODO（**新增，2026-08-31**）：既有單帳號模型資料（4 個固定 sourceId）遷移到新多帳號模型的策略（見 §6/§9）
 - [ ] TODO（**新增，2026-08-31**）：`AppSettings` 中依 AI 類型命名的欄位（如 `DeepSeekLowBalanceThresholdUsd`）是否要改成 per-account 設定（見 §6）
-- [x] ~~Claude 本機 JSONL 路徑／欄位／單價~~ —— **已查證+實作（2026-09-03）**：見 §6；單價引用官方 API 標價，禁止自創費率。Codex 仍待 L3
+- [x] ~~Claude／Codex 本機 JSONL 路徑／欄位／單價~~ —— **已查證+實作（2026-09-03）**：見 §6；單價引用官方 API 標價，禁止自創費率
 - [x] ~~切過帳 log 的本機合計桶~~ —— **已拍板**：`local-combined`（JSONL 無可靠帳號欄）
 - [x] ~~`usage_history` 加欄或另表~~ —— **已拍板**：不改表；JSONL 掃描即時加總
