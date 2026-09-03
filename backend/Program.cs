@@ -5,11 +5,21 @@ using UsageMonitor.Desktop;
 using UsageMonitor.Desktop.Models;
 using UsageMonitor.Desktop.Services;
 
+static class Program
+{
+    // [STAThread] is required on Windows: WebView2 is COM and Photino's native
+    // window must be created on an STA thread. Top-level statements with `await`
+    // synthesize an async Main, which is MTA — the HWND still appears but the
+    // browser control never initializes, so you get a titled black window
+    // (2026-09-03, first real Windows run of the published build).
+    [STAThread]
+    static void Main(string[] args)
+    {
 // During `dotnet run --dev` (see scripts/dev.sh) point the window at the Angular
 // dev server instead of the bundled wwwroot, so `ng serve`'s hot reload works.
 var devServerUrl = Environment.GetEnvironmentVariable("USAGEMONITOR_DEV_SERVER_URL");
 var usageService = new UsageService();
-await usageService.ImportCswapIfNeededAsync();
+usageService.ImportCswapIfNeededAsync().GetAwaiter().GetResult();
 
 // camelCase + case-insensitive so the wire format matches what the TS side expects
 // (`percentUsed`, not `PercentUsed`) without hand-writing [JsonPropertyName] everywhere.
@@ -25,7 +35,7 @@ var quitRequested = 0;
 // without opening the GUI window (useful for verifying providers headlessly / in CI).
 if (args.Contains("--print-usage"))
 {
-    var summaries = await usageService.GetSummariesAsync();
+    var summaries = usageService.GetSummariesAsync().GetAwaiter().GetResult();
     Console.WriteLine(JsonSerializer.Serialize(summaries, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
     return;
 }
@@ -47,14 +57,19 @@ if (args.Contains("--print-codex-ledger"))
 if (args.Contains("--probe-kimi-sub"))
 {
     var kimi = new UsageMonitor.Desktop.Providers.KimiSubscriptionUsageProvider();
-    var probe = await kimi.GetUsageAsync(
+    var probe = kimi.GetUsageAsync(
         new TrackedAccount("kimi-subscription", "kimi-subscription", Label: null),
         SettingsStore.Load(),
-        CancellationToken.None);
+        CancellationToken.None).GetAwaiter().GetResult();
     Console.WriteLine(JsonSerializer.Serialize(probe, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
     return;
 }
 
+
+var wwwroot = AppContent.FindWwwRoot();
+using var uiServer = string.IsNullOrEmpty(devServerUrl) && wwwroot is not null
+    ? UiFileServer.Start(Path.Combine(wwwroot, "browser"))
+    : null;
 
 var window = new PhotinoWindow()
     .SetTitle("sanring Haul")
@@ -62,31 +77,53 @@ var window = new PhotinoWindow()
     .SetSize(new Size(500, 700))
     .SetResizable(true)
     .Center()
-    // 官方文件寫明 SetIconFile 只在 Windows/Linux 有效，macOS 完全不會套用（那邊的 app/dock 圖示要
-    // 靠 .app bundle 的 .icns，不是這支 API 的範圍，這次沒做）。這台開發機是 macOS，沒辦法親眼驗證
-    // Windows/Linux 上實際顯示效果，純粹照文件接上去。
-    // 用相對路徑會直接讓整支 app 啟動時丟 ArgumentException("cannot be found")——實測過，SetIconFile
-    // 的路徑驗證基準跟 Load(string) 不一樣，得用絕對路徑，以 AppContext.BaseDirectory（執行檔所在
-    // 目錄）為準，不是 Environment.CurrentDirectory（使用者從哪裡打指令會不一樣）。
-    .SetIconFile(Path.Combine(AppContext.BaseDirectory, "wwwroot", "browser", "logo.svg"))
     .RegisterWebMessageReceivedHandler(OnWebMessageReceived)
     // 關窗改成隱藏：Photino 的 WaitForClose 關了就結束 process。回 true 取消關閉，改最小化。
     // macOS 最小化進 Dock（點 Dock 圖示可還原）——Photino 沒有 NSStatusItem API，不另寫 Swift。
-    // Windows NotifyIcon 要自己接 WndProc，這台開發機沒有 Windows 真機，先最小化到工作列；tray 等 P2。
+    // Windows：關窗隱藏到 tray，雙擊 tray 圖示可還原。
     .RegisterWindowClosingHandler((sender, _) =>
     {
         if (Volatile.Read(ref quitRequested) != 0) return false;
+#if WINDOWS
+        WindowHelper.Hide((PhotinoWindow)sender!);
+#else
         ((PhotinoWindow)sender!).Minimized = true;
+#endif
         return true;
     });
+
+// Photino stores the icon path and applies it when it creates the native window,
+// so this has to run before WaitForClose(). Setting it afterwards is too late for
+// the taskbar: Explorer reads the icon when it first creates the button and a
+// later WM_SETICON does not make it re-read, which is why the button kept
+// showing the generic placeholder while the title bar looked right.
+TrySetIcon(window, wwwroot);
+
+#if WINDOWS
+using var tray = TrayIcon.Start(
+    iconPath: AppContent.FindIconPath(wwwroot),
+    onShow: () => WindowHelper.Show(window),
+    onQuit: () =>
+    {
+        Interlocked.Exchange(ref quitRequested, 1);
+        window.Close();
+    });
+#endif
 
 if (!string.IsNullOrEmpty(devServerUrl))
 {
     window.Load(new Uri(devServerUrl));
 }
+else if (uiServer is not null)
+{
+    // Angular 產物在 wwwroot/browser/；server 的 root 就是那個資料夾，所以這裡是 /index.html。
+    // 走 http://127.0.0.1 而不是 file:// —— WebView2 對 file:// 的 ES module 會套 CORS 擋下來，
+    // 整頁 <app-root> 永遠是空的，配預設深色主題看起來就是黑畫面。
+    window.Load(new Uri(uiServer.BaseUrl + "/index.html"));
+}
 else
 {
-    window.Load("wwwroot/browser/index.html");
+    window.Load(new Uri("data:text/html;charset=utf-8," + Uri.EscapeDataString(AppContent.BuildMissingUiMessage())));
 }
 
 window.WaitForClose();
@@ -323,6 +360,35 @@ async void OnWebMessageReceived(object? sender, string message)
         await File.WriteAllBytesAsync(chosenPath, LocalTokenUsageExporter.BuildXlsx(claude, codex, zhTw));
         host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("local-token-usage-exported", null, null), jsonOptions));
     }
+}
+
+    static void TrySetIcon(PhotinoWindow window, string? wwwroot)
+    {
+        // macOS ignores this entirely; its dock icon comes from the .app bundle's .icns.
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return;
+
+        var candidate = AppContent.FindIconPath(wwwroot);
+        if (candidate is null) return;
+
+        try
+        {
+            // Must be an absolute path: Photino validates it differently from
+            // Load(string) and throws on relative paths. Windows' LoadImage also
+            // won't take an SVG, so a bad candidate must not be fatal.
+            window.SetIconFile(candidate);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+#if WINDOWS
+        // Reinforce once the HWND exists so the title bar and Alt+Tab pick up the
+        // sharpest size available, and the window class carries it too.
+        ThreadPool.QueueUserWorkItem(_ => WindowHelper.SetIcon(window, candidate));
+#endif
+    }
+}
 }
 
 file sealed record HostRequest(

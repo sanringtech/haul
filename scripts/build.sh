@@ -29,12 +29,11 @@ if [ -n "$RID" ]; then
   # 幫忙清掉這種不是它自己產出的雜物，得自己保證起手是空的。
   rm -rf "$PUBLISH_DIR"
   PUBLISH_ARGS=(-c Release -r "$RID" --self-contained true -o "$PUBLISH_DIR")
-  # Windows has no bundle-folder convention like macOS's .app — a single .exe *is* the cleanest
-  # distributable there, so fold the whole self-contained runtime into one file (2026-08-31,
-  # first real cross-compile: also caught that plain <OutputType>Exe> builds a console-subsystem
-  # .exe on Windows — a black terminal window would pop up alongside the GUI on double-click —
-  # fixed in SanringHaul.csproj by switching to WinExe for win-* RIDs, not here).
-  [[ "$RID" == win-* ]] && PUBLISH_ARGS+=(-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true)
+  # Windows has no bundle-folder convention like macOS's .app — a single .exe is the right UX
+  # there, so fold the whole self-contained runtime into one file. 2026-09-03 又補了一層：
+  # 不只 native DLL，要連 Angular 的 wwwroot 一起打進 single-file bundle，否則下載頁只能放
+  # zip、使用者解開後還要保留旁邊那包靜態檔；更糟的是雙擊 exe 時 WebView2 可能只看到黑畫面。
+  [[ "$RID" == win-* ]] && PUBLISH_ARGS+=(-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true)
   dotnet publish backend "${PUBLISH_ARGS[@]}"
   IS_MACOS_TARGET=false
   [[ "$RID" == osx-* ]] && IS_MACOS_TARGET=true

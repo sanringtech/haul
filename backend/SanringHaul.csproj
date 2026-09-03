@@ -2,7 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- win-* RID 需要 net10.0-windows 才能使用 WinForms（NotifyIcon tray）；
+         其他平台用純 net10.0 即可。Build script 傳 -r win-x64 時 SDK 會在 evaluate 前
+         設好 RuntimeIdentifier，所以這裡可以用條件式切換 TFM。 -->
+    <TargetFramework Condition="$(RuntimeIdentifier.StartsWith('win'))">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="!$(RuntimeIdentifier.StartsWith('win'))">net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -24,6 +28,15 @@
        app 從既有終端機執行時 Console.WriteLine 一樣正常輸出，只是雙擊不會多開黑視窗。 -->
   <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
     <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    <ApplicationIcon Condition="Exists('app.ico')">app.ico</ApplicationIcon>
+    <!-- Windows 版現在真的要是一支可雙擊的單檔 app，不再要求使用者先解出旁邊的 wwwroot/
+         資料夾。IncludeAllContentForSelfExtract 會把 Angular build 產物一起塞進 bundle，執行時
+         解到 .NET 的單檔暫存目錄；Program.cs 會從那裡找出 wwwroot 再用 loopback HTTP 提供給
+         WebView2。這一層是修「下載後只是 zip 裡一堆檔案」的關鍵，不是只有 PublishSingleFile。 -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,8 +46,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Built Angular output (populated by scripts/build.sh) gets copied next to the executable. -->
-    <None Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" Condition="Exists('wwwroot')" />
+    <!-- Built Angular output (populated by scripts/build.sh). Mark as Content so publish includes it,
+         and do NOT exclude it from single-file bundling — Windows release depends on these files being
+         extracted at runtime for the local UI server. -->
+    <Content Include="wwwroot\**"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="Always"
+             ExcludeFromSingleFile="false"
+             Condition="Exists('wwwroot')" />
+    <!-- Windows 單檔發布再保一份嵌入式資源：single-file bundle 對內容檔不保證提供可直接開檔的
+         實體路徑，Program.cs 會在找不到實體 wwwroot 時，從這批資源自行解到 temp 後提供給 WebView2。 -->
+    <EmbeddedResource Include="wwwroot\**"
+                      LogicalName="wwwroot/%(RecursiveDir)%(Filename)%(Extension)"
+                      Condition="Exists('wwwroot')" />
+    <EmbeddedResource Include="app.ico" LogicalName="app.ico" Condition="Exists('app.ico')" />
   </ItemGroup>
 
 </Project>
