@@ -2,6 +2,12 @@
 
 開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
 
+## v0.4.1（2026-09-03）：本機用量按月/週/日切面、日期選擇器、xlsx 匯出
+
+- 帳簿頁「本機用量」新增合計／按月／按周／按日／按對話五種切面（按對話暫不顯示），月/週/日用新裝的 date-picker/calendar/popover 元件選日期（週從週一起算）；Claude/Codex JSONL 掃描時同步依日期與 session 分桶，不用再掃第二次；掃描窗固定 30 天，超出範圍顯示為空
+- 新增「匯出本機用量 Excel」：把 30 天完整 Claude/Codex 分模型 token 各自輸出一個工作表，不受目前篩選影響
+- 說明頁重構成手風琴、加測試階段／美金計價兩則固定提示
+
 ## v0.4.0（2026-09-03）：Claude/Codex 多帳號快照、Codex 本機用量帳簿
 
 - **Claude/Codex 改用「擷取目前 CLI 登入」，取代原本只有 Claude 靠 cswap 才能多帳號的限制**——`SubscriptionSnapshotStore` 統一存放擷取到的登入快照，同一 email 再擷取一次會覆蓋（換票），不同帳號則新加一筆；`CswapImporter` 負責把舊版 cswap 設定一次性搬進新快照庫，之後不再呼叫 cswap；`JwtEmail` 從登入憑證解出帳號 email 供辨識
