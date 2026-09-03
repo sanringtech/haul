@@ -52,7 +52,7 @@ if (args.Contains("--probe-kimi-sub"))
 var window = new PhotinoWindow()
     .SetTitle("sanring Haul")
     .SetUseOsDefaultSize(false)
-    .SetSize(new Size(420, 640))
+    .SetSize(new Size(500, 700))
     .SetResizable(true)
     .Center()
     // 官方文件寫明 SetIconFile 只在 Windows/Linux 有效，macOS 完全不會套用（那邊的 app/dock 圖示要
