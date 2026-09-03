@@ -57,4 +57,10 @@ public static class MessageKeys
     public const string CursorCredentialsRejected = "cursorCredentialsRejected";
     public const string CursorModelsLabel = "cursorModelsLabel";
     public const string OtherModelsLabel = "otherModelsLabel";
+
+    // ── GrokUsageProvider（訂閱制，端點來自 grok-build billing.rs）───────────
+    public const string GrokCredentialsNotFound = "grokCredentialsNotFound";
+    public const string GrokCredentialsRejected = "grokCredentialsRejected";
+    public const string GrokHttpErrorWithBody = "grokHttpErrorWithBody";
+    public const string GrokParseErrorUnverified = "grokParseErrorUnverified";
 }

@@ -61,6 +61,7 @@ public sealed class UsageService
             new KimiUsageProvider(_secretStore),        // api_key 制（既有）
             new KimiSubscriptionUsageProvider(),         // 訂閱制（2026-08-31 新增，未實測，見該檔案註解）
             new CursorUsageProvider(),                   // 訂閱制（2026-09-01 新增，已實測，見 AI-LANDSCAPE.md）
+            new GrokUsageProvider(),                     // 訂閱制（2026-09-03，端點來自 grok-build；本機無 ~/.grok 時為 not_configured）
         ];
         _providersBySourceId = providers.ToDictionary(p => p.SourceId);
     }
@@ -99,7 +100,7 @@ public sealed class UsageService
 
     /// <summary>
     /// All known provider types for the "＋ 新增來源" picker. Singleton subscription types
-    /// (Cursor, Kimi sub) grey out once tracked; Claude/Codex stay clickable so more logins
+    /// (Cursor, Kimi sub, Grok) grey out once tracked; Claude/Codex stay clickable so more logins
     /// can be captured. api_key types never grey out.
     /// </summary>
     public SourceCatalogEntry[] GetCatalog()
@@ -109,7 +110,7 @@ public sealed class UsageService
         {
             var alreadyHasAccount = settings.TrackedAccounts.Any(a => a.SourceId == p.SourceId);
             // Claude / Codex 走「擷取目前 CLI 登入」，可重複加帳號，清單永遠不灰。
-            // 其他訂閱制（Cursor、Kimi 訂閱）仍是本機單一 session，追蹤過就變灰。
+            // 其他訂閱制（Cursor、Kimi 訂閱、Grok）仍是本機單一 session，追蹤過就變灰。
             var capturable = p.SourceId is "claude" or "codex";
             var isTracked = p.SourceType == "subscription" && alreadyHasAccount && !capturable;
             return new SourceCatalogEntry(p.SourceId, p.DisplayName, p.SourceType, isTracked);

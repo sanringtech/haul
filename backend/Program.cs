@@ -65,6 +65,17 @@ if (args.Contains("--probe-kimi-sub"))
     return;
 }
 
+if (args.Contains("--probe-grok"))
+{
+    var grok = new UsageMonitor.Desktop.Providers.GrokUsageProvider();
+    var probe = await grok.GetUsageAsync(
+        new TrackedAccount("grok", "grok", Label: null),
+        SettingsStore.Load(),
+        CancellationToken.None);
+    Console.WriteLine(JsonSerializer.Serialize(probe, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
+    return;
+}
+
 
 var wwwroot = AppContent.FindWwwRoot();
 using var uiServer = string.IsNullOrEmpty(devServerUrl) && wwwroot is not null

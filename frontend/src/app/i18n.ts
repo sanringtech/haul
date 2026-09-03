@@ -64,6 +64,7 @@ export interface Translations {
   noInputNeeded: string;
   captureHintClaude: string;
   captureHintCodex: string;
+  grokAddHint: string;
   capturing: string;
   captureBtn: string;
   detecting: string;
@@ -119,6 +120,10 @@ export interface Translations {
   kimiSubCredentialsRejected: string;
   kimiSubHttpErrorWithBody: string;
   kimiSubParseErrorUnverified: string;
+  grokCredentialsNotFound: string;
+  grokCredentialsRejected: string;
+  grokHttpErrorWithBody: string;
+  grokParseErrorUnverified: string;
 
   // ── 浮動小工具（widget-app.ts）專用 ──
   widgetDetails: string;
@@ -301,6 +306,7 @@ export const translations: Record<Lang, Translations> = {
     noInputNeeded: '不需要輸入任何東西——按下面的按鈕，讓工具去讀本機的登入資訊。',
     captureHintClaude: '先確認終端機裡 Claude Code 已登入你要追蹤的帳號，再按擷取。Haul 只複製一份快照，不會改 CLI 的登入、也不會幫你切帳。',
     captureHintCodex: '先確認終端機裡已 `codex login` 你要追蹤的帳號，再按擷取。Codex 的 refresh token 幾乎只能用一次：擷取後請立刻在終端機登入下一個帳號，不要先開 Codex CLI 讓它自己換票。Haul 絕不寫回 ~/.codex/auth.json。',
+    grokAddHint: '先在終端機 `grok login`，再按偵測。Haul 只讀 ~/.grok/auth.json，不會寫回、也不會幫你換票。API KEY 查不到訂閱用量。',
     capturing: '擷取中…',
     captureBtn: '擷取目前登入',
     detecting: '偵測中…',
@@ -355,6 +361,10 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`',
     kimiSubHttpErrorWithBody: '用量端點回應錯誤：HTTP {status}　{body}',
     kimiSubParseErrorUnverified: '用量端點回應內容無法解析（未驗證過的端點，第一次遇到請把這段回傳貼給開發者）：{body}',
+    grokCredentialsNotFound: '找不到 Grok Build 的登入憑證，請先在終端機執行 `grok login`',
+    grokCredentialsRejected: 'Grok 拒絕了目前的登入憑證，請重新執行 `grok login`',
+    grokHttpErrorWithBody: '用量端點回應錯誤：HTTP {status}　{body}',
+    grokParseErrorUnverified: '用量端點回應內容無法解析（第一次遇到請把這段回傳貼給開發者）：{body}',
 
     widgetDetails: '詳細',
     widgetCollapse: '收合',
@@ -471,11 +481,11 @@ export const translations: Record<Lang, Translations> = {
     infoKimiSubTitle: 'Kimi（訂閱）',
     infoKimiSubBody: '單一帳號，讀本機 Kimi Code CLI 的登入 session（~/.kimi-code/credentials/，含 kimi-code-env-*.json）。',
     infoGrokTitle: 'Grok',
-    infoGrokBody: '目前不支援 API KEY（xAI 官方沒有對應的查詢端點）。訂閱制官方端點查過但未實測；本機也沒有 Grok CLI／~/.grok，所以還沒接。',
+    infoGrokBody: '單一帳號，讀本機 Grok Build CLI 的 ~/.grok/auth.json，打 CLI 自己用的用量端點。不支援 API KEY（xAI 沒有餘額查詢）。Haul 不寫回登入檔、不 refresh。請先 `grok login` 再新增來源。',
     infoCursorTitle: 'Cursor',
     infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session。Cursor 只存一份「目前登入中」的 cursorAuth（不是 Claude/Codex 那種可擷取多組 CLI 登入）。卡片兩條進度對齊設定頁「Included in Pro」：內建模型（Cursor Models，含 Grok / Composer）與其他模型（Other Models）。',
     infoDisclaimerTitle: '關於非公開端點',
-    infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
+    infoDisclaimerBody: 'Claude、Codex、Grok 這幾個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
 
     disclosureTitle: '本機資料存取聲明',
     disclosureBody: '本 App 僅讀取各 AI 官方 CLI 的本機登入資訊，以及您提供的 API KEY，皆不會外傳。',
@@ -530,6 +540,7 @@ export const translations: Record<Lang, Translations> = {
     noInputNeeded: 'Nothing to type — press the button below and this tool will read your local login info.',
     captureHintClaude: 'Make sure Claude Code in the terminal is logged into the account you want to track, then capture. Haul copies a snapshot only — it will not change the CLI login or switch accounts for you.',
     captureHintCodex: 'Make sure you have `codex login`’d the account you want to track, then capture. Codex refresh tokens are near-single-use: after capturing, immediately log into the next account in the terminal — don’t open the Codex CLI first and let it rotate the token. Haul never writes back to ~/.codex/auth.json.',
+    grokAddHint: 'Run `grok login` in the terminal first, then detect. Haul only reads ~/.grok/auth.json — it will not write it back or refresh tokens. An API KEY cannot query subscription usage.',
     capturing: 'Capturing…',
     captureBtn: 'Capture current login',
     detecting: 'Detecting…',
@@ -584,6 +595,10 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code rejected the current login credentials — run `/login` again',
     kimiSubHttpErrorWithBody: 'Usage endpoint returned an error: HTTP {status}　{body}',
     kimiSubParseErrorUnverified: "Could not parse the usage endpoint's response (this endpoint is unverified — if you're the first to hit this, please paste this response for the developer): {body}",
+    grokCredentialsNotFound: "Couldn't find Grok Build login credentials — run `grok login` in the terminal first",
+    grokCredentialsRejected: 'Grok rejected the current login credentials — run `grok login` again',
+    grokHttpErrorWithBody: 'Usage endpoint returned an error: HTTP {status}　{body}',
+    grokParseErrorUnverified: "Could not parse the usage endpoint's response (if you're the first to hit this, please paste this response for the developer): {body}",
 
     widgetDetails: 'Details',
     widgetCollapse: 'Collapse',
@@ -700,11 +715,11 @@ export const translations: Record<Lang, Translations> = {
     infoKimiSubTitle: 'Kimi (Subscription)',
     infoKimiSubBody: "Single account, reads the local Kimi Code CLI login (~/.kimi-code/credentials/, including kimi-code-env-*.json).",
     infoGrokTitle: 'Grok',
-    infoGrokBody: "API KEY isn't supported (xAI has no corresponding query endpoint). A subscription endpoint was found but not verified; this machine has no Grok CLI / ~/.grok, so it isn't wired up yet.",
+    infoGrokBody: "Single account, reads the local Grok Build CLI ~/.grok/auth.json and calls the CLI's own usage endpoint. API KEY isn't supported (xAI has no balance query). Haul does not write the login file or refresh tokens. Run `grok login` before adding the source.",
     infoCursorTitle: 'Cursor',
     infoCursorBody: "Single account, reads the local Cursor login session. Cursor only stores one current cursorAuth login (not a Claude/Codex-style capture of multiple CLI sessions). The two bars match Settings → Included in Pro: Cursor Models (Grok / Composer) and Other Models.",
     infoDisclaimerTitle: 'About undocumented endpoints',
-    infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
+    infoDisclaimerBody: 'The Claude, Codex, and Grok sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
 
     disclosureTitle: 'Local data access notice',
     disclosureBody: "This app only reads local login info from each AI's official CLI, and any API keys you provide — none of it is ever sent elsewhere.",

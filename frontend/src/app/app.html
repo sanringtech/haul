@@ -536,8 +536,8 @@
           </div>
         } @else {
           <div class="flex flex-col gap-2">
-            <p class="text-xs text-[var(--sanring-muted)]">
-              {{ t('noInputNeeded') }}
+            <p class="text-xs leading-relaxed text-[var(--sanring-helper)]">
+              {{ addSelectedSourceId() === 'grok' ? t('grokAddHint') : t('noInputNeeded') }}
             </p>
             <button sanringBtn type="button" [disabled]="addStatus() === 'pending'" class="inline-flex items-center justify-center gap-2" (click)="submitAdd()">
               @if (addStatus() === 'pending') {
