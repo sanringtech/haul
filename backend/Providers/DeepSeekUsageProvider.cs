@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -54,7 +55,7 @@ public sealed class DeepSeekUsageProvider(ISecretStore secretStore) : IUsageProv
                 : attentionThreshold is { } a && balance <= a ? "attention"
                 : "normal";
 
-            return Build(account, "valid", usageState, null, L(MessageKeys.DeepSeekBalance, ("currency", info.Currency), ("balance", balance.ToString("N2"))));
+            return Build(account, "valid", usageState, null, L(MessageKeys.DeepSeekBalance, ("balance", balance.ToString("0.00", CultureInfo.InvariantCulture))));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {

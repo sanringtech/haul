@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -52,7 +53,7 @@ public sealed class KimiUsageProvider(ISecretStore secretStore) : IUsageProvider
                 : attentionThreshold is { } a && balance <= a ? "attention"
                 : "normal";
 
-            return Build(account, "valid", usageState, L(MessageKeys.KimiBalance, ("balance", balance.ToString("N2"))), isEstimated: false);
+            return Build(account, "valid", usageState, L(MessageKeys.KimiBalance, ("balance", balance.ToString("0.00", CultureInfo.InvariantCulture))), isEstimated: false);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
