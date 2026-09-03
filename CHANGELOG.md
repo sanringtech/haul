@@ -2,6 +2,13 @@
 
 開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
 
+## v0.4.0（2026-09-03）：Claude/Codex 多帳號快照、Codex 本機用量帳簿
+
+- **Claude/Codex 改用「擷取目前 CLI 登入」，取代原本只有 Claude 靠 cswap 才能多帳號的限制**——`SubscriptionSnapshotStore` 統一存放擷取到的登入快照，同一 email 再擷取一次會覆蓋（換票），不同帳號則新加一筆；`CswapImporter` 負責把舊版 cswap 設定一次性搬進新快照庫，之後不再呼叫 cswap；`JwtEmail` 從登入憑證解出帳號 email 供辨識
+- 上述升級會讓舊版單帳號 `TrackedAccount`（AccountId 字面 `claude`/`codex`）與新格式 `{source}:{email}` 短暫並存，首頁卡片、折線圖圖例、`usage_history` 資料表都補上收斂邏輯，不會看到重複帳號
+- **新增 Codex 本機用量帳簿**：掃描 `$CODEX_HOME/sessions` JSONL，比照既有 Claude 帳簿抓法依模型加總 token、用官方 Standard 短上下文標價估算金額；「流水帳」頁更名「用量紀錄」並拆成「本機用量／配額走勢／匯出」三節，本機用量下 Claude／Codex 各一張卡片
+- 視窗初始尺寸從 420×640 放寬到 500×700；連線狀態改成 tooltip 呈現；重新整理完成後「上次更新」文字短暫高亮；DeepSeek/Kimi 餘額顯示改用 `$` 前綴＋固定文化字串格式化，不受系統 locale 影響
+
 ## v0.3.3（2026-09-02）：文字對比度打磨
 
 - **新增語意化文字色 token**（`sanring-theme.css`，淺色／深色主題各自定義）：`--sanring-*-fg`（成功／警示／警戒／錯誤四種狀態的「當文字用」版本，跟徽章/進度條填色用的 `-50` 分開，避免淺底配淺字）、`--sanring-helper`（比 `--sanring-muted` 更接近前景色，給設定頁長說明文字用）

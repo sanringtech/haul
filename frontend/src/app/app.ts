@@ -206,7 +206,7 @@ export class App implements AfterViewInit {
   /** SSOT 是根目錄的 VERSION 檔——這裡是手動對齊的第四個點（跟 package.json/Info.plist 同一套
    *  取捨，見 RELEASE-PLAN.md「版本號」：三個地方還不到值得建自動同步 pipeline 的規模），改版時
    *  記得一起改。 */
-  protected readonly appVersion = 'v0.3.3';
+  protected readonly appVersion = 'v0.4.0';
   protected readonly isDesktopHost = signal(typeof window.external?.sendMessage === 'function');
   protected readonly summaries = signal<UsageSummary[]>([]);
   protected readonly lastError = signal<string | null>(null);
