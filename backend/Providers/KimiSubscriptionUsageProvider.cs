@@ -13,17 +13,9 @@ namespace UsageMonitor.Desktop.Providers;
 /// URL/headers/response shape are read straight from the real HTTP client, not reverse-engineered.
 ///
 /// <para>
-/// <b>NOT VERIFIED</b> — nobody on this project has a real Kimi Code login to test against (2026-08-31,
-/// see PRD §9/§12). Two things could be wrong on first real use: (1) the repo's own
-/// `docs/en/reference/server-api.md` documents a *different* endpoint (`/api/v1/oauth/usage`, envelope
-/// `{code,msg,data:{kind,summary,limits,extra_usage}}`) for what might be the same feature — this
-/// provider deliberately uses the endpoint the CLI's `/usage` command actually calls instead, since
-/// that's the higher-confidence "real behavior" source, but the two could diverge. (2) `used`/`limit`
-/// field types/units are inferred, not confirmed against a live response. Failures are surfaced with
-/// the raw response body (see <see cref="Truncate"/>) specifically so a first real run is debuggable
-/// instead of just silently wrong. Distinct SourceId ("kimi-subscription") from the existing
-/// API-key-based <see cref="KimiUsageProvider"/> ("kimi") — same AI type, different access type,
-/// constitution R1's two-dimensional model (見 2026-08-31 憲法修訂).
+/// <b>2026-09-02</b>：本機憑證是 <c>kimi-code-env-*.json</c>；reader 已改對路徑後打用量端點得到
+/// HTTP 401（access token 過期）。不在這裡 refresh——會跟 Kimi Code CLI 搶 refresh token，也違反
+/// 憲法「不寫回 CLI 登入檔」。Distinct SourceId "kimi-subscription" vs API-key "kimi"。
 /// </para>
 /// </summary>
 public sealed class KimiSubscriptionUsageProvider : IUsageProvider

@@ -9,6 +9,7 @@ using UsageMonitor.Desktop.Services;
 // dev server instead of the bundled wwwroot, so `ng serve`'s hot reload works.
 var devServerUrl = Environment.GetEnvironmentVariable("USAGEMONITOR_DEV_SERVER_URL");
 var usageService = new UsageService();
+await usageService.ImportCswapIfNeededAsync();
 
 // camelCase + case-insensitive so the wire format matches what the TS side expects
 // (`percentUsed`, not `PercentUsed`) without hand-writing [JsonPropertyName] everywhere.
@@ -18,12 +19,32 @@ var jsonOptions = new JsonSerializerOptions
     PropertyNameCaseInsensitive = true,
 };
 
+var quitRequested = 0;
+
 // Debug escape hatch: `dotnet run -- --print-usage` prints one refresh as JSON and exits,
 // without opening the GUI window (useful for verifying providers headlessly / in CI).
 if (args.Contains("--print-usage"))
 {
     var summaries = await usageService.GetSummariesAsync();
     Console.WriteLine(JsonSerializer.Serialize(summaries, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
+    return;
+}
+
+if (args.Contains("--print-claude-ledger"))
+{
+    var ledger = ClaudeJsonlLedger.Scan();
+    Console.WriteLine(JsonSerializer.Serialize(ledger, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
+    return;
+}
+
+if (args.Contains("--probe-kimi-sub"))
+{
+    var kimi = new UsageMonitor.Desktop.Providers.KimiSubscriptionUsageProvider();
+    var probe = await kimi.GetUsageAsync(
+        new TrackedAccount("kimi-subscription", "kimi-subscription", Label: null),
+        SettingsStore.Load(),
+        CancellationToken.None);
+    Console.WriteLine(JsonSerializer.Serialize(probe, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
     return;
 }
 
@@ -41,7 +62,16 @@ var window = new PhotinoWindow()
     // 的路徑驗證基準跟 Load(string) 不一樣，得用絕對路徑，以 AppContext.BaseDirectory（執行檔所在
     // 目錄）為準，不是 Environment.CurrentDirectory（使用者從哪裡打指令會不一樣）。
     .SetIconFile(Path.Combine(AppContext.BaseDirectory, "wwwroot", "browser", "logo.svg"))
-    .RegisterWebMessageReceivedHandler(OnWebMessageReceived);
+    .RegisterWebMessageReceivedHandler(OnWebMessageReceived)
+    // 關窗改成隱藏：Photino 的 WaitForClose 關了就結束 process。回 true 取消關閉，改最小化。
+    // macOS 最小化進 Dock（點 Dock 圖示可還原）——Photino 沒有 NSStatusItem API，不另寫 Swift。
+    // Windows NotifyIcon 要自己接 WndProc，這台開發機沒有 Windows 真機，先最小化到工作列；tray 等 P2。
+    .RegisterWindowClosingHandler((sender, _) =>
+    {
+        if (Volatile.Read(ref quitRequested) != 0) return false;
+        ((PhotinoWindow)sender!).Minimized = true;
+        return true;
+    });
 
 if (!string.IsNullOrEmpty(devServerUrl))
 {
@@ -82,8 +112,6 @@ async void OnWebMessageReceived(object? sender, string message)
                 // Sent as its own message (not just folded into the full-list refresh below) because
                 // the new account's id is generated server-side (api_key sources get a fresh GUID) —
                 // the frontend has no way to pick "the one it just added" back out of a plain list.
-                // 通常只會有一個，但 Claude 透過 cswap 一次偵測可能加好幾個帳號（見 UsageService.
-                // AddClaudeAccountsAsync），陣列可能是空的（cswap 有裝但偵測到的都已經追蹤過了）。
                 var added = await usageService.AddSourceAsync(request.Source, request.Credential?.ApiKey);
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("account-added", added, null), jsonOptions));
                 await RespondWithSummaries();
@@ -130,10 +158,14 @@ async void OnWebMessageReceived(object? sender, string message)
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("hidden-accounts", null, null, HiddenAccounts: usageService.GetHiddenAccounts()), jsonOptions));
                 break;
 
-            // 設定頁的折線圖用——回傳保留期內的全部資料點，前端自己依 accountId/windowLabelKey
-            // 分組成一條條折線（跟匯出走同一份資料來源，只是這裡是給圖表用、匯出是給檔案用）。
+            // 帳簿頁用——％歷史點＋ Claude JSONL 分模型加總。圖表跟匯出走同一份 usage_history。
             case "get-usage-history":
-                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse("usage-history", null, null, UsageHistory: [.. UsageHistoryStore.QueryAll()]), jsonOptions));
+                host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(
+                    "usage-history",
+                    null,
+                    null,
+                    UsageHistory: [.. UsageHistoryStore.QueryAll()],
+                    ClaudeTokenLedger: ClaudeJsonlLedger.Scan()), jsonOptions));
                 break;
 
             case "get-settings":
@@ -165,6 +197,12 @@ async void OnWebMessageReceived(object? sender, string message)
                 await ExportUsageHistoryAsync(request.ExportFormat, request.Lang == "en" ? "en" : "zh-TW");
                 break;
 
+            case "quit":
+            case "quit-app":
+                Volatile.Write(ref quitRequested, 1);
+                Environment.Exit(0);
+                break;
+
             default:
                 host.SendWebMessage(JsonSerializer.Serialize(new HostResponse(null, null, $"未知或缺少必要欄位的訊息: {message}"), jsonOptions));
                 break;
@@ -189,7 +227,7 @@ async void OnWebMessageReceived(object? sender, string message)
 
         // 「Claude 用量喚醒」同樣搭這裡的便車，不是獨立排程——內部自己判斷今天是否已經打過，
         // 沒到期就是幾乎零成本的一次字典查詢，不會拖慢一般的刷新速度。
-        await ClaudeActivationPinger.PingIfDueAsync();
+        await usageService.PingWakeUpsAsync();
     }
 
     async Task ExportUsageHistoryAsync(string format, string lang)
@@ -279,4 +317,5 @@ file sealed record HostResponse(
     SourceCatalogEntry[]? Catalog = null,
     UserSettings? Settings = null,
     HiddenAccountEntry[]? HiddenAccounts = null,
-    UsageHistoryPoint[]? UsageHistory = null);
+    UsageHistoryPoint[]? UsageHistory = null,
+    ClaudeTokenLedger? ClaudeTokenLedger = null);

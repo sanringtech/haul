@@ -4,23 +4,25 @@ namespace UsageMonitor.Desktop.Security;
 
 /// <summary>
 /// Reads Kimi Code CLI's own OAuth session — same read-only spirit as <see cref="ClaudeAuthReader"/> /
-/// <see cref="CodexAuthReader"/>. Storage location per `MoonshotAI/kimi-code`'s open-source `packages/
-/// oauth/src/storage.ts`: `~/.kimi-code/credentials/kimi-code.json`, snake_case wire format
-/// (`access_token`/`refresh_token`/`expires_at`/...), plaintext with 0600/0700 permissions.
-/// NOT VERIFIED against a real Kimi Code login — nobody on this project has an account yet (see PRD).
+/// <see cref="CodexAuthReader"/>. Tokens live in <c>~/.kimi-code/credentials/</c> as snake_case JSON
+/// (<c>access_token</c>/…), mode 0600. Older CLI wrote <c>kimi-code.json</c>; current CLI on this
+/// machine writes <c>kimi-code-env-{hash}.json</c> (storage name is the OAuth key, see kimi-code
+/// <c>packages/oauth/src/storage.ts</c> <c>pathFor(name)</c>). Prefer the legacy filename, else the
+/// newest <c>*.json</c> in that directory.
 /// </summary>
 public static class KimiCliAuthReader
 {
     public static string? Read()
     {
-        var path = Path.Combine(
+        var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".kimi-code", "credentials", "kimi-code.json");
+            ".kimi-code", "credentials");
+        var path = ResolvePath(dir);
+        if (path is null) return null;
 
         string json;
         try
         {
-            if (!File.Exists(path)) return null;
             json = File.ReadAllText(path);
         }
         catch
@@ -35,6 +37,23 @@ public static class KimiCliAuthReader
             return string.IsNullOrEmpty(accessToken) ? null : accessToken;
         }
         catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? ResolvePath(string dir)
+    {
+        var legacy = Path.Combine(dir, "kimi-code.json");
+        if (File.Exists(legacy)) return legacy;
+        if (!Directory.Exists(dir)) return null;
+        try
+        {
+            return Directory.GetFiles(dir, "*.json")
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+        }
+        catch
         {
             return null;
         }

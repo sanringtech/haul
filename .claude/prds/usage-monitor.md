@@ -4,7 +4,7 @@ feature_id: usage-monitor
 feature_name: AI 用量監控小工具
 status: draft
 owner: jack755051
-last_updated: 2026-08-31
+last_updated: 2026-09-03
 related_constitution: .claude/constitutions/usage-monitor.md
 related_adrs: []
 ---
@@ -15,13 +15,18 @@ related_adrs: []
 
 開發者日常會同時使用多家 AI 服務（Claude、Codex、DeepSeek、Kimi、Grok），且同一開發者名下常見同時掛多個帳號（例如兩個 DeepSeek 帳號、或同時擁有 Claude 訂閱與 Claude API key）——但各家、各帳號的用量/額度資訊分散在各自網站或 CLI 輸出裡，沒有統一的桌面視角可以一眼看到「每個帳號還剩多少可以用」。這導致開發者容易在工作到一半時才發現某個帳號額度用盡，打斷工作流程。
 
-本工具的定位是一個常駐桌面的**唯讀監控小工具**：整合 Claude / Codex / DeepSeek / Kimi / Grok 五種 AI 類型底下、使用者實際新增的每一個帳號的用量/額度資訊（一個 AI 類型可能對應多個帳號，見憲法 R1/R5，2026-08-31 修訂），用顏色狀態一眼呈現「正常 / 接近上限 / 超額」與「連線是否有效」，且明確標示哪些數字是本地估算、哪些是官方精確值。工具刻意不做趨勢預測、不做自動介入、不碰密碼登入——這是監控工具，不是管理工具（見憲法 §1/§3/Decision 2）。
+本工具的定位是一個常駐桌面的**唯讀監控小工具**，資料分**兩層、互不頂替**（憲法 §1/§6，2026-09-03 修訂）：
 
-專案目前已有一定實作（Angular 前端 + C# Photino.NET 桌面殼 + 四個固定 `sourceId`（claude/codex/deepseek/kimi）的 `UsageProvider` 實作），本 PRD 這次更新（2026-08-31）對應憲法「多帳號支援」修訂，將原本「一個 AI = 一張卡片、一個固定 sourceId」的單帳號模型，改為「AI 類型 × 存取類型 → 多個獨立帳號」的模型，並將此變動反映到範圍、user story、資料模型、訊息契約與 UI 排列規則，作為後續 provider 重構與前端改版的依據。
+1. **即時配額狀態**（主畫面）：整合 Claude / Codex / DeepSeek / Kimi / Grok 五種 AI 類型底下、使用者實際新增的每一個帳號的「現在還能不能用」（一個 AI 類型可能對應多個帳號，見憲法 R1/R5，2026-08-31 修訂），用顏色狀態一眼呈現「正常 / 接近上限 / 超額」與「連線是否有效」，且明確標示哪些數字是本地估算、哪些是官方精確值。
+2. **流水帳**（本機紀錄）：把已經發生的用量／額度留在本機，供使用者事後對帳、檢視與匯出。記錄已發生 ≠ 趨勢預測；也不做雲端託管他人帳本（憲法 §1/R4/I1）。
+
+工具刻意不做趨勢預測、不做自動介入、不碰密碼登入——這是監控工具，不是管理工具（見憲法 §1/§3/Decision 2）。
+
+專案目前已有一定實作（Angular 前端 + C# Photino.NET 桌面殼 + 本機 SQLite `usage_history` 只存訂閱制百分比時間序列）。本 PRD 2026-08-31 更新對應憲法「多帳號支援」修訂；**2026-09-03 再對應憲法「本機流水帳／自行稽核」**：把即時配額與流水帳拆成兩層表面（首頁燈號、帳簿獨立頁），並把分模型 token／估算金額納入流水帳。帳簿頁已承接既有％歷史圖與 Markdown/Excel 匯出；設定頁只留「記錄用量歷史」開關。分模型 token／估算金額仍待 JSONL 解析。
 
 ## 2. 目標 (Goals)
 
-- **業務目標**：開發者不需切換分頁或跑 CLI 指令，開啟桌面小工具 3 秒內看到自己名下每一個已追蹤帳號目前的用量狀態與連線狀態。
+- **業務目標**：開發者不需切換分頁或跑 CLI 指令，開啟桌面小工具 3 秒內看到自己名下每一個已追蹤帳號目前的用量狀態與連線狀態；並能在本機檢視／匯出可稽核的流水帳，事後自行對帳（憲法 §1/§2，2026-09-03）。
 - **技術目標**：
   - 新增一個用量來源（provider）的邊際成本低——`UsageProvider` 抽象需讓「加一個 AI 類型」或「加一種存取類型」都不用改動核心訊息路由邏輯。
   - 前後端訊息往返（`get-usage-summary` 等）在本機環境下應為毫秒級（無網路請求時）；涉及 API key 制帳號呼叫官方端點時，需有逾時與失敗降級（不可讓 UI 卡死）。
@@ -40,26 +45,32 @@ related_adrs: []
 - [ ] 新增帳號：訂閱制讀本機 CLI 紀錄檔或官方 session 估算；API key 制由使用者提供 key 呼叫官方端點；兩種存取類型不綁定特定 AI 類型（憲法 R1/R2）
 - [ ] 自動刷新頻率可設定（5 分鐘 / 1 小時[預設] / 2 小時 / 純手動）（憲法 §9）
 - [ ] 歷史資料保留期可設定（3 天[預設] / 5 天 / 一週 / 手動清除）（憲法 §9）
-- [ ] 取消追蹤（完整刪除該帳號本機資料）與關閉顯示（保留資料、暫停顯示）兩種獨立操作，單位是帳號，同 AI 類型下其他帳號不受影響（憲法 §8，2026-08-31 修訂）
+- [ ] 取消追蹤（完整刪除該帳號本機資料**含流水帳**）與關閉顯示（保留資料、暫停顯示）兩種獨立操作，單位是帳號，同 AI 類型下其他帳號不受影響（憲法 §8，2026-09-03 修訂：取消追蹤要刪該帳號流水帳）
 - [ ] 卡片依 AI 類型分組排列、同類型多帳號卡片相鄰顯示，並支援個別摺疊/展開（本次 UI 決策，見 §8；非憲法規則，屬 PRD 層級）
+- [ ] **本機流水帳（2026-09-03）**：記錄已發生的用量／額度供事後自行稽核；可含官方配額快照、餘額快照、以及依本機使用紀錄加總的分模型 token／估算金額；既有 `usage_history` 百分比序列是流水帳的一種，不另開雲端帳本（憲法 §1/§6/I1）
+- [ ] **帳簿表面獨立於設定（2026-09-03，憲法未寫 how）**：與設定同級的帳簿頁承載檢視／圖表／匯出；設定頁只留「要不要記帳」開關。首頁維持即時配額燈號，兩層互不頂替
+- [ ] **分模型 token ＋估算金額（2026-09-03，憲法未寫 how）**：吸 ccusage 的 JSONL 加總**能力**進本機實作，先 Claude 再 Codex；UI／匯出欄位一律標「估算」（憲法 R3/I3）。切過帳的 log 標本機合計，不硬拆到各帳號
 
 ### ❌ 非範圍（明確不做，避免 scope creep）
-- ❌ 用量趨勢預測（憲法 §1/R4）
+- ❌ 用量趨勢預測（憲法 §1/R4）——記錄已發生的流水帳 ≠ 預測未來
 - ❌ 自動介入：自動切換帳號、自動阻擋/切斷任務（憲法 §1/R4/Decision 2）
+- ❌ **執行期包 cswap / ccusage CLI**（2026-09-03，憲法未寫 how）：不 fork cswap、不 `npx ccusage`、不把外部切帳／估算 CLI 當 runtime 依賴。可吸其解析／匯入**能力**進本機程式；cswap 僅一次性匯入既有帳號，之後不再呼叫
+- ❌ **切帳**（2026-09-03）：不做帳號切換（含不重造 cswap 切帳）；切過帳的本機 log 標本機合計，不硬拆
+- ❌ **把估算美元當成帳單**（2026-09-03）：流水帳金額是本機估算，必須標「估算」（憲法 R3/I3），不可呈現或匯出成官方 invoice / bill
 - ❌ 執行帳號登入流程、索取或儲存密碼（憲法 §1/R2/I2）
 - ❌ 多人共用帳號的用量拆分/歸屬標記——Phase 2 候選，非本期範圍（憲法 §1/§10）
-- ❌ 不同帳號間的用量合併計算或合併顯示（例如「兩個 DeepSeek 帳號加總餘額」）——憲法 R5 明訂帳號彼此獨立，本期不提供任何跨帳號彙總視圖
+- ❌ 不同帳號間的用量合併計算或合併顯示（例如「兩個 DeepSeek 帳號加總餘額」）——憲法 R5 明訂帳號彼此獨立，本期不提供任何跨帳號彙總視圖。**不含**：切過帳的本機 JSONL 標本機合計、不硬拆（那是無法可靠歸戶的紀錄策略，不是把兩張卡片加總）
 - ❌ Claude/Codex/DeepSeek/Kimi/Grok 以外尚未被憲法納入的 AI 類型——模型設計上可延續同一套 `aiType × accessType` 組合擴充，但本期不主動實作，需求出現時另行評估（憲法 R1）
 - ❌ **Grok 的 API key 制帳號**（**已查證，2026-08-31**）：xAI 官方文件沒有餘額/用量查詢端點，技術上做不到，本期 Grok 只支援訂閱制
 - ❌ **Claude / Codex 的 API key 制帳號**（**已查證不可行，2026-08-31**）：兩家官方用量/成本 API 都需要 Admin 等級憑證，個人帳號用不了；業務 owner 實測自己的帳號確認卡在同一個限制；且「查詢剩餘額度」這個功能本身 Anthropic 都還沒實作（見 §5 技術選型表），詳細查證過程見 §9/§12
 - ❌ 任何雲端同步或伺服器端資料儲存（憲法 I1 明文禁止，本工具沒有伺服器）
 - ❌ 系統匣常駐圖示（tray icon）——README 既有骨架列為後續強化方向，但業務憲法未要求此為核心功能，本期不做，列入 §11 後續追蹤觀察，需要時另外走 PRD 增修或 ADR
 
-> **non-goals 比 goals 更重要**——尤其「不做自動介入」「無伺服器」與「帳號彼此獨立不合併」是憲法明訂的不可變約束（R4/I1/R5），任何後續功能提案都不可違反。
+> **non-goals 比 goals 更重要**——尤其「不做自動介入」「無伺服器」「帳號彼此獨立不合併」「不做趨勢預測」「不雲端託管帳本」是憲法明訂約束（R4/I1/R5）；「不包 cswap/ccusage runtime」「不切帳」是本期 PRD how，不可偷渡回執行期 CLI。
 
 ## 4. 使用者故事 (User Stories)
 
-> 憲法 §2 明確：Phase 1 僅一個角色「使用者」（透過自己已登入/已提供憑證的各 AI 服務帳號，查看用量狀態），不區分帳號擁有者與共用帳號使用者。以下 Story 皆以此角色撰寫。原有 Story 1/2/3/7 已依 2026-08-31 憲法修訂調整措辭與驗收標準，新增 Story 9/10/11 對應多帳號情境。
+> 憲法 §2 明確：Phase 1 僅一個角色「使用者」（查看即時用量，並檢視／匯出本機流水帳自行稽核），不區分帳號擁有者與共用帳號使用者。以下 Story 皆以此角色撰寫。原有 Story 1/2/3/7 已依 2026-08-31 憲法修訂調整；Story 12 對應 2026-09-03 流水帳修訂。
 
 ### Story 1: 查看用量總覽
 
@@ -72,6 +83,7 @@ related_adrs: []
 - [ ] Given 同一 AI 類型下有多個帳號，when 顯示於主畫面，then 該 AI 類型的所有帳號卡片彼此相鄰，不與其他 AI 類型的卡片交錯（憲法 R5 精神 + §8 UI 決策）
 - [ ] Given 用量數字來自本地估算，when 顯示於 UI，then 必須帶有「估算」標示（憲法 R3/I3），不可與官方精確值同樣呈現
 - [ ] Given 尚未追蹤任何帳號，when 開啟工具，then 顯示 empty state 並引導使用者新增帳號
+- [ ] Given 本機已有流水帳紀錄，when 開啟工具主畫面，then 仍只呈現即時配額燈號卡片，不以流水帳圖表佔據首頁（憲法 §1/§6 兩層互不頂替；how 見 §8）
 
 ### Story 2: 新增訂閱制帳號（例如 Claude 訂閱 / Codex 訂閱）
 
@@ -126,9 +138,9 @@ related_adrs: []
 - **So that** 我可以控制本機留存資料的多寡
 
 **Acceptance Criteria**:
-- [ ] Given 預設 3 天，when 超過保留期，then 對應歷史資料被清除（保留當前用量摘要，僅清除歷史序列）
+- [ ] Given 預設 3 天，when 超過保留期，then 對應流水帳被清除（保留當前即時配額摘要，僅清除歷史序列；既有 `usage_history` 與後續 token／金額列同一套保留期，憲法 §9）
 - [ ] Given 使用者選擇 5 天 / 一週 / 手動清除，then 依新設定運作
-- [ ] Given 使用者按下「手動清除」，then 立即清空所有帳號的歷史資料，UI 給予明確完成回饋
+- [ ] Given 使用者按下「手動清除」，then 立即清空所有帳號的流水帳，UI 給予明確完成回饋
 
 ### Story 7: 取消追蹤 vs 關閉顯示（單位：帳號）
 
@@ -137,7 +149,7 @@ related_adrs: []
 - **So that** 我可以依情境選擇要不要保留設定，且清楚知道兩者的差異與後果，也不會影響到同一 AI 類型下的其他帳號
 
 **Acceptance Criteria**:
-- [ ] Given 使用者對某帳號選擇「取消追蹤」，when 確認執行，then 該帳號從追蹤清單移除，且該帳號本機儲存的 API key / 估算歷史資料**全部刪除**；同 AI 類型下其他帳號的資料與顯示完全不受影響（憲法 §8/R5，2026-08-31 修訂：單位是帳號）
+- [ ] Given 使用者對某帳號選擇「取消追蹤」，when 確認執行，then 該帳號從追蹤清單移除，且該帳號本機儲存的 API key 與**流水帳／估算歷史資料全部刪除**；同 AI 類型下其他帳號的資料與顯示完全不受影響（憲法 §8/R5，2026-09-03：取消追蹤要刪該帳號流水帳）
 - [ ] Given 使用者對某帳號選擇「關閉顯示」，when 執行，then 該帳號不再顯示於主畫面，但設定與資料保留，之後可重新開啟繼續顯示，且不影響同類型其他帳號
 - [ ] Given 取消追蹤為不可逆操作，when 使用者觸發此動作，then 必須經過二次確認（防呆），確認文案需明確指出操作對象是「這一個帳號」而非整個 AI 類型，避免誤刪錯帳號
 
@@ -185,20 +197,34 @@ related_adrs: []
 - [ ] Given 一個手動輸入暱稱的 API key 帳號，when 使用者重新命名，then 同樣可成功更新，新舊名稱切換不需要重新驗證憑證
 - [ ] Given 使用者嘗試將標籤留空儲存，when 送出，then 拒絕儲存並提示標籤不可為空（延續新增時「必須輸入暱稱」的防呆邏輯，憲法 R5）
 
+### Story 12（新增，2026-09-03）: 查看／匯出本機流水帳（與設定頁分開）
+
+- **As a** 使用者
+- **I want to** 在與設定同級的帳簿頁檢視並匯出本機流水帳
+- **So that** 我可以事後自行對帳，而不把稽核表面塞進設定裡
+
+**Acceptance Criteria**:
+- [ ] Given 記錄開關已開且已有紀錄，when 開啟帳簿頁，then 看到既有％歷史圖（折線／甜甜圈）與 Markdown/Excel 匯出（從設定頁搬來，見 §8）
+- [ ] Given 使用者只想改「要不要記帳」，when 進入設定，then 歷史功能區只留啟用記錄開關，看不到圖表與匯出（刷新頻率等既有全域設定仍在設定頁）
+- [ ] Given 主畫面有即時配額卡片，when 使用者要看流水帳，then 必須進帳簿頁，首頁不被圖表取代（憲法 §1/§6 兩層互不頂替）
+- [ ] Given 用量來自本機 JSONL 加總，when 顯示分模型 token／金額，then 必須標「估算」（憲法 R3/I3），不可寫成官方帳單
+- [ ] Given 本機 JSONL 曾切過帳，when 加總 token／金額，then 標本機合計，不硬拆到各帳號
+- [ ] Given 記錄開關關閉，when 之後刷新，then 不再寫入新流水帳；已寫入的紀錄仍可在帳簿頁查看／匯出，直到保留期或手動清除
+
 ## 5. 技術選型 (Tech Stack)
 
-> 依 Step 2.1 優先級 2「既有專案偵測」鎖定 Angular / C# + Photino.NET；DB、REST API、監控等傳統 web 選項因架構本質（無伺服器）不適用，已誠實標註。**多帳號模型（2026-08-31 憲法修訂）不改變此表的技術棧選型**——變動集中在 §6 資料模型、§7 訊息契約與 provider 內部設計，本章僅在受影響列補充註記。
+> 依 Step 2.1 優先級 2「既有專案偵測」鎖定 Angular / C# + Photino.NET；**2026-09-03 流水帳修訂不改選型**（Tailwind 維持固定預設）。變動集中在帳簿表面、§6 流水帳欄位與 JSONL 解析 how，不另開框架／雲端 DB。下表僅補本機 SQLite 現況與「吸能力、不吸執行期 CLI」約束。
 
 | 層 | 選型 | 理由 |
 |---|---|---|
 | Frontend | Angular ^22.1.0（standalone components，no SSR, no routing） | 既有專案偵測（`frontend/angular.json` 已存在），不改套 |
 | Backend | C# + Photino.NET（`net10.0`，原生 WebView 桌面殼） | 既有專案偵測（`backend/*.csproj` 已存在）；**注意**：這不是傳統 web backend，沒有對外 HTTP API，只透過 WebView 訊息橋接跟前端溝通 |
-| DB | **無** | 憲法 I1：本工具沒有伺服器，任何資料都不可離開使用者本機、不可上傳。機密資料（API key）走 OS Keychain（見下）；非機密資料（用量歷史）以本機檔案持久化，確切路徑見 §12 TODO |
+| DB | **本機 SQLite**（`usage_history` 等，非伺服器） | 已實作，不改選型。憲法 I1：不可離開本機。既有表只存訂閱制百分比時間序列，屬流水帳的一種；本期擴充分模型 token／估算金額仍落在同一本機 SQLite。機密資料（API key）走 OS Keychain |
 | 憑證儲存 | **OS 原生 Keychain**（macOS Keychain Services / Windows Credential Manager） | 已拍板；業界標準，不用自己處理加密。**多帳號註記**：既有 `ISecretStore` 目前用單一 sourceId（如 `"deepseek"`）當 key，多帳號模型下需要能唯一識別「帳號」而非只是 AI 類型，確切 key 產生規則見 §6 TODO |
 | Claude 用量來源（單帳號） | 打 Anthropic 官方（非公開 beta）用量端點 `GET /api/oauth/usage`，用 Claude Code 自己在本機的 OAuth session（讀 Keychain「Claude Code-credentials」，Windows/Linux 讀 `~/.claude/.credentials.json`），帶 `anthropic-beta: oauth-2025-04-20` header | 沿用既有拍板設計；沒有 `cswap` 時的唯一路徑，永遠只能讀到「當下登入的那一個」帳號 |
-| Claude 用量來源（多帳號，**已查證，2026-08-31**） | 偵測本機是否安裝 `cswap`（`claude-swap`）；有的話 shell out 呼叫 `cswap list --json`（官方文件化的「JSON output for scripting」介面），一次拿到所有帳號的 email/5h/7d 百分比/重置時間；沒裝則退回上一列的單帳號直接呼叫 | 已查證：`cswap list --json` 回傳格式跟直接打官方 API 一致，已實測比對數字相符。**限制**：多帳號功能等於選用依賴 `cswap`，這是社群工具、非官方保證的介面（見 README「已知風險與揭露」） |
-| Codex 用量來源（**已升級，2026-08-31**） | 打 ChatGPT 後端（非公開）用量端點 `GET https://chatgpt.com/backend-api/wham/usage`，用 Codex CLI 自己在本機的 ChatGPT 登入 session（`~/.codex/auth.json` 或 `$CODEX_HOME/auth.json`），帶 `Authorization: Bearer` + `chatgpt-account-id` header | 原本（M1/M2 初版）是 `ccusage codex` 估算 token 數。從 [`openai/codex` 官方 repo 的 bug report #10869](https://github.com/openai/codex/issues/10869) 發現這支非公開端點，實測打通並跟 ChatGPT 設定「使用情況」頁面（5 小時窗 + 每週窗）數字比對一致，改採這個做法。`isEstimated: false`。風險跟 Claude 那支同一類：非公開端點，OpenAI 可能無預告改版；壞掉的 fallback 是退回 ccusage 估算 |
-| Grok 用量來源（**已查證，2026-08-31**） | 僅支援**訂閱制**（Grok Build CLI）：shell out 呼叫 `ccusage grok`，跟 Codex 一樣是本機 log 估算，`isEstimated: true` | 已查證：xAI 官方文件（`docs.x.ai`）沒有任何餘額/用量查詢端點，**API key 制目前技術上做不到**，使用者已拍板本期只做訂閱制（見 §3/§12） |
+| Claude 用量來源（多帳號，**已查證，2026-08-31；2026-09-03 收斂 runtime**） | 即時配額：打官方（非公開）`GET /api/oauth/usage`。多帳號：一次性吸 `cswap` 匯入能力（既有 `CswapImporter`），之後執行期**不再 fork cswap**；沒裝過 cswap 則維持「擷取目前 CLI 登入」 | 已查證：`cswap list --json` 格式可當匯入標本。**2026-09-03**：不把 cswap 當 runtime；不重造切帳 |
+| Codex 用量來源（**已升級，2026-08-31；2026-09-03 收斂 runtime**） | 即時配額：打 ChatGPT 後端（非公開）`GET https://chatgpt.com/backend-api/wham/usage`。流水帳 token／金額：本機解析 Codex JSONL（吸 ccusage 能力，不 `npx ccusage`） | 官方端點 `isEstimated: false`。壞掉時標「非即時」，**不**退回 ccusage CLI。JSONL 路徑屬 L3，見 §10 |
+| Grok 用量來源（**已查證，2026-08-31**） | 僅支援**訂閱制**（Grok Build CLI）：2026-08-31 查證列為 `ccusage grok` 估算，`isEstimated: true`。**本期流水帳不把此 CLI 當 runtime 引入** | 已查證：xAI 官方文件沒有餘額/用量端點，API key 制做不到。是否改走本機解析另案，不在 L1–L3 |
 | Grok 訂閱制官方端點（Grok Build CLI，**查過但暫不實作，2026-08-31**） | 維持上一列的 `ccusage grok` 估算 | Grok Build **完全開源**（`github.com/xai-org/grok-build`），查到非公開端點 `GET cli-chat-proxy.grok.com/v1/billing?format=credits`，但認證需要 5 個 headers、本機憑證檔 `~/.grok/auth.json` 有多個 scope 不確定挑哪個、且沒有真實帳號能實測，不確定性明顯比 Claude/Codex/Kimi 高，故暫不實作，見 §12 |
 | Kimi 訂閱制（**已新增，2026-08-31，⚠️ 未實測**） | 新 provider `KimiSubscriptionUsageProvider`（`SourceId: "kimi-subscription"`，跟既有 API key 制的 `"kimi"` 是同一 AI 類型的不同存取類型），打 `GET https://api.kimi.com/coding/v1/usages`，用本機 `~/.kimi-code/credentials/kimi-code.json` 的 OAuth session | 從**開源的 `MoonshotAI/kimi-code` repo**（`packages/oauth/src/managed-usage.ts`）直接讀出端點/認證/回應格式，信心程度高於 Grok（單一乾淨 header、官方 docs 頁部分佐證），但同樣沒有真實帳號可實測。**已知風險**：repo 的 `docs/en/reference/server-api.md` 文件另外記載一個不同端點 `/api/v1/oauth/usage`，本 provider 選用的是 CLI 自己實際呼叫的那支（信心來源不同但可能是兩個獨立功能），詳見程式碼註解 |
 | Claude / Codex API key 制（**已查證不可行，2026-08-31**） | **不支援**，兩個 AI 類型都只保留原本的訂閱制入口，「API key 制」分區暫時只有 DeepSeek/Kimi | 已查證：Anthropic 的 Usage & Cost Admin API（`/v1/organizations/usage_report/messages`、`/cost_report`）與 OpenAI 的對應 API（`/v1/organization/usage/*`、`/costs`）都**需要 Admin API key**，文件明講「The Admin API is unavailable for individual accounts」「workspace API keys don't work」；業務 owner 實測自己的 workspace key 確認卡在同樣的限制。且**連「查詢目前剩餘額度」這個功能本身，Anthropic 目前都還沒有**（[官方 GitHub issue #47574](https://github.com/anthropics/claude-code/issues/47574) 是社群還在跟 Anthropic 要這個功能的 feature request，尚未實作）。唯一能拿到的資訊是一般 key 呼叫 `/v1/messages` 時回應帶的 `anthropic-ratelimit-*` headers（速率限制 headroom，非金額餘額），但取得方式是**真的花錢打一次 API**，跟本工具「唯讀監控、不主動使用服務」的定位衝突，判斷不值得做 |
@@ -209,9 +235,11 @@ related_adrs: []
 | Deploy | `dotnet publish` self-contained（macOS `.app` / Windows `.exe`），對應既有 `scripts/build.sh` | 桌面應用打包，非容器化，不適用 Docker/k8s/serverless |
 | 監控 | **無**（不適用桌面小工具） | 若需除錯，改用本機 log 檔（TODO：格式與框架待定，見 §12） |
 
+> **2026-09-03 流水帳 how（不改上表選型）**：即時配額路徑維持既有官方端點。流水帳的分模型 token／金額：吸 ccusage 的 JSONL 解析**能力**進 C# 本機實作，執行期不 `npx ccusage`、不 fork cswap。cswap 僅一次性匯入既有 Claude 帳號（既有 `CswapImporter`），之後不再呼叫。切過帳的 log 標本機合計。Claude 路徑／欄位／官方 API 單價已查證（見 §6）；Codex 屬 L3。
+
 ## 6. 資料模型 (Data Model)
 
-> **不適用傳統關聯式 DB schema**——憲法 I1 明訂本工具無伺服器。以下改為「本機資料模型」描述。**2026-08-31 修訂**：原 `TrackedSource`（一個 AI 類型 = 一筆固定實體）改為 `TrackedAccount`（一個「帳號」才是實際被追蹤的實體，對應憲法 §6 術語表「帳號」定義），一個 AI 類型可對應 0..N 個帳號。確切的檔案格式/路徑/加密方式/ID 產生規則**尚未拍板，標 TODO**。
+> **不適用傳統關聯式／雲端 DB schema**——憲法 I1 明訂本工具無伺服器。以下改為「本機資料模型」描述。**2026-08-31 修訂**：原 `TrackedSource` 改為 `TrackedAccount`。**2026-09-03 修訂**：本機 SQLite 已有 `usage_history`（訂閱制百分比時間序列）——這是流水帳的一種，不是即時配額狀態；流水帳還可再含官方配額快照、餘額快照、本機 token／估算金額（標 `isEstimated`）。確切 token 欄位／JSONL 對照**尚未拍板，標 TODO**。
 
 ### 概念實體（非 SQL table，供實作對照）
 
@@ -231,8 +259,8 @@ TrackedAccount {                 // 原 TrackedSource 改名（2026-08-31 修訂
   createdAt: datetime
 }
 
-UsageSnapshot {
-  accountId: string               // FK → TrackedAccount.accountId（概念上，非資料庫外鍵；原本是 sourceId，現指向帳號而非 AI 類型）
+UsageSnapshot {                  // 即時配額狀態的當下快照（主畫面燈號）；不是流水帳
+  accountId: string               // FK → TrackedAccount.accountId（概念上，非資料庫外鍵）
   capturedAt: datetime
   percentUsed: number
   usageState: "normal" | "near_limit" | "exceeded"
@@ -240,25 +268,41 @@ UsageSnapshot {
   raw: <TODO>                     // 來源原始數字（token 數 / 額度單位），格式依 aiType/accessType 而異
 }
 
+LedgerEntry {                    // 流水帳列（帳簿頁）；既有 usage_history 百分比序列是其中一種
+  accountId: string
+  recordedAt: datetime
+  kind: "quota_snapshot" | "balance_snapshot" | "local_token_estimate"
+  percentUsed?: number            // 既有 usage_history
+  windowLabelKey?: string
+  usageState?: "normal" | "near_limit" | "exceeded"
+  model?: string                  // 分模型 token；JSONL 路徑。切過帳的 log 不硬拆，accountId 可為本機合計桶
+  inputTokens?: number            // TODO：JSONL 欄位對照未拍板
+  outputTokens?: number
+  estimatedCostUsd?: number       // 必須搭配 isEstimated: true；估算美元 ≠ 帳單
+  isEstimated: boolean
+  raw: <TODO>
+}
+
 Settings {
   refreshIntervalMinutes: 5 | 60 | 120 | null   // null = 純手動
   retentionDays: 3 | 5 | 7 | null                // null = 手動清除
   nearLimitThresholdPercent: number              // 50–95，預設 80；全域單例，套用到所有帳號（未因多帳號拆分成逐帳號設定，憲法未要求）
+  recordUsageHistory: boolean                    // 「要不要記帳」；圖表與匯出不在設定頁（2026-09-03）
 }
 ```
 
 ### 主要實體與關係
 
 - 一個 `AiType` 對應 0..N 個 `TrackedAccount`（多帳號模型核心，憲法 R1/R5，2026-08-31 修訂）
-- 一個 `TrackedAccount` 對應 0..N 個 `UsageSnapshot`（歷史序列，依 `retentionDays` 定期清除）
-- `Settings` 是全域單例，不屬於任何 `TrackedAccount`
-- 取消追蹤（憲法 §8）= 刪除該 `TrackedAccount` 及其所有 `UsageSnapshot` 與 `credentialRef` 指向的憑證資料，**同 AiType 下其他 `TrackedAccount` 不受影響**（憲法 R5）
+- 一個 `TrackedAccount` 對應 0..1 個當下 `UsageSnapshot`（即時配額，主畫面）以及 0..N 個 `LedgerEntry`（流水帳，依 `retentionDays` 定期清除）。既有 `usage_history` 列 = `kind: quota_snapshot` 的百分比序列
+- `Settings` 是全域單例，不屬於任何 `TrackedAccount`；`recordUsageHistory` 只決定要不要繼續記帳
+- 取消追蹤（憲法 §8）= 刪除該 `TrackedAccount` 及其所有 `LedgerEntry`／`usage_history` 與 `credentialRef` 指向的憑證資料，**同 AiType 下其他 `TrackedAccount` 不受影響**（憲法 R5）
 - 關閉顯示（憲法 §8）= 僅將 `TrackedAccount.visible` 設為 `false`，其餘資料原封不動
 
 ### DDD 邊界
 
 - **Aggregate Root**: `TrackedAccount`（原 `TrackedSource`）
-- **內部 Entity**: `UsageSnapshot`
+- **內部 Entity**: `UsageSnapshot`（即時）、`LedgerEntry`（流水帳）
 - **Value Object**: `AiType`、`AccessType`、`ConnectionState`、`UsageState`、`LabelSource`（皆為列舉值，狀態相關的不可脫離憲法 §4 狀態機定義的合法轉換路徑被任意賦值）
 - **跨 Aggregate 連結**: `Settings` 是獨立 aggregate，`UsageSnapshot` 讀取 `Settings.nearLimitThresholdPercent` 來推導 `usageState`，但不直接持有 `Settings` 物件
 
@@ -270,6 +314,8 @@ Settings {
 - [ ] **本機資料實際檔案格式**：單一 JSON 檔 vs SQLite 單檔（注意：SQLite 單檔屬本機檔案，非「伺服器資料庫」，若採用需在此明確排除誤解為違反 I1）
 - [ ] **既有單帳號模型資料遷移策略**：既有程式碼 4 個固定 sourceId（claude/codex/deepseek/kimi）的 Keychain 項目與 `AppSettings.HiddenSources: List<string>` 是以 AI 類型名稱為 key，多帳號模型改成以 `accountId` 為 key 後，既有使用者升級時如何映射（例如既有 `"deepseek"` 這筆資料要自動轉成一個 `accountId` 明確的 `TrackedAccount`）——未拍板，需在實作前另外規劃
 - [ ] **`AppSettings` 中依 AI 類型命名的欄位需重新設計**：例如 `DeepSeekLowBalanceThresholdUsd` / `KimiLowBalanceThresholdUsd` 目前是「一個 AI 類型一個全域門檻」，與 R5「帳號彼此獨立」精神有潛在衝突（同類型的兩個帳號可能想設不同門檻）——是否要改成 per-account 設定，未拍板
+- [x] **流水帳 token／金額欄位與 JSONL 對照（Claude，2026-09-03）**：路徑 `~/.claude/projects/**/*.jsonl` 與 `~/.config/claude/projects/`（`CLAUDE_CONFIG_DIR` 可覆寫）。欄位：`type=assistant`、`message.model`、`message.usage.{input_tokens,output_tokens,cache_creation_input_tokens,cache_read_input_tokens,cache_creation.ephemeral_5m/1h}`、`requestId` 去重、`timestamp`。本機樣本無 `costUSD`。估算單價來源：官方 API 標價 https://platform.claude.com/docs/en/about-claude/pricing（2026-09-03）。桶識別：`local-combined`（JSONL 無可靠帳號欄，切過帳不硬拆）。Codex 屬 L3，仍待查。
+- [x] **既有 `usage_history` 是否原地加欄或另表**：不改表。Claude token／金額掃描 JSONL 即時加總，不寫進 SQLite（百分比序列仍走 `usage_history`）
 
 ## 7. 前後端訊息契約 (Message Contract)
 
@@ -284,8 +330,10 @@ Settings {
 | `remove-source` | `{ accountId: string }` | 取消追蹤：後端需完整刪除該**帳號**本機憑證與歷史資料，同 `aiType` 下其他帳號不受影響（憲法 §8/R5，**修訂**：欄位從 `source` 改為 `accountId`） |
 | `set-visibility` | `{ accountId: string, visible: boolean }` | 關閉/開啟顯示（憲法 §8，不刪除資料，**修訂**：欄位從 `source` 改為 `accountId`） |
 | `rename-account`（**新增，2026-08-31**） | `{ accountId: string, newLabel: string }` | 重新命名帳號標籤，不論原本 `labelSource` 是 `auto_detected` 或 `manual` 皆可改；不影響連線狀態/用量資料（憲法 R5） |
-| `update-settings` | `{ refreshIntervalMinutes?: number\|null, retentionDays?: number\|null, nearLimitThresholdPercent?: number }` | 更新刷新頻率/保留期/閾值（全域設定，未因多帳號拆分） |
+| `update-settings` | `{ refreshIntervalMinutes?: number\|null, retentionDays?: number\|null, nearLimitThresholdPercent?: number, recordUsageHistory?: boolean }` | 更新刷新頻率/保留期/閾值／**要不要記帳**（全域設定，未因多帳號拆分；2026-09-03：記帳開關留設定，圖表不走這條） |
 | `get-settings` | `{}` | 取得目前設定值 |
+| `export-usage-history`（既有） | `{ exportFormat: 'md'\|'xlsx', lang: string }` | 匯出流水帳；**2026-09-03**：觸發面從設定頁搬到帳簿頁，契約不變 |
+| `get-usage-history`（既有／沿用） | `{}` | 帳簿頁讀取既有％序列作圖；分模型 token 序列的訊息形狀 TODO |
 
 ### 後端 → 前端（`SendWebMessage` / `receiveMessage`）
 
@@ -318,6 +366,8 @@ interface UsageSummary {
 ## 8. UI 流程 (UI Flow)
 
 > **2026-08-31 修訂**：新增「卡片依 AI 類型分組、同類型帳號相鄰、卡片可個別摺疊」的排列規則（使用者原話：「平常可能是 Claude/Codex/DeepSeek/Kimi/Grok 這樣顯示 5 張卡片，但如果有 Claude 多個帳號就會變成 Claude/Claude/Claude/Codex/DeepSeek/Kimi/Grok 這樣顯示」）。此規則屬 UI 呈現細節，不寫進憲法，僅存在於本 PRD。
+>
+> **2026-09-03 修訂**：導覽維持「主畫面／設定」同級，並新增同級**帳簿頁**。主畫面仍是卡片燈號（即時配額）；既有％歷史圖與 Markdown/Excel 匯出從設定搬到帳簿頁；設定只留「要不要記帳」開關。憲法只要求兩層資料互不頂替，頁面切分屬 PRD how。
 
 主要畫面與四態（loading / empty / error / success）：
 
@@ -336,11 +386,16 @@ interface UsageSummary {
   - empty：（不適用，此頁固定顯示 AI 類型 × 存取類型的選單）
   - error：CLI log/session 找不到 / API key 格式錯誤 / 端點驗證失敗 / 暱稱未輸入，各自給不同錯誤文案
   - success：新增完成，導回主畫面並高亮新項目；若該 AI 類型已有其他帳號，新卡片插入到同分組內相鄰位置
-- **設定畫面**：刷新頻率、保留期、接近上限閾值三個設定項，即時儲存即時生效（全域設定，不因帳號而異）
+- **設定畫面**：刷新頻率、保留期、接近上限閾值等既有全域設定維持；「記錄用量歷史／要不要記帳」開關留在設定，即時儲存即時生效。**折線圖／甜甜圈／Markdown/Excel 匯出不再放設定頁**（2026-09-03 搬到帳簿頁）
+- **帳簿頁**（**新增，2026-09-03**，與設定同級導覽）：
+  - loading：讀取本機流水帳中
+  - empty：尚無紀錄（開關未開、或尚未寫入），提示可到設定開啟記帳；不把 empty 導回設定當主表面
+  - error：讀檔／匯出失敗，保留已畫出的資料並標原因
+  - success：先承接既有％歷史圖（折線／甜甜圈）與匯出；後續加上分模型 token／估算金額（標「估算」）。主畫面不被這頁內容取代
 - **重新命名帳號 dialog**（**新增**）：輸入框預填目前標籤，儲存後即時更新卡片顯示，不需重新驗證憑證（憲法 R5）
-- **取消追蹤確認 dialog**：明確文案告知「將永久刪除**這一個帳號**的憑證與歷史資料，無法復原」（措辭需明確是帳號層級而非整個 AI 類型），與「關閉顯示」的按鈕在視覺與文案上明顯區隔，避免誤觸
+- **取消追蹤確認 dialog**：明確文案告知「將永久刪除**這一個帳號**的憑證與流水帳，無法復原」（措辭需明確是帳號層級而非整個 AI 類型），與「關閉顯示」的按鈕在視覺與文案上明顯區隔，避免誤觸
 
-對應 Figma / design assets：**TODO**（本次 PRD 階段尚未決定 `design_output_mode`，需在確認階段反問使用者是否需要同步 Figma）
+對應 Figma / design assets：**本期預設 `assets_only`**（2026-09-03 未要求 Figma 同步；若之後要第二層，需另指定 `figma_sync_mode` 與 `figma_target`）
 
 關鍵互動的 `data-testid` 預埋清單：
 - 主要 CTA（新增帳號）：`add-account-cta`
@@ -353,7 +408,8 @@ interface UsageSummary {
 - 連線狀態圖示：`connection-state-indicator`
 - 取消追蹤按鈕：`remove-source-btn`
 - 關閉顯示按鈕：`toggle-visibility-btn`
-- 設定表單欄位：`settings-refresh-interval` / `settings-retention-days` / `settings-threshold`
+- 設定表單欄位：`settings-refresh-interval` / `settings-retention-days` / `settings-threshold` / `settings-record-history`
+- 帳簿頁：`ledger-page` / `ledger-chart` / `ledger-export-md` / `ledger-export-xlsx`
 - 錯誤訊息容器：`error-banner`
 
 ## 9. 風險與相依 (Risks & Dependencies)
@@ -367,17 +423,19 @@ interface UsageSummary {
 | API key 儲存方式（明碼/加密）尚未拍板，若明碼儲存有本機資安疑慮 | high | 見 §6 TODO，需在實作前另外拍板，必要時開 ADR |
 | @sanring/ui 相對新興，元件成熟度可能不如傳統元件庫，且本次新增需求的 `collapsible` 摺疊元件是否已提供未經確認 | low-medium | Pin 版本，關鍵元件（progress bar/badge/dialog/collapsible）先驗證可用性，必要時自製 Tailwind 元件補位 |
 | DeepSeek/Kimi/其他 API key 制帳號的官方用量 API 若變動或不穩定 | medium | provider 抽象化 + 逾時降級，失敗時沿用最後成功數字並標示非即時 |
-| Claude 用量改打非公開 beta 端點（`/api/oauth/usage`），Anthropic 隨時可能改版或停用，且不是文件化的公開合約 | high | 已知風險，使用者已拍板接受；401/其他錯誤時明確回報「憑證過期，請重新登入」而非靜默壞掉；長期 fallback 是退回 ccusage 估算法 |
-| Codex 用量改打非公開端點（`/backend-api/wham/usage`，**2026-08-31 新增**），OpenAI 隨時可能改版或停用，同樣不是文件化的公開合約 | high | 已知風險，同 Claude 的處理方式；401/403 時明確回報「憑證過期，請重新登入」；長期 fallback 是退回 ccusage 估算法 |
+| Claude 用量改打非公開 beta 端點（`/api/oauth/usage`），Anthropic 隨時可能改版或停用，且不是文件化的公開合約 | high | 已知風險，使用者已拍板接受；401/其他錯誤時明確回報「憑證過期，請重新登入」而非靜默壞掉；**2026-09-03**：失效時標「非即時」，不退回 ccusage CLI |
+| Codex 用量改打非公開端點（`/backend-api/wham/usage`，**2026-08-31 新增**），OpenAI 隨時可能改版或停用，同樣不是文件化的公開合約 | high | 已知風險，同 Claude 的處理方式；401/403 時明確回報「憑證過期，請重新登入」；**2026-09-03**：不退回 ccusage CLI |
 | **Kimi 訂閱制未實測就上線**（`KimiSubscriptionUsageProvider`，2026-08-31 新增）：端點/回應格式是讀開源碼推論出來的，沒有真實帳號驗證過，第一次真的有人用可能發現端點錯誤或欄位對不上 | medium | 失敗時回傳原始回應內容（截斷）方便除錯，不會靜默顯示錯誤數字；`connectionState` 會誠實顯示 invalid/not_configured 而非假裝成功 |
 | **（已查證，2026-08-31）Grok 沒有 API key 制的官方查詢端點**：查了 xAI 官方文件（`docs.x.ai`），沒有找到任何餘額/用量端點 | high | 已拍板：本期 Grok 只做訂閱制（`ccusage grok`），API key 制標記為技術上不可行，非本期範圍（見 §3） |
-| **（已查證，2026-08-31）Claude 多訂閱帳號需依賴選用外部工具 `cswap`**：`ClaudeAuthReader` 本身只能讀「當下登入的那一個」OAuth session；查證後確認 `cswap list --json` 是官方文件化的 scripting 介面，能一次取得多帳號資料，但**這代表多帳號功能等於間接依賴一個社群工具**，且跟我們自己直接呼叫的做法一樣，本質是打同一支 Anthropic 非公開端點（法律/ToS 風險已知，見 README「已知風險與揭露」） | high | 已拍板：有裝 `cswap` 走 `cswap list --json`；沒裝則維持單帳號限制並在 UI 明確告知使用者原因 |
+| **（已查證，2026-08-31；2026-09-03 收斂）Claude 多訂閱帳號曾依賴選用 `cswap`**：`cswap list --json` 可當匯入標本，但執行期 fork 等於把社群工具當 runtime（法律/ToS 風險見 README） | high | **2026-09-03**：只做一次性匯入，之後不再呼叫 cswap；沒匯入過則維持「擷取目前 CLI 登入」。不重造切帳 |
 | **（新增，2026-08-31）既有單帳號資料模型遷移**：既有程式碼以固定 sourceId（如 `"deepseek"`）為 key 的 Keychain 項目與 `AppSettings.HiddenSources` 等欄位，需重構為以 `accountId` 為 key 的多帳號模型，若處理不當可能導致既有使用者升級後既有帳號憑證遺失或無法對應 | medium-high | 見 §6 TODO，需在實作前規劃明確的遷移/映射策略，必要時提供一次性遷移腳本或啟動時自動偵測轉換 |
+| **執行期依賴 ccusage（npx）**（2026-09-03）：把外部估算 CLI 當 runtime 會把冷啟動、版本漂移、PATH 問題帶進桌面殼，也違反「不包 ccusage runtime」 | high | 本期禁止；吸 JSONL 解析能力進本機，不 fork / 不 npx。即時配額官方端點失效時標「非即時」，**不**因此退回 ccusage |
+| **估算美元被誤認為帳單**（2026-09-03）：使用者用流水帳對帳時，可能把本機加總當成官方 invoice | high | UI／匯出必須標「估算」（憲法 R3/I3）；欄位名不可寫成 invoice/bill；文案寫明估算美元 ≠ 帳單 |
 
 ### 相依
 
 - **上游**：
-  - Claude Code / Codex CLI 本機使用紀錄檔的實際格式（可能需研究 `ccusage` 開源工具的解析邏輯）
+  - Claude Code / Codex CLI 本機 JSONL／使用紀錄檔的實際格式（可**讀** ccusage 開源解析邏輯當能力參考，執行期不呼叫該 CLI）
   - DeepSeek / Kimi / 未來 Grok / Claude API key 等官方用量查詢端點的 API 文件
   - @sanring/ui 套件在目標 Angular 版本（^22.1.0）下是否提供 `collapsible` 元件
 - **下游**：無其他內部團隊或服務受影響（單機獨立應用）
@@ -395,26 +453,35 @@ interface UsageSummary {
 | M5 | UI 分組排列 + 卡片摺疊/展開（`collapsible`）實作 | Story 1/9/10 中「同類型相鄰分組」「摺疊/展開」相關 Acceptance Criteria 通過 |
 | M6 | 打包驗證：`scripts/build.sh` 產出 macOS `.app` 與 Windows `.exe`，各自開啟並完成一次刷新 | 兩平台 self-contained build 均可安裝執行、smoke test 通過 |
 
-## 11. 後續追蹤 (Follow-ups)
+### 本期增量（2026-09-03，疊在既有里程碑之上，不重開 M1–M6）
+
+對齊憲法「本機流水帳／自行稽核」：順序固定為 **帳簿頁搬遷 → Claude JSONL → Codex JSONL**。不另開執行期 ccusage／cswap 依賴。
+
+| Slice | 內容 | 驗收門檻 |
+|---|---|---|
+| L1 帳簿頁搬遷 | 既有％歷史圖（折線／甜甜圈）與 Markdown/Excel 匯出從設定搬到與設定同級的帳簿頁；設定只留「要不要記帳」開關；首頁維持配額燈號 | Story 12 中「與設定分開／首頁不被取代」Acceptance Criteria 通過 |
+| L2 Claude JSONL | 本機解析 Claude JSONL，寫入流水帳（分模型 token＋估算金額，標 `isEstimated`）；切過帳 log 標本機合計 | 帳簿頁能看到 Claude 分模型 token／估算金額，且標「估算」；取消追蹤刪該帳號流水帳（Story 7） |
+| L3 Codex JSONL | 同樣能力擴到 Codex JSONL | Codex 帳號在帳簿頁有對應 token／估算金額；不引入 `npx ccusage` |
 
 - M6 上線後：實際使用 1–2 週後，review 估算值與官方數字的落差是否在可接受範圍（呼應憲法 Decision 1 的風險）
 - 觀察是否需要系統匣常駐圖示（tray icon）——目前排除於本期範圍，若使用者回報「工具視窗常被關閉導致漏看警示」，應評估另開 PRD 增修或 ADR
 - Phase 2 候選功能追蹤：多人共用帳號的用量拆分/歸屬標記（憲法 §1/§10 已拍板列為 Phase 2，非本期）
+- **（2026-09-03）**流水帳 L2/L3 之後：觀察估算金額與官方帳單落差是否需另開揭露文案；不因此改成預測或雲端帳本
 - **（已查證，2026-08-31）**Grok API key 制不支援、Claude 多帳號依賴 `cswap`——業務 owner 已確認這**不需要**回頭修訂憲法 R1/R5：兩維度模型本來就不要求每個 AI 類型的每種存取類型都要能實作，屬技術限制而非業務規則變動
 
 ## 12. 開放問題 (Open Questions)
 
-> 憲法本身無懸而未決項目（§10：「目前無未拍板項目」）。以下是 PRD 技術翻譯階段新產生的技術問題；已拍板項目維持勾選狀態，2026-08-31 新增數項待查證問題，禁止腦補：
+> 憲法本身無懸而未決項目（§10：「目前無未拍板項目」）。以下是 PRD 技術翻譯階段新產生的技術問題；已拍板項目維持勾選狀態。2026-09-03 新增 JSONL／流水帳欄位 TODO，禁止腦補單價表：
 
 - [x] ~~API key / 憑證的本機儲存格式~~ —— **已拍板**：使用 OS 原生 Keychain，不明碼存本機檔案
-- [x] ~~Claude Code / Codex 本機估算演算法~~ —— **已拍板**：shell out 呼叫 `ccusage`
+- [x] ~~Claude Code / Codex 本機估算演算法~~ —— 2026-08-31 曾拍板 shell out `ccusage`；**2026-09-03 改拍板**：吸 JSONL 解析能力進本機，執行期不 `npx ccusage`
 - [x] ~~Codex 有沒有等同 Claude「5 小時窗」的配額概念~~ —— **已查證**：沒有，`ccusage codex` 只有 daily/monthly/session 累計
 - [x] ~~DeepSeek/Kimi 用量怎麼算「百分比」~~ —— **已查證+設計**：兩家 API 只回報絕對餘額（USD），改用低額度警告門檻設計
 - [x] ~~本機資料儲存路徑~~ —— **已實作+已修 bug（2026-08-31）**：`AppPaths.cs`，macOS `~/Library/Application Support/SanRingUsageMonitor/`、Windows `%AppData%\SanRingUsageMonitor\`。**踩過一次真的 bug**：一開始誤用 `SpecialFolder.Personal`（macOS 上實際指向 `~/Documents`，不是 home），已改用 `.UserProfile` 修正
 - [ ] TODO: 「時間窗口用量」（5 小時滾動窗 / 每週）的重置時間點計算規則，需要官方文件佐證
 - [ ] TODO: 背景 timer 在應用視窗被最小化（非關閉）時是否持續運作？Photino 生命週期細節待驗證
 - [ ] TODO: 本機除錯 log 檔的格式、路徑、是否也適用 §9 保留期規則
-- [ ] TODO: `design_output_mode` 尚未與使用者確認（`assets_only` 還是需同步 Figma）
+- [x] ~~`design_output_mode`~~ —— **2026-09-03**：本期預設 `assets_only`，未要求 Figma
 - [ ] TODO: Kimi 有 `platform.kimi.ai`/`kimi.com` 與 `platform.moonshot.ai`/`.cn` 兩組互不相通的帳號體系，是否要讓 base URL 可設定，待確認
 - [x] ~~Grok 用量查詢技術方案~~ —— **已查證（2026-08-31）**：無官方 API key balance 端點；訂閱制走 `ccusage grok`，API key 制不支援（見 §3/§5/§9）
 - [ ] TODO（**新增，2026-08-31**）：**Kimi 訂閱制需要真實帳號驗證** —— `KimiSubscriptionUsageProvider` 已寫但未測，需要有人申請 Kimi Code 帳號實際跑一次確認端點/欄位對不對（見 §5/§9）
@@ -425,3 +492,6 @@ interface UsageSummary {
 - [ ] TODO（**新增，2026-08-31**）：`credentialRef` 的 key 產生規則與 `accountId` 產生方式（見 §6）
 - [ ] TODO（**新增，2026-08-31**）：既有單帳號模型資料（4 個固定 sourceId）遷移到新多帳號模型的策略（見 §6/§9）
 - [ ] TODO（**新增，2026-08-31**）：`AppSettings` 中依 AI 類型命名的欄位（如 `DeepSeekLowBalanceThresholdUsd`）是否要改成 per-account 設定（見 §6）
+- [x] ~~Claude 本機 JSONL 路徑／欄位／單價~~ —— **已查證+實作（2026-09-03）**：見 §6；單價引用官方 API 標價，禁止自創費率。Codex 仍待 L3
+- [x] ~~切過帳 log 的本機合計桶~~ —— **已拍板**：`local-combined`（JSONL 無可靠帳號欄）
+- [x] ~~`usage_history` 加欄或另表~~ —— **已拍板**：不改表；JSONL 掃描即時加總

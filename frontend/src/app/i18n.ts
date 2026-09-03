@@ -58,8 +58,13 @@ export interface Translations {
   pasteApiKey: string;
   addBtn: string;
   noInputNeeded: string;
+  captureHintClaude: string;
+  captureHintCodex: string;
+  capturing: string;
+  captureBtn: string;
   detecting: string;
   startDetect: string;
+  capturedSuccess: string;
   done: string;
   pleaseEnterApiKey: string;
   unknownAddFailure: string;
@@ -86,6 +91,9 @@ export interface Translations {
   claudeCredentialsNotFound: string;
   claudeCredentialsExpiredLocal: string;
   claudeCredentialsRejected: string;
+  snapshotNotFound: string;
+  captureRefreshMissing: string;
+  captureEmailMissing: string;
   codexCredentialsNotFound: string;
   codexCredentialsRejected: string;
   cursorCredentialsNotFound: string;
@@ -107,9 +115,6 @@ export interface Translations {
   kimiSubCredentialsRejected: string;
   kimiSubHttpErrorWithBody: string;
   kimiSubParseErrorUnverified: string;
-  cswapCallFailed: string;
-  cswapAccountNotFound: string;
-  cswapUsageStatusNotOk: string;
 
   // ── 浮動小工具（widget-app.ts）專用 ──
   widgetDetails: string;
@@ -119,6 +124,23 @@ export interface Translations {
   // ── 設定頁（PRD M3）──
   settingsTitle: string;
   settingsAria: string;
+  ledgerAria: string;
+  ledgerTitle: string;
+  ledgerDescription: string;
+  ledgerRecordingOff: string;
+  ledgerTokenTitle: string;
+  ledgerTokenHint: string;
+  ledgerTokenNeedDesktop: string;
+  ledgerTokenEmpty: string;
+  ledgerTokenLocalCombined: string;
+  ledgerColModel: string;
+  ledgerColInput: string;
+  ledgerColOutput: string;
+  ledgerColCacheWrite: string;
+  ledgerColCacheRead: string;
+  ledgerColEstUsd: string;
+  ledgerTokenTotal: string;
+  usageHistorySettingsHint: string;
   refreshIntervalLabel: string;
   nearLimitLabel: string;
   usageAlertTitle: string;
@@ -159,6 +181,8 @@ export interface Translations {
   exportXlsx: string;
   saveSettings: string;
   settingsSaved: string;
+  quitApp: string;
+  quitAppHint: string;
 
   // ── 關閉顯示 / 取消追蹤（PRD M4）──
   hideSource: string;
@@ -226,15 +250,20 @@ export const translations: Record<Lang, Translations> = {
     back: '返回',
     addSourceTitle: '新增來源',
     loadingEllipsis: '載入中…',
-    subscriptionSectionDesc: '讀本機已登入的 CLI，一個帳號只能對到一個 slot，已追蹤的會變灰',
+    subscriptionSectionDesc: '擷取目前 CLI 已登入的帳號。同一個來源可以擷取多次——換帳號後再擷取就會多一筆。',
     apiKeySectionDesc: '可以新增多個帳號，各自獨立，不會互相覆蓋',
     tracked: '已追蹤',
     changeOne: '換一個',
     pasteApiKey: '貼上 {name} API KEY',
     addBtn: '新增',
     noInputNeeded: '不需要輸入任何東西——按下面的按鈕，讓工具去讀本機的登入資訊。',
+    captureHintClaude: '先確認終端機裡 Claude Code 已登入你要追蹤的帳號，再按擷取。Haul 只複製一份快照，不會改 CLI 的登入、也不會幫你切帳。',
+    captureHintCodex: '先確認終端機裡已 `codex login` 你要追蹤的帳號，再按擷取。Codex 的 refresh token 幾乎只能用一次：擷取後請立刻在終端機登入下一個帳號，不要先開 Codex CLI 讓它自己換票。Haul 絕不寫回 ~/.codex/auth.json。',
+    capturing: '擷取中…',
+    captureBtn: '擷取目前登入',
     detecting: '偵測中…',
     startDetect: '開始偵測',
+    capturedSuccess: '已擷取 {name}。要加另一個帳號，先在終端機登入那個帳號再按一次擷取。',
     done: '完成，返回列表',
     pleaseEnterApiKey: '請先輸入 API KEY',
     unknownAddFailure: '新增失敗，原因不明',
@@ -260,6 +289,9 @@ export const translations: Record<Lang, Translations> = {
     claudeCredentialsNotFound: '找不到 Claude Code 的登入憑證，請先執行 `claude` 完成登入',
     claudeCredentialsExpiredLocal: '登入憑證已過期，請執行一次 `claude` 讓它自動刷新',
     claudeCredentialsRejected: 'Anthropic 拒絕了目前的登入憑證，請執行一次 `claude` 重新登入',
+    snapshotNotFound: '找不到這個帳號的快照，請到新增來源再擷取一次目前的 CLI 登入',
+    captureRefreshMissing: '讀到的登入沒有 refresh token，請在終端機重新登入後再擷取',
+    captureEmailMissing: '登入資訊裡沒有 email，無法辨識帳號。請確認 CLI 已登入後再試',
     codexCredentialsNotFound: '找不到 Codex 的登入憑證，請先執行 `codex login` 完成登入',
     codexCredentialsRejected: 'ChatGPT 拒絕了目前的登入憑證，請執行一次 `codex login` 重新登入',
     cursorCredentialsNotFound: '找不到 Cursor 的登入 session，請先打開 Cursor 完成登入',
@@ -281,9 +313,6 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code 拒絕了目前的登入憑證，請重新執行 `/login`',
     kimiSubHttpErrorWithBody: '用量端點回應錯誤：HTTP {status}　{body}',
     kimiSubParseErrorUnverified: '用量端點回應內容無法解析（未驗證過的端點，第一次遇到請把這段回傳貼給開發者）：{body}',
-    cswapCallFailed: '呼叫 cswap 失敗：{message}',
-    cswapAccountNotFound: 'cswap 清單裡找不到帳號 {email}（可能在 cswap 裡被登出或移除了）',
-    cswapUsageStatusNotOk: 'cswap 回報這個帳號的用量狀態異常：{status}',
 
     widgetDetails: '詳細',
     widgetCollapse: '收合',
@@ -291,6 +320,23 @@ export const translations: Record<Lang, Translations> = {
 
     settingsTitle: '設定',
     settingsAria: '設定',
+    ledgerAria: '流水帳',
+    ledgerTitle: '流水帳',
+    ledgerDescription: '本機已經發生的紀錄：官方配額歷史，以及 Claude JSONL 分模型 token／估算金額。這不是未來用量預測，估算美元也不是帳單。',
+    ledgerRecordingOff: '目前沒有繼續寫入新的配額歷史。到設定開啟「記錄用量歷史」。',
+    ledgerTokenTitle: 'Claude 本機用量',
+    ledgerTokenHint: '讀本機 ~/.claude/projects JSONL，切過帳標本機合計。金額依官方 API 標價估算，不是帳單。',
+    ledgerTokenNeedDesktop: '要讀本機 JSONL 需要桌面殼，ng serve 純前端看不到這張表。',
+    ledgerTokenEmpty: '最近 30 天找不到 Claude Code 的本機 session 紀錄。',
+    ledgerTokenLocalCombined: '本機合計',
+    ledgerColModel: '模型',
+    ledgerColInput: '輸入',
+    ledgerColOutput: '輸出',
+    ledgerColCacheWrite: 'Cache 寫入',
+    ledgerColCacheRead: 'Cache 讀取',
+    ledgerColEstUsd: '估算 USD',
+    ledgerTokenTotal: '合計',
+    usageHistorySettingsHint: '圖表與匯出改到「流水帳」頁，這裡只決定要不要繼續記錄。',
     refreshIntervalLabel: '自動刷新頻率',
     nearLimitLabel: '用量達到多少時提醒',
     usageAlertTitle: '訂閱用量提醒',
@@ -312,11 +358,11 @@ export const translations: Record<Lang, Translations> = {
     interval1h: '1 小時',
     interval2h: '2 小時',
     usageHistoryTitle: '記錄用量歷史',
-    usageHistoryDescription: '開啟後自動刷新固定改為每 5 分鐘一次，並把各訂閱制來源的用量記錄到本機，最長保留 1 個月，可隨時匯出成 Markdown 或 Excel 檔。',
-    usageHistoryNoData: '還沒有足夠的記錄可以畫圖，開啟上面的開關再等幾輪刷新看看。',
+    usageHistoryDescription: '開啟後自動刷新固定改為每 5 分鐘一次，並把各訂閱制來源的用量記錄到本機，最長保留 1 個月。',
+    usageHistoryNoData: '還沒有足夠的記錄可以畫圖。到設定開啟「記錄用量歷史」再等幾輪刷新。',
     claudeWakeUpTitle: 'Claude 用量喚醒',
     claudeWakeUpDescription: '⚠️ 這是唯一會消耗你用量額度的功能：Claude 的 5 小時／7 天視窗要送出訊息才會啟動。開啟後，下面勾選的帳號會在各自設定的時刻（本機時間，24 小時制）送一則最小訊息喚醒視窗——每個帳號一天最多一次，代價很小，但是真的對話紀錄。app 沒開著的話不會準時觸發，會等到下次刷新才補打。',
-    claudeWakeUpNoAccounts: '目前沒有透過 cswap 追蹤的 Claude 帳號可以選——單一帳號模式不支援這個功能。',
+    claudeWakeUpNoAccounts: '目前沒有已擷取的 Claude 帳號可以選——請先到新增來源擷取至少一個。',
     claudeWakeUpAccountToggleAria: '對 {name} 啟用用量喚醒',
     claudeWakeUpHourAria: '{name} 的喚醒時刻',
     chartSeriesShown: '{label}目前顯示中，點一下隱藏',
@@ -331,6 +377,8 @@ export const translations: Record<Lang, Translations> = {
     exportXlsx: '匯出 Excel',
     saveSettings: '儲存',
     settingsSaved: '設定已儲存',
+    quitApp: '結束程式',
+    quitAppHint: '關閉視窗只會藏到 Dock／工作列，程式還在背景跑。確定要完全退出嗎？',
 
     hideSource: '關閉顯示',
     unhideSource: '顯示',
@@ -339,17 +387,17 @@ export const translations: Record<Lang, Translations> = {
     infoAria: '用量來源說明',
     infoTitle: '用量來源說明',
     infoClaudeTitle: 'Claude',
-    infoClaudeBody: '支援多帳號。有安裝選用工具 cswap（claude-swap）時，會自動偵測並同時追蹤所有登入的帳號；沒有安裝則只能看到目前登入中的那一個。',
+    infoClaudeBody: '支援多帳號：每次擷取目前 Claude Code 已登入的那個帳號。升級時若本機有 cswap，會一次性匯入既有帳號，之後不再呼叫 cswap。',
     infoCodexTitle: 'Codex',
-    infoCodexBody: '目前只支援單一帳號。官方 Codex CLI 還沒有多帳號功能（OpenAI 尚未實作，見官方 issue #4432）；市面上雖然有幾個第三方切換工具，但機制都是「切換目前登入的帳號」而非唯讀查詢多個帳號，牽涉的風險比 Claude 那邊高，目前沒有整合。',
+    infoCodexBody: '支援多帳號：每次擷取目前 Codex CLI 已登入的那個帳號。擷取後請立刻 `codex login` 下一個帳號（refresh token 近乎一次性）。Haul 絕不寫回 ~/.codex/auth.json，也不會幫你切帳。用量視窗錨在第一次 request，不做喚醒 ping（跟 Claude 不同，查證見說明）。',
     infoApiKeyTitle: 'DeepSeek / Kimi（API KEY）',
     infoApiKeyBody: '原生支援多個帳號，各自用獨立的 API KEY，互不影響，隨時可以新增。',
     infoKimiSubTitle: 'Kimi（訂閱）',
-    infoKimiSubBody: '單一帳號，讀取本機 Kimi Code CLI 的登入 session。⚠️ 這條路徑目前尚未經過真實帳號驗證，第一次使用如果卡住請把錯誤訊息回報給開發者。',
+    infoKimiSubBody: '單一帳號，讀本機 Kimi Code CLI 的登入 session（~/.kimi-code/credentials/，含 kimi-code-env-*.json）。',
     infoGrokTitle: 'Grok',
-    infoGrokBody: '目前不支援 API KEY（xAI 官方沒有對應的查詢端點）；訂閱走本機估算（ccusage grok）。官方訂閱端點雖然已經查到，但認證複雜、不確定性偏高，暫時沒有實作。',
+    infoGrokBody: '目前不支援 API KEY（xAI 官方沒有對應的查詢端點）。訂閱制官方端點查過但未實測；本機也沒有 Grok CLI／~/.grok，所以還沒接。',
     infoCursorTitle: 'Cursor',
-    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session。卡片兩條進度對齊設定頁「Included in Pro」：內建模型（Cursor Models，含 Grok / Composer）與其他模型（Other Models）。',
+    infoCursorBody: '單一帳號，讀取本機 Cursor 的登入 session。Cursor 只存一份「目前登入中」的 cursorAuth（不是 Claude/Codex 那種可擷取多組 CLI 登入）。卡片兩條進度對齊設定頁「Included in Pro」：內建模型（Cursor Models，含 Grok / Composer）與其他模型（Other Models）。',
     infoDisclaimerTitle: '關於非公開端點',
     infoDisclaimerBody: 'Claude、Codex 這兩個來源目前都是打官方沒有公開文件化的內部端點，不是正式支援的公開 API，未來可能無預告改版或停用——這是已知、已評估過的取捨，不是 bug。',
 
@@ -393,15 +441,20 @@ export const translations: Record<Lang, Translations> = {
     back: 'Back',
     addSourceTitle: 'Add source',
     loadingEllipsis: 'Loading…',
-    subscriptionSectionDesc: 'Reads the CLI already logged in locally — one account per slot; already-tracked ones are greyed out',
+    subscriptionSectionDesc: 'Captures the account currently logged into the CLI. Capture the same source again after switching accounts to add another.',
     apiKeySectionDesc: 'You can add several accounts, each independent — none overwrites another',
     tracked: 'Tracked',
     changeOne: 'Change',
     pasteApiKey: 'Paste {name} API KEY',
     addBtn: 'Add',
     noInputNeeded: 'Nothing to type — press the button below and this tool will read your local login info.',
+    captureHintClaude: 'Make sure Claude Code in the terminal is logged into the account you want to track, then capture. Haul copies a snapshot only — it will not change the CLI login or switch accounts for you.',
+    captureHintCodex: 'Make sure you have `codex login`’d the account you want to track, then capture. Codex refresh tokens are near-single-use: after capturing, immediately log into the next account in the terminal — don’t open the Codex CLI first and let it rotate the token. Haul never writes back to ~/.codex/auth.json.',
+    capturing: 'Capturing…',
+    captureBtn: 'Capture current login',
     detecting: 'Detecting…',
     startDetect: 'Start detecting',
+    capturedSuccess: 'Captured {name}. To add another account, log into it in the terminal then capture again.',
     done: 'Done, back to list',
     pleaseEnterApiKey: 'Please enter an API KEY first',
     unknownAddFailure: 'Failed to add, reason unknown',
@@ -427,6 +480,9 @@ export const translations: Record<Lang, Translations> = {
     claudeCredentialsNotFound: "Couldn't find Claude Code's login credentials — run `claude` to log in first",
     claudeCredentialsExpiredLocal: 'Login credentials have expired — run `claude` once to let it auto-refresh',
     claudeCredentialsRejected: 'Anthropic rejected the current login credentials — run `claude` once to log in again',
+    snapshotNotFound: 'No snapshot for this account — add the source again to capture the current CLI login',
+    captureRefreshMissing: 'The login has no refresh token. Log in again in the terminal, then capture.',
+    captureEmailMissing: 'The login has no email, so the account cannot be identified. Confirm the CLI is logged in and try again.',
     codexCredentialsNotFound: "Couldn't find Codex's login credentials — run `codex login` to log in first",
     codexCredentialsRejected: 'ChatGPT rejected the current login credentials — run `codex login` once to log in again',
     cursorCredentialsNotFound: "Couldn't find a Cursor login session — open Cursor and log in first",
@@ -448,9 +504,6 @@ export const translations: Record<Lang, Translations> = {
     kimiSubCredentialsRejected: 'Kimi Code rejected the current login credentials — run `/login` again',
     kimiSubHttpErrorWithBody: 'Usage endpoint returned an error: HTTP {status}　{body}',
     kimiSubParseErrorUnverified: "Could not parse the usage endpoint's response (this endpoint is unverified — if you're the first to hit this, please paste this response for the developer): {body}",
-    cswapCallFailed: 'Failed to call cswap: {message}',
-    cswapAccountNotFound: "Couldn't find account {email} in cswap's list (it may have been logged out or removed from cswap)",
-    cswapUsageStatusNotOk: "cswap reported an abnormal usage status for this account: {status}",
 
     widgetDetails: 'Details',
     widgetCollapse: 'Collapse',
@@ -458,6 +511,23 @@ export const translations: Record<Lang, Translations> = {
 
     settingsTitle: 'Settings',
     settingsAria: 'Settings',
+    ledgerAria: 'Ledger',
+    ledgerTitle: 'Ledger',
+    ledgerDescription: 'What already happened on this machine: official quota history, plus Claude JSONL per-model tokens and estimated cost. Not a forecast. Estimated dollars are not a bill.',
+    ledgerRecordingOff: 'New quota-history samples are not being written. Turn on “Record usage history” in Settings.',
+    ledgerTokenTitle: 'Claude local usage',
+    ledgerTokenHint: 'Reads ~/.claude/projects JSONL on this machine. Switched accounts stay as a local combined total. Dollars use official API list prices — estimate, not a bill.',
+    ledgerTokenNeedDesktop: 'Reading local JSONL needs the desktop shell. This table is empty under ng serve.',
+    ledgerTokenEmpty: 'No Claude Code session logs found in the last 30 days.',
+    ledgerTokenLocalCombined: 'Local combined',
+    ledgerColModel: 'Model',
+    ledgerColInput: 'Input',
+    ledgerColOutput: 'Output',
+    ledgerColCacheWrite: 'Cache write',
+    ledgerColCacheRead: 'Cache read',
+    ledgerColEstUsd: 'Est. USD',
+    ledgerTokenTotal: 'Total',
+    usageHistorySettingsHint: 'Charts and export live on the Ledger page. This switch only controls whether new samples are recorded.',
     refreshIntervalLabel: 'Auto-refresh interval',
     nearLimitLabel: 'Warn when usage reaches',
     usageAlertTitle: 'Subscription usage alerts',
@@ -479,11 +549,11 @@ export const translations: Record<Lang, Translations> = {
     interval1h: '1 hour',
     interval2h: '2 hours',
     usageHistoryTitle: 'Record usage history',
-    usageHistoryDescription: 'When on, auto-refresh switches to a fixed 5-minute cadence and each subscription source’s usage is recorded locally (kept for up to 1 month). Export it anytime as Markdown or Excel.',
-    usageHistoryNoData: 'Not enough recorded data to chart yet — turn on the switch above and wait for a few more refreshes.',
+    usageHistoryDescription: 'When on, auto-refresh switches to a fixed 5-minute cadence and each subscription source’s usage is recorded locally (kept for up to 1 month).',
+    usageHistoryNoData: 'Not enough recorded data to chart yet. Turn on “Record usage history” in Settings and wait for a few more refreshes.',
     claudeWakeUpTitle: 'Claude usage wake-up',
     claudeWakeUpDescription: "⚠️ The only feature that spends real usage: Claude's 5-hour/7-day windows only start once a message is sent. When on, each selected account below gets one minimal message at its own set hour (local time, 24-hour) to wake its window — once a day per account, tiny cost, but a real logged conversation. Won't fire on time if the app isn't open; it catches up on the next refresh instead.",
-    claudeWakeUpNoAccounts: 'No Claude accounts tracked via cswap yet — single-account mode doesn’t support this.',
+    claudeWakeUpNoAccounts: 'No captured Claude accounts yet — add a source and capture at least one first.',
     claudeWakeUpAccountToggleAria: 'Enable usage wake-up for {name}',
     claudeWakeUpHourAria: 'Wake-up hour for {name}',
     chartSeriesShown: '{label} is shown — click to hide',
@@ -498,6 +568,8 @@ export const translations: Record<Lang, Translations> = {
     exportXlsx: 'Export Excel',
     saveSettings: 'Save',
     settingsSaved: 'Settings saved',
+    quitApp: 'Quit',
+    quitAppHint: 'Closing the window only hides Haul to the Dock / taskbar; it keeps running in the background. Quit completely?',
 
     hideSource: 'Hide',
     unhideSource: 'Show',
@@ -506,17 +578,17 @@ export const translations: Record<Lang, Translations> = {
     infoAria: 'Usage sources info',
     infoTitle: 'Usage sources',
     infoClaudeTitle: 'Claude',
-    infoClaudeBody: 'Supports multiple accounts. If the optional cswap (claude-swap) tool is installed, all logged-in accounts are detected and tracked automatically; otherwise only the currently logged-in one is shown.',
+    infoClaudeBody: 'Multiple accounts: capture whichever account Claude Code is currently logged into. If cswap was already in use, existing accounts are imported once on upgrade — cswap is not called at runtime after that.',
     infoCodexTitle: 'Codex',
-    infoCodexBody: "Currently single-account only. The official Codex CLI has no multi-account support yet (OpenAI hasn't built this — see official issue #4432). A few third-party switcher tools exist, but they work by changing which account is actively logged in rather than reading multiple accounts non-destructively, carrying more risk than the Claude approach — not integrated for now.",
+    infoCodexBody: 'Multiple accounts: capture whichever account the Codex CLI is currently logged into. After capturing, immediately `codex login` the next account (refresh tokens are near-single-use). Haul never writes back to ~/.codex/auth.json and will not switch accounts for you. Usage windows anchor to the first request — no wake-up ping (unlike Claude).',
     infoApiKeyTitle: 'DeepSeek / Kimi (API KEY)',
     infoApiKeyBody: 'Natively supports multiple accounts, each with its own independent API KEY — add as many as you like.',
     infoKimiSubTitle: 'Kimi (Subscription)',
-    infoKimiSubBody: "Single account, reads the local Kimi Code CLI's login session. ⚠️ This path hasn't been verified against a real account yet — if it gets stuck on first use, please report the error message to the developer.",
+    infoKimiSubBody: "Single account, reads the local Kimi Code CLI login (~/.kimi-code/credentials/, including kimi-code-env-*.json).",
     infoGrokTitle: 'Grok',
-    infoGrokBody: "API KEY isn't supported (xAI has no corresponding query endpoint); subscription uses a local estimate (ccusage grok). An official subscription endpoint was found but its complexity/uncertainty is high, so it hasn't been implemented yet.",
+    infoGrokBody: "API KEY isn't supported (xAI has no corresponding query endpoint). A subscription endpoint was found but not verified; this machine has no Grok CLI / ~/.grok, so it isn't wired up yet.",
     infoCursorTitle: 'Cursor',
-    infoCursorBody: "Single account, reads the local Cursor login session. The two bars match Settings → Included in Pro: Cursor Models (Grok / Composer) and Other Models.",
+    infoCursorBody: "Single account, reads the local Cursor login session. Cursor only stores one current cursorAuth login (not a Claude/Codex-style capture of multiple CLI sessions). The two bars match Settings → Included in Pro: Cursor Models (Grok / Composer) and Other Models.",
     infoDisclaimerTitle: 'About undocumented endpoints',
     infoDisclaimerBody: 'Both the Claude and Codex sources currently call undocumented internal endpoints, not officially published public APIs — they could change or be disabled without notice in the future. This is a known, deliberately-evaluated trade-off, not a bug.',
 

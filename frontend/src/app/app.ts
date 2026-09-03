@@ -3,7 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   LucideArrowLeft,
-  LucideChartLine,
+  LucideBookOpen,
   LucideCheck,
   LucideChevronDown,
   LucideChevronUp,
@@ -16,6 +16,7 @@ import {
   LucideGripVertical,
   LucideHeartPulse,
   LucideInfo,
+  LucideLogOut,
   LucideMoon,
   LucidePlus,
   LucideRefreshCw,
@@ -48,7 +49,7 @@ const THEME_STORAGE_KEY = 'sanring-usage-monitor:theme';
 // 偏好設定憑空消失（見 RELEASE-PLAN.md「改名」那節），但這個 key 是這次才新增的，沒有這個包袱。
 const DISCLOSURE_SEEN_KEY = 'sanring-haul:disclosure-seen';
 
-type View = 'list' | 'add' | 'settings' | 'info';
+type View = 'list' | 'add' | 'settings' | 'info' | 'ledger';
 type AddStatus = 'idle' | 'pending' | 'success' | 'error';
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
@@ -86,7 +87,27 @@ interface UsageWindow {
   detail: string | null;
 }
 
-/** Mirrors backend's UsageHistoryStore.UsageHistoryPoint（camelCase on the wire）——設定頁折線圖用。 */
+/** Mirrors backend ClaudeJsonlLedger.ClaudeTokenRow —— 帳簿頁分模型 token／估算金額。 */
+interface ClaudeTokenRowWire {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreation5mTokens: number;
+  cacheCreation1hTokens: number;
+  cacheReadTokens: number;
+  estimatedCostUsd: number | null;
+}
+
+interface ClaudeTokenLedgerWire {
+  source: string;
+  bucket: string;
+  models: ClaudeTokenRowWire[];
+  assistantMessages: number;
+  oldestUtc: string | null;
+  newestUtc: string | null;
+}
+
+/** Mirrors backend's UsageHistoryStore.UsageHistoryPoint（camelCase on the wire）——帳簿頁折線圖用。 */
 interface UsageHistoryPointWire {
   recordedAtUtc: string;
   accountId: string;
@@ -130,7 +151,7 @@ interface CatalogEntry {
     CdkDrag,
     CdkDragHandle,
     LucideArrowLeft,
-    LucideChartLine,
+    LucideBookOpen,
     LucideCheck,
     LucideChevronDown,
     LucideChevronUp,
@@ -143,6 +164,7 @@ interface CatalogEntry {
     LucideGripVertical,
     LucideHeartPulse,
     LucideInfo,
+    LucideLogOut,
     LucideMoon,
     LucidePlus,
     LucideRefreshCw,
@@ -289,9 +311,8 @@ export class App implements AfterViewInit {
   protected readonly claudeWakeUpHourOptions = Array.from({ length: 24 }, (_, h) => h);
   protected readonly settingsSaveStatus = signal<SaveStatus>('idle');
 
-  /** 「Claude 用量喚醒」帳號清單只能從目前追蹤中、走 cswap 多帳號路徑的 Claude 帳號裡挑——單帳號
-   *  模式（source 字面上是 "claude"）沒有走 cswap，讀不到 Keychain 裡對應的完整憑證格式，見
-   *  ClaudeActivationPinger 的說明。 */
+  /** 「Claude 用量喚醒」帳號清單從目前追蹤中、AccountId 為 claude:{email} 的帳號裡挑——
+   *  舊版單帳號（source 字面上是 "claude"）沒有獨立快照，不支援喚醒。 */
   /**
    * 隱藏中（關閉顯示，不是取消追蹤）的帳號也要算進來——隱藏≠移除，帳號還在追蹤中，Keychain
    * 憑證還在，喚醒還是會真的觸發，使用者得看得到、改得了這個設定，不能因為卡片被藏起來就連
@@ -311,12 +332,29 @@ export class App implements AfterViewInit {
   protected readonly historyExportStatus = signal<'idle' | 'pending' | 'success' | 'error'>('idle');
   protected readonly historyExportError = signal<string | null>(null);
   protected readonly usageHistory = signal<UsageHistoryPointWire[]>([]);
+  protected readonly claudeTokenLedger = signal<ClaudeTokenLedgerWire | null>(null);
+  protected readonly claudeTokenTotals = computed(() => {
+    const rows = this.claudeTokenLedger()?.models ?? [];
+    let input = 0;
+    let output = 0;
+    let cacheWrite = 0;
+    let cacheRead = 0;
+    let cost = 0;
+    let costKnown = true;
+    for (const r of rows) {
+      input += r.inputTokens;
+      output += r.outputTokens;
+      cacheWrite += r.cacheCreation5mTokens + r.cacheCreation1hTokens;
+      cacheRead += r.cacheReadTokens;
+      if (r.estimatedCostUsd == null) costKnown = false;
+      else cost += r.estimatedCostUsd;
+    }
+    return { input, output, cacheWrite, cacheRead, cost: costKnown && rows.length > 0 ? cost : null };
+  });
 
   /**
    * 圖表現在收在「查看圖表」對話框裡，不是直接嵌在設定頁裡——原本折線圖固定畫在「記錄用量歷史」
-   * 卡片下面，使用者反饋擔心之後圖表種類一多（甜甜圈、之後可能的熱力圖）設定頁會被塞爆，改成
-   * 點按鈕才開對話框看，設定頁本身只留開關 + 匯出按鈕。chartMode 決定對話框裡畫哪一種圖，未來
-   * 真的要加熱力圖，這裡多一個 'heatmap' case 就好，不用重新設計。
+   * 卡片下面。圖表現在在帳簿頁，chartMode 決定畫哪一種；之後加熱力圖這裡多一個 union 即可。
    */
   protected readonly chartMode = signal<'line' | 'donut'>('line');
 
@@ -325,7 +363,7 @@ export class App implements AfterViewInit {
   }
 
   /**
-   * 設定頁折線圖的資料——把 usageHistory() 依「帳號＋視窗」分組成一條條線。顏色刻意不用
+   * 帳簿頁折線圖的資料——把 usageHistory() 依「帳號＋視窗」分組成一條條線。顏色刻意不用
    * success/warn/error 那組語意色（那些在別處代表「狀態」，這裡的顏色只是用來分辨「這是哪個
    * 帳號的哪個視窗」，兩件事混在一起會誤導），改用 primary/coral/sun/info 四個品牌色階輪流分配。
    */
@@ -340,7 +378,7 @@ export class App implements AfterViewInit {
 
   /**
    * 5 小時（短週期／突發額度）跟 7 天以上（長週期／總預算，含 Cursor 的月結模型桶）分成兩張圖。
-   * 舊的 Cursor 美元花費序列（沒有 windowLabelKey）不進圖——那不是設定頁在畫的東西。
+   * 舊的 Cursor 美元花費序列（沒有 windowLabelKey）不進圖——那不是帳簿頁在畫的東西。
    */
   protected readonly shortWindowChartSeries = computed(() =>
     this.buildChartSeries(this.usageHistory().filter((p) => p.windowLabelKey === 'fiveHourLabel')),
@@ -551,6 +589,19 @@ export class App implements AfterViewInit {
   }
 
   /** 查目前語言的翻譯表，{key} 形式的 placeholder 用 params 替換——跟 usageStateLabel() 那類「依狀態查表」寫法同一套模式。 */
+  protected formatCount(n: number): string {
+    return n.toLocaleString(this.lang() === 'zh-TW' ? 'zh-Hant-TW' : 'en');
+  }
+
+  protected formatUsd(n: number | null): string {
+    if (n == null) return '—';
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  }
+
+  protected cacheWriteTokens(row: ClaudeTokenRowWire): number {
+    return row.cacheCreation5mTokens + row.cacheCreation1hTokens;
+  }
+
   protected t(key: keyof Translations, params?: Record<string, string>): string {
     let text = translations[this.lang()][key];
     if (params) {
@@ -603,13 +654,17 @@ export class App implements AfterViewInit {
     this.draftUsageHistoryEnabled.set(this.usageHistoryEnabled());
     this.draftClaudeWakeUpEnabled.set(this.claudeWakeUpEnabled());
     this.draftClaudeWakeUpAccountHours.set(this.claudeWakeUpAccountHours());
+  }
+
+  protected openLedgerView(): void {
+    this.view.set('ledger');
     this.historyExportStatus.set('idle');
     this.historyExportError.set(null);
-    // 折線圖資料每次進設定頁都重新抓一次，不快取——資料量不大（見 UsageHistoryStore 的估算），
-    // 這裡不是高頻動作，沒必要為了省一次查詢去追蹤「上次抓的資料是不是還新鮮」。用 sendSilent
-    // 不是 send()：這是純本機 SQLite 查詢，不是打外部 API 的「用量刷新」，不該點亮清單頁的
-    // 刷新中圖示（使用者這時人在設定頁，那顆圖示他也看不到，點亮了也只是誤導）。
     this.sendSilent({ type: 'get-usage-history' });
+  }
+
+  protected closeLedgerView(): void {
+    this.view.set('list');
   }
 
   protected toggleHiddenList(): void {
@@ -743,6 +798,13 @@ export class App implements AfterViewInit {
     });
   }
 
+  /** 真的結束程式，不是關視窗——關視窗的預設行為是隱藏到 Dock／工作列（見 Program.cs 的
+   *  RegisterWindowClosingHandler），process 還在跑。這裡送 quit 訊息讓後端主動
+   *  Environment.Exit(0)，才是真的退出。 */
+  protected quitApp(): void {
+    this.sendSilent({ type: 'quit' });
+  }
+
   /** md/xlsx 匯出——存檔對話框（原生「另存新檔」視窗）跟寫檔都在後端做，這裡只負責發訊息跟收結果。
    *  用 sendSilent 而非 send()：這不是一次用量刷新，用 send() 會連帶點亮清單頁的刷新中圖示，
    *  在設定頁裡做這個動作會讓使用者困惑「怎麼跑去刷新卡片了」。 */
@@ -769,7 +831,7 @@ export class App implements AfterViewInit {
     this.addApiKey.set((event.target as HTMLInputElement).value);
   }
 
-  /** API key 制：真的送出金鑰驗證。訂閱制：沒有東西好打，這顆按鈕只是「開始偵測本機」。 */
+  /** API key 制：真的送出金鑰驗證。Claude/Codex：擷取目前 CLI 登入。其他訂閱：偵測本機 session。 */
   protected submitAdd(): void {
     const entry = this.addSelectedEntry();
     if (!entry) return;
@@ -984,6 +1046,7 @@ export class App implements AfterViewInit {
         settings?: UserSettingsWire;
         hiddenAccounts?: HiddenAccountEntry[];
         usageHistory?: UsageHistoryPointWire[];
+        claudeTokenLedger?: ClaudeTokenLedgerWire;
         error?: string;
       };
 
@@ -997,8 +1060,9 @@ export class App implements AfterViewInit {
         return;
       }
 
-      if (payload.type === 'usage-history' && payload.usageHistory) {
-        this.usageHistory.set(payload.usageHistory);
+      if (payload.type === 'usage-history') {
+        if (payload.usageHistory) this.usageHistory.set(payload.usageHistory);
+        this.claudeTokenLedger.set(payload.claudeTokenLedger ?? null);
         return;
       }
 
@@ -1022,10 +1086,7 @@ export class App implements AfterViewInit {
         return;
       }
 
-      // 新增來源的結果現在後端會單獨送一則（因為 API key 制的 accountId 是伺服器產生的 GUID，
-      // 前端沒辦法從一般的清單裡用 sourceId 反查回「剛剛加的是哪一個」）。通常是一個，但 Claude
-      // 透過 cswap 一次偵測可能加好幾個帳號，陣列也可能是空的（cswap 有裝但偵測到的都已經追蹤
-      // 過了）——三種情況分開處理，不能只看 data?.[0]。
+      // 新增來源的結果後端會單獨送一則。Claude/Codex 擷取成功後停在這一頁，方便接著換帳再擷取。
       if (payload.type === 'account-added' && payload.data) {
         const addedAccounts = payload.data;
         if (addedAccounts.length === 0) {
@@ -1037,13 +1098,16 @@ export class App implements AfterViewInit {
         const allValid = addedAccounts.every((a) => a.connectionState === 'valid');
         if (allValid) {
           this.addStatus.set('success');
+          const captured = addedAccounts[0].sourceType === 'subscription' &&
+            (addedAccounts[0].source.startsWith('claude:') || addedAccounts[0].source.startsWith('codex:'));
           this.addResultMessage.set(
-            addedAccounts.length === 1
-              ? this.t('addedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
-              : this.t('addedSuccessMultiple', { count: String(addedAccounts.length) }),
+            captured
+              ? this.t('capturedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
+              : addedAccounts.length === 1
+                ? this.t('addedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
+                : this.t('addedSuccessMultiple', { count: String(addedAccounts.length) }),
           );
-          // 讓使用者瞄到一眼「成功了」再切回去，不是完全無感跳轉，但也不用再多按一次確認。
-          setTimeout(() => this.closeAddView(), 900);
+          if (!captured) setTimeout(() => this.closeAddView(), 900);
         } else {
           this.addStatus.set('error');
           // 多帳號情況下只顯示第一個失敗的訊息，不逐一列舉——夠用，不用把畫面塞滿。

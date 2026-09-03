@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace UsageMonitor.Desktop.Security;
 
-public sealed record CodexAuthToken(string AccessToken, string AccountId);
+public sealed record CodexAuthToken(string AccessToken, string? RefreshToken, string AccountId, string? Email);
 
 /// <summary>
 /// Reads Codex CLI's own ChatGPT-login session — same read-only spirit as <see cref="ClaudeAuthReader"/>.
@@ -37,10 +37,12 @@ public static class CodexAuthReader
             if (!doc.RootElement.TryGetProperty("tokens", out var tokens)) return null;
 
             var accessToken = tokens.TryGetProperty("access_token", out var at) ? at.GetString() : null;
+            var refreshToken = tokens.TryGetProperty("refresh_token", out var rft) ? rft.GetString() : null;
             var accountId = tokens.TryGetProperty("account_id", out var aid) ? aid.GetString() : null;
             if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(accountId)) return null;
+            var email = JwtEmail.TryRead(accessToken);
 
-            return new CodexAuthToken(accessToken, accountId);
+            return new CodexAuthToken(accessToken, refreshToken, accountId, email);
         }
         catch (JsonException)
         {

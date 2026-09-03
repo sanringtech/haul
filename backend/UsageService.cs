@@ -39,21 +39,24 @@ public sealed record HiddenAccountEntry(string AccountId, string DisplayName, st
 /// <summary>
 /// Orchestrates all <see cref="IUsageProvider"/>s (constitution R1: Claude/Codex/DeepSeek/Kimi) across
 /// however many <see cref="TrackedAccount"/>s the user has added (constitution R5: multi-account —
-/// api_key-type sources like DeepSeek/Kimi can have several accounts; subscription-type sources
-/// stay singleton, one login at a time) plus the add/remove/visibility operations from PRD §7.
+/// api_key-type sources like DeepSeek/Kimi can have several accounts; Claude/Codex are captured
+/// CLI logins stored in <see cref="SubscriptionSnapshotStore"/>, also several) plus the
+/// add/remove/visibility operations from PRD §7.
 /// </summary>
 public sealed class UsageService
 {
     private readonly ISecretStore _secretStore;
+    private readonly SubscriptionSnapshotStore _snapshots;
     private readonly IReadOnlyDictionary<string, IUsageProvider> _providersBySourceId;
 
     public UsageService()
     {
         _secretStore = SecretStoreFactory.Create();
+        _snapshots = new SubscriptionSnapshotStore(_secretStore);
         IUsageProvider[] providers =
         [
-            new ClaudeUsageProvider(),
-            new CodexUsageProvider(),
+            new ClaudeUsageProvider(_snapshots),
+            new CodexUsageProvider(_snapshots),
             new DeepSeekUsageProvider(_secretStore),
             new KimiUsageProvider(_secretStore),        // api_key 制（既有）
             new KimiSubscriptionUsageProvider(),         // 訂閱制（2026-08-31 新增，未實測，見該檔案註解）
@@ -61,6 +64,12 @@ public sealed class UsageService
         ];
         _providersBySourceId = providers.ToDictionary(p => p.SourceId);
     }
+
+    public Task ImportCswapIfNeededAsync(CancellationToken ct = default) =>
+        CswapImporter.ImportIfNeededAsync(_snapshots, ct);
+
+    public Task PingWakeUpsAsync(CancellationToken ct = default) =>
+        ClaudeActivationPinger.PingIfDueAsync(_snapshots, ct);
 
     /// <summary>Only accounts the user has explicitly added and not hidden. A fresh install returns an empty array.</summary>
     public async Task<UsageSummary[]> GetSummariesAsync(CancellationToken ct = default)
@@ -71,9 +80,9 @@ public sealed class UsageService
     }
 
     /// <summary>
-    /// All known provider types for the "＋ 新增來源" picker. Subscription types (one login at a time)
-    /// disappear once tracked; api_key types never do — a second/third DeepSeek account doesn't
-    /// conflict with the first, so there's nothing to hide (constitution R5).
+    /// All known provider types for the "＋ 新增來源" picker. Singleton subscription types
+    /// (Cursor, Kimi sub) grey out once tracked; Claude/Codex stay clickable so more logins
+    /// can be captured. api_key types never grey out.
     /// </summary>
     public SourceCatalogEntry[] GetCatalog()
     {
@@ -81,29 +90,25 @@ public sealed class UsageService
         return [.. _providersBySourceId.Values.Select(p =>
         {
             var alreadyHasAccount = settings.TrackedAccounts.Any(a => a.SourceId == p.SourceId);
-            // Claude 是唯一支援多個訂閱制帳號的來源（靠 cswap，見 AddClaudeAccountsAsync）——已經追蹤
-            // 一個不代表不能再偵測到新的，所以「＋ 新增來源」清單裡永遠讓它可以再按一次，不像其他
-            // 訂閱制來源（Codex）那樣一有帳號就整個變灰。
-            var isTracked = p.SourceType == "subscription" && alreadyHasAccount && p.SourceId != "claude";
+            // Claude / Codex 走「擷取目前 CLI 登入」，可重複加帳號，清單永遠不灰。
+            // 其他訂閱制（Cursor、Kimi 訂閱）仍是本機單一 session，追蹤過就變灰。
+            var capturable = p.SourceId is "claude" or "codex";
+            var isTracked = p.SourceType == "subscription" && alreadyHasAccount && !capturable;
             return new SourceCatalogEntry(p.SourceId, p.DisplayName, p.SourceType, isTracked);
         })];
     }
 
     /// <summary>
-    /// Adds a new account (or several — see the Claude/cswap branch) and does one immediate probe —
-    /// for api_key sources that's validating the key against the real endpoint; for subscription
-    /// sources it's "try to detect the local CLI/session right now" (constitution R2: nothing to
-    /// type, just something to find). Returns one UsageSummary per account actually added — usually
-    /// one, but Claude-via-cswap can add several in a single click; an empty array means "nothing new
-    /// to add" (e.g. cswap detected accounts but all of them were already tracked).
+    /// Adds a new account and does one immediate probe. Claude/Codex capture the current CLI login
+    /// into the snapshot store (repeatable per account). api_key sources validate the key.
     /// </summary>
     public async Task<UsageSummary[]> AddSourceAsync(string sourceId, string? apiKey, CancellationToken ct = default)
     {
         var provider = FindProvider(sourceId);
         var settings = SettingsStore.Load();
 
-        if (sourceId == "claude")
-            return await AddClaudeAccountsAsync((ClaudeUsageProvider)provider, settings, ct);
+        if (sourceId is "claude" or "codex")
+            return await CaptureSubscriptionAsync(sourceId, provider, settings, ct);
 
         TrackedAccount account;
         if (provider.SourceType == "subscription")
@@ -140,79 +145,65 @@ public sealed class UsageService
     }
 
     /// <summary>
-    /// Claude 是唯一支援多個訂閱制帳號同時追蹤的來源，靠偵測本機是否裝了使用者選用安裝的 cswap
-    /// （claude-swap）——有裝就把它回報的「每一個」帳號各自變成一個 TrackedAccount（AccountId 用
-    /// email 識別，見 ClaudeUsageProvider.CswapAccountId），已經追蹤過的跳過不重複加；沒裝 cswap
-    /// 就退回原本的單帳號行為（讀本機唯一登入中的 Claude Code session，AccountId 就是 "claude"）。
+    /// 擷取目前 CLI 登入進快照庫。同一 email 再擷取一次會覆蓋快照（換票）；不同帳號則新加一筆。
+    /// 舊版 AccountId 字面 <c>claude</c> / <c>codex</c> 在第一次成功擷取時升級成 <c>{source}:{email}</c>。
     /// </summary>
-    private async Task<UsageSummary[]> AddClaudeAccountsAsync(ClaudeUsageProvider provider, AppSettings settings, CancellationToken ct)
+    private async Task<UsageSummary[]> CaptureSubscriptionAsync(
+        string sourceId, IUsageProvider provider, AppSettings settings, CancellationToken ct)
     {
-        var cswapAccounts = await provider.TryDetectCswapAccountsAsync(ct);
+        SubscriptionSnapshot? snap;
+        string? errorKey;
+        if (sourceId == "claude")
+            (snap, errorKey) = ((ClaudeUsageProvider)provider).TryCaptureCurrent();
+        else
+            (snap, errorKey) = await ((CodexUsageProvider)provider).TryCaptureCurrentAsync(ct);
 
-        if (cswapAccounts is { Length: > 0 })
+        if (snap is null)
         {
-            // 舊版單帳號模式留下的 TrackedAccount（AccountId 字面上就是 "claude"）如果還在，代表
-            // 使用者升級這個功能前就已經在追蹤——它讀的正是「目前登入中」那個 session，對應到
-            // cswap 清單裡 active=true 的那個帳號。原地「升級」成新的 email 格式（保留使用者可能
-            // 已經改過的 Label），不是留著兩份重複顯示同一個帳號的用量。
-            var upgraded = false;
-            var legacyIndex = settings.TrackedAccounts.FindIndex(a => a.AccountId == "claude");
-            if (legacyIndex >= 0)
-            {
-                var activeEmail = cswapAccounts.FirstOrDefault(c => c.Active)?.Email;
-                if (!string.IsNullOrEmpty(activeEmail))
+            return [new UsageSummary(
+                Source: sourceId,
+                DisplayName: provider.DisplayName,
+                SourceType: provider.SourceType,
+                PercentUsed: null,
+                UsageState: "unknown",
+                ConnectionState: "not_configured",
+                IsEstimated: false,
+                AsOf: DateTime.Now.ToString("HH:mm:ss"),
+                Detail: new LocalizedText(errorKey ?? MessageKeys.UnexpectedError),
+                AccountLabel: null)];
+        }
+
+        _snapshots.Save(snap);
+
+        var legacyIndex = settings.TrackedAccounts.FindIndex(a => a.AccountId == sourceId);
+        if (legacyIndex >= 0)
+        {
+            if (settings.TrackedAccounts.Any(a => a.AccountId == snap.AccountId && a.AccountId != sourceId))
+                settings.TrackedAccounts.RemoveAt(legacyIndex);
+            else
+                settings.TrackedAccounts[legacyIndex] = settings.TrackedAccounts[legacyIndex] with
                 {
-                    var upgradedId = ClaudeUsageProvider.CswapAccountId(activeEmail);
-                    if (settings.TrackedAccounts.Any(a => a.AccountId == upgradedId))
-                    {
-                        // 新格式理論上不該已經存在（防禦性處理）——與其硬升級造成衝突，直接把舊的
-                        // 重複條目丟掉，讓新格式那筆（下面 newAccounts 的邏輯會跳過它，因為已存在）繼續運作。
-                        settings.TrackedAccounts.RemoveAt(legacyIndex);
-                    }
-                    else
-                    {
-                        var legacyAccount = settings.TrackedAccounts[legacyIndex];
-                        settings.TrackedAccounts[legacyIndex] = legacyAccount with { AccountId = upgradedId };
-                        if (settings.HiddenAccountIds.Remove("claude"))
-                            settings.HiddenAccountIds.Add(upgradedId);
-                    }
-                    upgraded = true;
-                }
-                // activeEmail 拿不到（cswap 清單裡沒有任何 active=true 的帳號，理論上不該發生）就
-                // 不動舊格式——保守起見寧可讓它繼續用原本的直接呼叫邏輯運作，也不要亂猜升級成哪個帳號。
-            }
-
-            var newAccounts = cswapAccounts
-                .Where(c => !string.IsNullOrEmpty(c.Email))
-                .Select(c => new TrackedAccount(ClaudeUsageProvider.CswapAccountId(c.Email), "claude", c.Email))
-                .Where(a => !settings.TrackedAccounts.Any(existing => existing.AccountId == a.AccountId))
-                .ToList();
-
-            if (newAccounts.Count == 0 && !upgraded)
-                return []; // cswap 有裝，但偵測到的帳號全部都已經追蹤過了，沒有任何異動可存
-
-            settings.TrackedAccounts.AddRange(newAccounts);
-            foreach (var a in newAccounts) settings.HiddenAccountIds.Remove(a.AccountId);
-            SettingsStore.Save(settings); // upgraded 或 newAccounts 任一有變動都要存，不能只在有新帳號時才存
-
-            return await Task.WhenAll(newAccounts.Select(a => GetOneAsync(a, settings, ct)));
+                    AccountId = snap.AccountId,
+                    Label = settings.TrackedAccounts[legacyIndex].Label ?? snap.Email,
+                };
+            if (settings.HiddenAccountIds.Remove(sourceId))
+                settings.HiddenAccountIds.Add(snap.AccountId);
         }
 
-        // cswap 沒裝（或偵測失敗/逾時）——退回原本的單帳號直接呼叫，行為完全不變。
-        var legacy = settings.TrackedAccounts.FirstOrDefault(a => a.AccountId == "claude")
-            ?? new TrackedAccount("claude", "claude", Label: null);
-        if (!settings.TrackedAccounts.Any(a => a.AccountId == legacy.AccountId))
-        {
-            settings.TrackedAccounts.Add(legacy);
-            SettingsStore.Save(settings);
-        }
-        return [await GetOneAsync(legacy, settings, ct)];
+        if (!settings.TrackedAccounts.Any(a => a.AccountId == snap.AccountId))
+            settings.TrackedAccounts.Add(new TrackedAccount(snap.AccountId, sourceId, snap.Email));
+        settings.HiddenAccountIds.Remove(snap.AccountId);
+        SettingsStore.Save(settings);
+
+        var tracked = settings.TrackedAccounts.First(a => a.AccountId == snap.AccountId);
+        return [await GetOneAsync(tracked, settings, ct)];
     }
 
     /// <summary>取消追蹤（constitution §8）— full deletion of this one account, siblings of the same source untouched (R5).</summary>
     public void RemoveSource(string accountId)
     {
         _secretStore.Delete(accountId);
+        _snapshots.Delete(accountId);
 
         var settings = SettingsStore.Load();
         var changed = settings.TrackedAccounts.RemoveAll(a => a.AccountId == accountId) > 0;
@@ -303,12 +294,12 @@ public sealed class UsageService
         settings.ClaudeWakeUpEnabled = claudeWakeUpEnabled;
         // 只接受「目前真的追蹤中、而且是 cswap 多帳號路徑」的 accountId、小時 clamp 在 0-23——前端
         // 傳來的資料理論上已經是合法值，這裡再篩一次是防呆，不是信任前端沒送過怪資料。
-        var trackedCswapClaudeIds = settings.TrackedAccounts
-            .Where(a => a.SourceId == "claude" && a.AccountId.StartsWith(ClaudeUsageProvider.CswapAccountPrefix, StringComparison.Ordinal))
+        var trackedClaudeIds = settings.TrackedAccounts
+            .Where(a => a.SourceId == "claude" && a.AccountId.StartsWith(ClaudeUsageProvider.AccountPrefix, StringComparison.Ordinal))
             .Select(a => a.AccountId)
             .ToHashSet();
         settings.ClaudeWakeUpAccountHours = (claudeWakeUpAccountHours ?? [])
-            .Where(kv => trackedCswapClaudeIds.Contains(kv.Key))
+            .Where(kv => trackedClaudeIds.Contains(kv.Key))
             .ToDictionary(kv => kv.Key, kv => Math.Clamp(kv.Value, 0, 23));
         SettingsStore.Save(settings);
         return GetSettings();

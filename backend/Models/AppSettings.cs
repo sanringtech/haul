@@ -53,11 +53,16 @@ public sealed class AppSettings
 
     /// <summary>
     /// 要喚醒哪些追蹤中的 Claude 帳號，以及各自要幾點（本機時間，0-23）才觸發——key 是
-    /// TrackedAccount.AccountId（"claude:{email}" 格式），value 是小時。有在這個字典裡＝已勾選，
-    /// 不需要另外一個布林清單。只有 cswap 多帳號才有多個選項，單帳號模式（AccountId 字面上是
-    /// "claude"）不支援，因為那條路徑沒有走 cswap，讀不到 Keychain 裡對應的完整憑證格式。
+    /// TrackedAccount.AccountId（"claude:{email}" 格式），value 是小時。有在這個字典裡＝已勾選。
+    /// 快照庫裡有 access token 的 Claude 帳號都能喚醒；舊版單帳號 <c>claude</c> 沒有獨立快照，不支援。
     /// </summary>
     public Dictionary<string, int> ClaudeWakeUpAccountHours { get; set; } = [];
+
+    /// <summary>
+    /// 是否已做過一次性 cswap Keychain 匯入。true 之後執行期不再 fork cswap。
+    /// 沒裝 cswap、非 macOS、或匯入失敗也會標 true，避免每次啟動重試。
+    /// </summary>
+    public bool CswapImported { get; set; }
 
     /// <summary>每個帳號最後一次成功喚醒的本機日期（"yyyy-MM-dd"）——純內部記帳用，判斷「今天是否
     /// 已經打過」，不會顯示在設定頁、也不是使用者能編輯的東西，跟上面兩個欄位性質不同。</summary>
@@ -69,8 +74,8 @@ public sealed class AppSettings
     /// <summary>
     /// Accounts the user has explicitly added via the "＋ 新增來源" flow (憲法 R5：多帳號各自獨立).
     /// Default empty — a fresh install shows nothing until the user adds something. Subscription-type
-    /// sources (Claude/Codex) only ever have one entry here (one person, one active login); api_key-type
-    /// sources (DeepSeek/Kimi) can have several, each its own TrackedAccount with its own AccountId.
+    /// sources (Claude/Codex) can have several captured logins; api_key-type sources (DeepSeek/Kimi)
+    /// likewise, each its own TrackedAccount with its own AccountId.
     /// </summary>
     public List<TrackedAccount> TrackedAccounts { get; set; } = [];
 }

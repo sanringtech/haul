@@ -22,7 +22,19 @@ Content-Type: application/json
 
 回應 HTTP 200，真的收到模型回覆，`usage: {input_tokens: 8, output_tokens: 8}`——代價很小但**是真的消耗額度**，跟查用量狀態的唯讀端點是完全不同性質的呼叫（見下方「Claude 用量喚醒」功能，設定頁的開關）。認證方式（`Authorization: Bearer` + `anthropic-beta: oauth-2025-04-20`）跟 `ClaudeUsageProvider` 打 usage 端點是同一套，只是端點換成 `/v1/messages`、多一個 `anthropic-version` header。
 
-**未查證**：Codex（ChatGPT）的用量視窗是否也有同樣的懶初始化行為——`backend-api/wham/usage` 是完全不同的非公開端點，沒有理由假設它跟 Anthropic 這邊行為一樣，這次的「喚醒」功能只做 Claude。
+## Codex 視窗「第一次 request 才開始」——查證結論（2026-09-02，**不做 ping**）
+
+跟 Claude 不一樣，**不要做 Codex 喚醒 ping**。
+
+**產品行為（官方 + 社群，對得上）**：
+
+- OpenAI Help（付費 reset）：新的 weekly 用量週期「starts with your first request in Work or Codex after the reset is applied」——錨在**第一次 request**，不是日曆邊界，也不是「打開用量頁」。
+- GitHub [openai/codex#28246](https://github.com/openai/codex/issues/28246)：5h / 7d 視窗都會錨在 reset 之後的第一次使用；有人因此寫 keepalive。這正是 Claude 喚醒在 Anthropic 那邊要做的事，但在 Codex 會**改掉下次重置時間**（晚用就晚重置，等於丟掉已付的空窗）。
+- GitHub [openai/codex#27788](https://github.com/openai/codex/issues/27788)：有 Plus 使用者回報**只打開 Codex app 看用量、沒打字**，5h 視窗就顯示「現在 + 5 小時」。Codex 啟動時會 prefetch `account/rateLimits/read`——「看用量」本身可能已經算一次 request。Haul 每次刷新打的 `GET chatgpt.com/backend-api/wham/usage` 是同一類唯讀查詢，**不確定會不會自己把視窗叫醒**；在沒有閒置帳號可對照前，不另外再送訊息。
+
+**本機實測（這台已在用的 Plus 帳）**：`--print-usage` 回 `used_percent` 1% / 15%，兩窗都有非 0 的 `reset_at`。閒置態（0% 且沒有 reset）這台觀察不到，因為視窗已經在跑。
+
+**跟 Claude 喚醒的差別**：Claude 的 GET `/api/oauth/usage` 在沒送過訊息時回 `resets_at: null`，**看用量不會開窗**；要開窗才需要 POST `/v1/messages`。Codex 是 first-request 錨點，再 ping 一則訊息會消耗額度，還可能把 5h/7d 重置時間往後推。結論：**不實作 Codex ping**。
 
 ## 已支援（見 [`ARCHITECTURE.md`](ARCHITECTURE.md) / [`RISKS.md`](RISKS.md)）
 
@@ -31,7 +43,7 @@ Content-Type: application/json
 | **Claude**（Anthropic）| Free / Pro $20 / Max 5x $100 / Max 20x $200 / Team / Enterprise | ❌ 已查證不可行 | ✅ 訂閱制（含多帳號，靠 cswap）。方案標籤（Pro/Max）也接上了——`cswap list --json` 本身沒有這欄位，但每個帳號的完整憑證（含 `subscriptionType`）原封不動存在 macOS Keychain（service `claude-swap`，帳號名 `account-{number}-{email}`，讀 cswap 原始碼查到的），直接讀那個 |
 | **Codex**（OpenAI/ChatGPT）| Free / Plus $20 / Pro $200 / Team / Enterprise | ❌ 已查證不可行 | ✅ 訂閱制 + 方案標籤（`plan_type` 欄位，2026-09-01 接上，之前查證有這欄位但沒解析，現在真的顯示了） |
 | **DeepSeek** | 無分層方案，純預付額度 | ✅ 官方 balance API 可用 | ✅ API key 制 |
-| **Kimi**（Moonshot AI）| 消費端助理方案 Free ～ $199/mo「Vivace」（音樂速度命名，中間層級名稱沒查全，見下方 Sources 自行核對）；企業方案 2026-08-04 起改成「聯繫銷售」不公開報價 | ✅ 官方 balance API 可用（API key 制）／訂閱制端點 ⚠️ 未實測 | ✅ 兩種都有 |
+| **Kimi**（Moonshot AI）| 消費端助理方案 Free ～ $199/mo「Vivace」 | ✅ API key 制官方 balance／訂閱制：本機有 Kimi Code 登入；reader 已改讀 `kimi-code-env-*.json`；2026-09-02 打 `GET api.kimi.com/coding/v1/usages` 回 **401**（access token 過期約 61h）。Haul **不**自己 refresh（refresh token 近乎一次性，不能寫回 CLI 檔）。請在 Kimi Code 裡用一次讓 CLI 換票後再新增來源 | ✅ API key 已支援；訂閱制路徑已接上、等 CLI 換票 |
 | **Cursor**（AI 編輯器）| Hobby Free / Pro $20 / Pro+ $60 / Ultra $200 / Teams $40/user / Enterprise | 未評估（不是「用 API key」這種模式，讀本機登入 session） | ✅ 訂閱制（2026-09-01 新增，已實測，含方案標籤——`stripeMembershipType` 本機就有）。完整查證見下方段落 |
 | **Grok**（xAI）| Free / SuperGrok Lite $10 / SuperGrok $30 / SuperGrok Heavy $300，或走 X 訂閱包（X Premium $8 / X Premium+ $40） | ❌ 已查證沒有查詢端點 | ❌ **沒有實作**（2026-09-01 更正：之前這裡跟 README 都寫「✅ 訂閱制（ccusage）」，掃過 `backend/` 完全沒有任何 Grok 相關程式碼，是文件寫錯，不是功能被拿掉——`i18n.ts` 裡的 `infoGrokBody` 自己都寫了「暫時沒有實作」，這條路本來就沒做完） |
 
@@ -55,7 +67,7 @@ Content-Type: application/json
 
 relevant keys：`cursorAuth/accessToken`（JWT）、`cursorAuth/cachedEmail`、`cursorAuth/stripeMembershipType`（**方案名稱就直接存在本機，不用打 API**，實測值是 `"pro"`）、`cursorAuth/stripeSubscriptionStatus`（`"active"`）。
 
-**access token 是 JWT，可以直接解 payload 拿到過期時間**（`exp` claim），不用打任何端點就知道還有沒有效——實測目前這組還有近 8 週效期（`iss: https://authentication.cursor.sh`，`sub: google-oauth2|user_xxx` 就是 userId）。**不像 Claude 多帳號那個問題**——Cursor 只有一個「目前登入中」的 session（不是要同時追蹤好幾組），跟 Claude/Codex 現有的單帳號 provider 是同一種架構，不需要自己實作 refresh，只需要讀取 + 過期就當「未登入」提示重新打開 Cursor（跟 `ClaudeCredentialsExpiredLocal` 同一套處理方式）。
+**access token 是 JWT，可以直接解 payload 拿到過期時間**（`exp` claim），不用打任何端點就知道還有沒有效——實測目前這組還有近 8 週效期（`iss: https://authentication.cursor.sh`，`sub: google-oauth2|user_xxx` 就是 userId）。**不像 Claude 多帳號那個問題**——Cursor 只有一個「目前登入中」的 session。2026-09-02 再查過 `state.vscdb`：`cursorAuth/*` 共 8 個 key，都是單數（一份 accessToken / cachedEmail / stripeMembershipType），沒有第二個帳號槽。跟 Claude/Codex「擷取目前 CLI 登入、換帳再擷取」不是同一類問題，**不做 Cursor 多帳擷取**。
 
 **用量端點，實測打通，完整 JSON（不是 gRPC binary framing，用 Connect Protocol 的 JSON 傳輸模式）**：
 

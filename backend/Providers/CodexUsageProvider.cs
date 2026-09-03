@@ -8,12 +8,11 @@ namespace UsageMonitor.Desktop.Providers;
 
 /// <summary>
 /// Calls Codex CLI's own (undocumented) ChatGPT-backend usage endpoint using its local login
-/// session — the same pattern as <see cref="ClaudeUsageProvider"/>, discovered the same way (public
-/// bug report on the official `openai/codex` repo mentioning the endpoint, then verified directly
-/// against this machine's real Codex login on 2026-08-31; the response's 5h/7d windows matched
-/// ChatGPT Settings → Usage exactly). Same trade-off as Claude: real 5h/weekly percentages instead of
-/// a local token-count estimate, at the cost of depending on an OpenAI-internal endpoint that could
-/// change without notice. If it ever breaks, the fallback is a ccusage-based token-count estimate.
+/// session — the same pattern as <see cref="ClaudeUsageProvider"/>. Multi-account is capture of
+/// the current <c>~/.codex/auth.json</c> into Haul's snapshot store; this file is never written
+/// back (constitution R4). Refresh tokens are near-single-use — capture A, then immediately
+/// <c>codex login</c> B before the CLI itself refreshes. Legacy AccountId <c>codex</c> still
+/// reads the live CLI file until recapture.
 /// </summary>
 public sealed class CodexUsageProvider : IUsageProvider
 {
@@ -21,23 +20,77 @@ public sealed class CodexUsageProvider : IUsageProvider
     public string DisplayName => "Codex";
     public string SourceType => "subscription";
 
+    internal const string AccountPrefix = "codex:";
+    internal static string AccountIdFor(string emailOrId) => AccountPrefix + emailOrId;
+
     private const string UsageEndpoint = "https://chatgpt.com/backend-api/wham/usage";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
+    private readonly SubscriptionSnapshotStore _store;
+
+    public CodexUsageProvider(SubscriptionSnapshotStore store) => _store = store;
+
+    internal async Task<(SubscriptionSnapshot? Snapshot, string? ErrorKey)> TryCaptureCurrentAsync(CancellationToken ct)
+    {
+        var auth = CodexAuthReader.Read();
+        if (auth is null) return (null, MessageKeys.CodexCredentialsNotFound);
+        if (string.IsNullOrEmpty(auth.RefreshToken)) return (null, MessageKeys.CaptureRefreshMissing);
+
+        string? email = auth.Email;
+        string? plan = null;
+        var parsed = await TryFetchWhamAsync(auth.AccessToken, auth.AccountId, ct);
+        if (parsed is not null)
+        {
+            email ??= parsed.Email;
+            plan = parsed.PlanType;
+        }
+
+        email ??= auth.AccountId;
+        return (new SubscriptionSnapshot(
+            AccountIdFor(email),
+            SourceId,
+            email,
+            auth.AccessToken,
+            auth.RefreshToken,
+            AccessExpiresAtMs: null,
+            plan,
+            auth.AccountId), null);
+    }
+
     public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
     {
+        if (account.AccountId.StartsWith(AccountPrefix, StringComparison.Ordinal))
+            return await GetUsageFromStoreAsync(account, settings, ct);
+
         var auth = CodexAuthReader.Read();
         if (auth is null)
             return Build(account, "not_configured", L(MessageKeys.CodexCredentialsNotFound));
 
+        return await FetchOfficialAsync(account, auth.AccessToken, auth.AccountId, settings, ct);
+    }
+
+    private async Task<UsageSummary> GetUsageFromStoreAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
+    {
+        var snap = await _store.GetFreshAsync(account.AccountId, ct);
+        if (snap is null)
+            return Build(account, "not_configured", L(MessageKeys.SnapshotNotFound));
+
+        var chatgptId = snap.ExternalAccountId ?? "";
+        var summary = await FetchOfficialAsync(account, snap.AccessToken, chatgptId, settings, ct);
+        if (summary.ConnectionState != "expired") return summary;
+
+        var refreshed = await _store.RefreshNowAsync(snap, ct);
+        if (refreshed is null) return summary;
+        return await FetchOfficialAsync(account, refreshed.AccessToken, refreshed.ExternalAccountId ?? chatgptId, settings, ct);
+    }
+
+    private async Task<UsageSummary> FetchOfficialAsync(
+        TrackedAccount account, string accessToken, string chatgptAccountId, AppSettings settings, CancellationToken ct)
+    {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, UsageEndpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
-            request.Headers.Add("chatgpt-account-id", auth.AccountId);
-            request.Headers.UserAgent.ParseAdd("SanRingUsageMonitor/0.1 (+https://github.com/sanring)");
-
+            using var request = BuildWhamRequest(accessToken, chatgptAccountId);
             using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
             if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
                 return Build(account, "expired", L(MessageKeys.CodexCredentialsRejected));
@@ -58,6 +111,31 @@ public sealed class CodexUsageProvider : IUsageProvider
         }
     }
 
+    private static async Task<WhamUsageResponse?> TryFetchWhamAsync(string accessToken, string chatgptAccountId, CancellationToken ct)
+    {
+        try
+        {
+            using var request = BuildWhamRequest(accessToken, chatgptAccountId);
+            using var response = await SharedHttpClient.Instance.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) return null;
+            return JsonSerializer.Deserialize<WhamUsageResponse>(await response.Content.ReadAsStringAsync(ct), JsonOptions);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static HttpRequestMessage BuildWhamRequest(string accessToken, string chatgptAccountId)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, UsageEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        if (!string.IsNullOrEmpty(chatgptAccountId))
+            request.Headers.Add("chatgpt-account-id", chatgptAccountId);
+        request.Headers.UserAgent.ParseAdd("SanRingUsageMonitor/0.1 (+https://github.com/sanring)");
+        return request;
+    }
+
     private static LocalizedText L(string key, params (string Name, string Value)[] p) =>
         new(key, p.Length == 0 ? null : p.ToDictionary(x => x.Name, x => x.Value));
 
@@ -70,10 +148,12 @@ public sealed class CodexUsageProvider : IUsageProvider
         double? primaryPct = usage.RateLimit!.PrimaryWindow?.UsedPercent;
         double? secondaryPct = usage.RateLimit.SecondaryWindow?.UsedPercent;
 
-        LocalizedText? primaryDetail = usage.RateLimit.PrimaryWindow?.ResetAt is { } r1 ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(r1))) : null;
+        LocalizedText? primaryDetail = ActiveReset(usage.RateLimit.PrimaryWindow?.ResetAt) is { } r1
+            ? L(MessageKeys.WindowReset, ("time", FormatResetLocal(r1))) : null;
         // 7 天的視窗只顯示 HH:mm 會讓人搞不清楚是哪一天重置（5 小時那個幾乎一定當天到期，7 天不會）
         // ——補上日期，見 FormatResetLocalWithDate。
-        LocalizedText? secondaryDetail = usage.RateLimit.SecondaryWindow?.ResetAt is { } r2 ? L(MessageKeys.WindowReset, ("time", FormatResetLocalWithDate(r2))) : null;
+        LocalizedText? secondaryDetail = ActiveReset(usage.RateLimit.SecondaryWindow?.ResetAt) is { } r2
+            ? L(MessageKeys.WindowReset, ("time", FormatResetLocalWithDate(r2))) : null;
 
         return new UsageSummary(
             Source: account.AccountId,
@@ -106,6 +186,10 @@ public sealed class CodexUsageProvider : IUsageProvider
     private static string? FormatPlanLabel(string? value) => string.IsNullOrWhiteSpace(value)
         ? null
         : char.ToUpperInvariant(value.Trim()[0]) + value.Trim()[1..].ToLowerInvariant();
+
+    /// <summary>0 / missing = window not started (first-request anchoring). Don't render 1970.</summary>
+    private static long? ActiveReset(long? resetAt) =>
+        resetAt is { } value && value > 0 ? value : null;
 
     private static string FormatResetLocal(long unixSeconds)
     {
@@ -173,5 +257,5 @@ internal sealed class WhamWindow
     public double UsedPercent { get; set; }
 
     [JsonPropertyName("reset_at")]
-    public long ResetAt { get; set; }
+    public long? ResetAt { get; set; }
 }

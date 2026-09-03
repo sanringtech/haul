@@ -2,7 +2,7 @@ namespace UsageMonitor.Desktop.Security;
 
 /// <summary>
 /// OS-native secret storage for user-supplied API keys (DeepSeek/Kimi — constitution R2/I2).
-/// Never used for Claude/Codex, which read existing local CLI usage logs instead of holding a secret.
+/// API keys 用 accountId 當 key；訂閱制快照另外加 <c>sub:</c> 前綴（見 SubscriptionSnapshotStore）。
 /// Backed by macOS Keychain Services / Windows Credential Manager — never a plain local file.
 /// </summary>
 public interface ISecretStore
