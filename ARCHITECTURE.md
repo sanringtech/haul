@@ -32,7 +32,7 @@ backend/
     │     唯讀讀取各 CLI 自己的本機 session（見下），不寫入不刷新
 ```
 
-macOS 打包（`.app` bundle）另見 `backend/packaging/macos/`（`Info.plist` + `AppIcon.icns`，`scripts/make-icns.sh` 從 `frontend/public/logo.svg` 重新產生圖示）。
+macOS 打包（`.app` bundle）另見 `backend/packaging/macos/`（`Info.plist` + `AppIcon.icns`，`scripts/make-icns.sh` 從 `frontend/public/logo.svg` 重新產生圖示）。Windows 發佈版另外有 `AppContent.cs` + `UiFileServer.cs`：前者負責找出或解出內建的 `wwwroot`，後者用 loopback HTTP 提供給 WebView2，避免正式 build 還走 `file://`。
 
 ## 除錯
 
@@ -52,5 +52,7 @@ Claude 多帳號靠偵測本機是否裝了選用的 `cswap`——有裝就 shel
 
 - **`AppPaths.cs` 路徑 bug（2026-08-31）**：原本用 `Environment.SpecialFolder.Personal` 想拿使用者根目錄，但 **.NET 在 macOS 上這個值實際指向 `~/Documents`，不是 `~`**——本機資料檔一度被存到 `~/Documents/Library/Application Support/...` 這種錯誤的巢狀路徑。已改用 `.UserProfile`（本來 `ClaudeAuthReader` 等三個 auth reader 就用對了，只有這一處寫錯）。**代價**：修這個 bug 換了資料夾，舊路徑下的設定不會自動搬過來。
 - **Angular `<base href="/">` 在 `file://` 下整頁空白**：`scripts/build.sh` 已加 `--base-href ./`。
+- **Windows 發佈版標題列出來了、內容卻是黑畫面（2026-09-03）**：根因有兩個，而且要一起修。第一，Top-level `await` 會生成 MTA 的 `Main()`，Windows 上 WebView2/Photino 需要 `[STAThread]` 才能正常初始化；第二，Angular 22 產物是 `type="module"`，WebView2 用 `file://` 開 `wwwroot/browser/index.html` 會因 `origin: null` 的 CORS 規則把所有 module script 擋掉，畫面只剩空的 `<app-root>`。修法：`Program.cs` 改成明確的 `[STAThread] Main`，正式 build 不再 `Load("wwwroot/...")`，而是啟動內建 `UiFileServer` 用 `http://127.0.0.1/...` 載入 UI。
+- **Windows 下載後還是 zip（2026-09-03）**：原本雖然開了 `PublishSingleFile`，但 `wwwroot/` 還是得跟在 exe 旁邊，否則 UI 載不到；實際上那不是真正可以直接發出去的「單檔 app」。修法是把 `wwwroot/**` 同時標成 publish content + embedded resource，正式啟動時若磁碟上找不到，就從組件資源自行解到 temp，再由 `UiFileServer` 提供。這樣 publish 目錄就只剩 `SanringHaul.exe`（加符號檔 `.pdb`），下載頁才有資格改掛 `.exe` 而不是 `.zip`。
 - **DeepSeek/Kimi 的 JSON 是 snake_case**：`PropertyNameCaseInsensitive` 不會處理底線，導致「無法解析」，已加 `[JsonPropertyName]`。
 - **cswap 偵測失敗靜默退回單帳號模式**：見上「Claude 多帳號」一節的 `-ilc` 修法。

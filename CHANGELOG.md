@@ -2,6 +2,15 @@
 
 開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
 
+## Unreleased：Windows 啟動黑畫面 + zip 分發修正
+
+- **Windows 發佈版黑畫面修掉**：`backend/Program.cs` 不再用 top-level `await`，改成明確的 `[STAThread] Main()`，避免 Windows 上 WebView2/Photino 在 MTA 執行緒初始化失敗；正式版 UI 也不再 `Load("wwwroot/browser/index.html")` 走 `file://`，而是透過新的 `UiFileServer` 用 loopback HTTP 載入，避開 Angular 22 `type="module"` 在 WebView2 的 `origin: null` CORS 限制
+- **Windows 下載檔恢復成真的單一 `.exe`**：原本雖然開了 `PublishSingleFile`，實際上還是得帶著旁邊的 `wwwroot/` 資料夾一起分發，所以 release 只能掛 `.zip`。現在 `backend/SanringHaul.csproj` 把 `wwwroot/**` 同時當 publish content 與 embedded resources，`AppContent.cs` 啟動時會先找實體檔，找不到就從組件裡自行解到 temp；publish 目錄實測只剩 `SanringHaul.exe` + `.pdb`
+- **Windows 煙霧測試補上**：在真實 Windows 上重新 `dotnet publish -r win-x64` 後，`SanringHaul.exe --print-usage` 正常輸出，直接啟動 GUI 行程也不再立刻崩潰退出
+- **Windows 系統匣**：`TrayIcon`（`NotifyIcon`）+ 關閉鈕改隱藏到匣；`WindowHelper` 用 Win32 補 Photino 缺少的 Show/Hide／`WM_SETICON`
+- **應用圖示資產**：`scripts/make-ico.ps1` 從 haul PNG 產 DIB 多尺寸 `backend/app.ico`（並同步 `frontend/public/favicon.ico`）；工作列按鈕仍可能顯示 generic，見 README 待辦
+- **Credential Manager 錯誤 1783**：單一 blob 上限 2560 bytes（實測），訂閱快照（尤其 Codex JWT）用 UTF-16 會超限；`WindowsSecretStore` 改切塊寫入多筆 credential
+
 ## v0.4.1（2026-09-03）：本機用量按月/週/日切面、日期選擇器、xlsx 匯出
 
 - 帳簿頁「本機用量」新增合計／按月／按周／按日／按對話五種切面（按對話暫不顯示），月/週/日用新裝的 date-picker/calendar/popover 元件選日期（週從週一起算）；Claude/Codex JSONL 掃描時同步依日期與 session 分桶，不用再掃第二次；掃描窗固定 30 天，超出範圍顯示為空
@@ -102,8 +111,10 @@
 
 ## M5（進行中）
 
-- [ ] Windows 上實際跑一次打包驗證（`WindowsSecretStore` 目前只是照文件寫的 P/Invoke，還沒真的在 Windows 上測過）
-- [ ] 系統匣圖示（tray icon）：Photino.NET 沒有內建跨平台 tray API，查證過三條路（維持現狀／換 Tauri／Mac 端整個換原生 Swift 像 `stats`/`eul`），浮動小工具那條路後來還原了（見下），目前 tray 整個擱置
+未完成項見 [`README.md` 待辦](README.md#待辦--進度)。以下兩條原 M5 checkbox 狀態已過時，改記事實：
+
+- [x] Windows 打包驗證（2026-09-03/04）：真實 Windows 上 `dotnet publish -r win-x64` 單一 `.exe` 可啟動；`WindowsSecretStore` 已實測，含 CredentialBlob 2560 bytes 上限與錯誤 1783 切塊修復
+- [ ] 系統匣圖示：Windows 已接 `NotifyIcon`（關閉改最小化），**尚未真機確認**外觀與選單；macOS/Linux 仍無 tray。工作列按鈕圖示仍是 generic，根因未找到
 
 ## M4（2026-08-31）：取消追蹤 vs 關閉顯示、多帳號、UI 打磨
 
