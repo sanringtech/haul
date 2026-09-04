@@ -4,23 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sanring Haul — Claude／Codex／Cursor 用量追蹤工具</title>
-<meta name="description" content="一支常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間。v0.4.1 現已提供 macOS / Windows 下載。">
+<meta name="description" content="一支常駐桌面小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。v0.4.1 現已提供 macOS / Windows 下載。">
 <link rel="canonical" href="https://haul.sanring.dev/">
 
 <!-- Open Graph——原本完全沒有這組 tag，連結被分享到 Slack/Discord/Twitter/LINE 這類地方時
      預覽卡是空的（標題/說明/圖片全無），對這種小工具「靠別人轉貼發現」的路徑是實際的流失。 -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://haul.sanring.dev/">
-<meta property="og:title" content="sanring Haul — 所有 AI 額度，一網打盡">
-<meta property="og:description" content="同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間，不用切五個分頁。macOS / Windows 可下載。">
+<meta property="og:title" content="sanring Haul — 一次網羅所有額度">
+<meta property="og:description" content="支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。macOS / Windows 可下載。">
 <meta property="og:image" content="https://haul.sanring.dev/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="zh_TW">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="sanring Haul — 所有 AI 額度，一網打盡">
-<meta name="twitter:description" content="同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間，不用切五個分頁。">
+<meta name="twitter:title" content="sanring Haul — 一次網羅所有額度">
+<meta name="twitter:description" content="支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。">
 <meta name="twitter:image" content="https://haul.sanring.dev/og-image.png">
 
 <!-- JSON-LD structured data——讓 Google 有機會在搜尋結果直接顯示「免費」「支援 macOS/Windows」
@@ -33,7 +33,7 @@
   "url": "https://haul.sanring.dev/",
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "macOS, Windows",
-  "description": "常駐桌面小工具，同一畫面追蹤 Claude、Codex、DeepSeek、Kimi、Cursor 的用量與重置時間。",
+  "description": "常駐桌面小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -377,16 +377,24 @@
     max-height: min(80vh, 640px);
     margin: auto;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: var(--surface);
     color: var(--fg);
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
   }
+  /* 開 showModal() 時瀏覽器預設會把 focus 落在 <dialog> 本身（沒有任何子元素標 autofocus），
+     觸發 UA 預設的 focus 外框——外框大小是包住當時 layout 算出的內容框，在舊版 position:sticky
+     header 底下會誤貼齊標題文字，長得像一個奇怪的框線。改成 flex column 版面（header 固定高度、
+     body 自己滾動）從根本不需要 sticky；額外關掉 dialog 本身的預設外框，鍵盤可視焦點交給裡面
+     真的可互動的元素（連結、按鈕、手風琴）各自的 :focus-visible 樣式負責，不會不見。 */
+  .info-dialog:focus, .info-dialog:focus-visible { outline: none; }
   .info-dialog::backdrop { background: rgba(10, 14, 15, 0.6); backdrop-filter: blur(2px); }
   .info-dialog-header {
-    position: sticky;
-    top: 0;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -416,6 +424,8 @@
   }
   .info-dialog-close:hover, .info-dialog-close:focus-visible { color: var(--fg); border-color: var(--accent); }
   .info-dialog-body {
+    flex: 1;
+    min-height: 0;
     padding: 1.1rem 1.25rem 1.4rem;
     overflow-y: auto;
     font-size: 0.85rem;
@@ -443,6 +453,20 @@
     border-radius: 4px;
     padding: 0.1em 0.35em;
   }
+
+  /* 風險揭露的每個小節包成一張卡——跟版本手風琴（.version-item）共用同一套 border/radius/
+     surface-strong 視覺語言，讓一長串「非官方端點依賴、多帳號怎麼運作、未簽章…」在捲動時
+     有明顯的區塊邊界，掃過去就看得出階層，不是一路灰階文字讀到底。 */
+  .risk-card {
+    margin-top: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-strong);
+    padding: 0.9rem 1rem 1rem;
+  }
+  .info-dialog-body .risk-card:first-of-type { margin-top: 0; }
+  .risk-card h3 { margin-top: 0; }
+  .risk-card > :last-child { margin-bottom: 0; }
 
   /* 目前版本標示——跟版本說明對話框的其餘內文共用同一套 muted/fg 對比，只是拉大一點當視覺錨點,
      不另開一種新配色，維持跟已知風險對話框同一套語彙。 */
@@ -517,8 +541,8 @@
        字面但冗長，5 個服務名稱其實下面的用量卡片預覽 + fleet 標籤已經展示過了，標題不用再重複
        列一次。換成短句子，直接呼應「Haul」這個品牌名本身的意象（撒網把散落各處的東西一次撈起、
        一網打盡），好記，也不用列舉會過時的服務清單（以後新增/移除來源，標題不用跟著改）。 -->
-  <h1>所有 AI 額度<br><span class="accent">一網打盡</span></h1>
-  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，把 Claude、Codex、DeepSeek、Kimi、Cursor 好幾個帳號的剩餘額度、重置時間一次撈進同一個畫面，不用切五個分頁。v0.4.1 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
+  <h1>一次網羅<span class="accent">所有額度</span></h1>
+  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視各帳號的剩餘額度與重置時間，不必在多個分頁間來回切換。v0.4.1 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
 
   <div class="features">
     <div class="feature">
@@ -608,35 +632,47 @@
   <div class="info-dialog-body">
     <p>發布給其他人用之前請先讀這份。這是個人開發的小工具，不是商業產品，作者不對此提供法律保證。</p>
 
-    <h3>桌面唯讀監控</h3>
-    <p>sanring Haul 只做「查詢」：不切換帳號、不阻擋任何 CLI 行為、不接管登入流程、不需要你的密碼。資料不出本機——CLI session 只讀，不寫回、不主動幫你 refresh。各帳號的用量彼此獨立計算，來自估算的數字一律標「估算」。</p>
+    <section class="risk-card">
+      <h3>桌面唯讀監控</h3>
+      <p>sanring Haul 只做「查詢」：不切換帳號、不阻擋任何 CLI 行為、不接管登入流程、不需要你的密碼。資料不出本機——CLI session 只讀，不寫回、不主動幫你 refresh。各帳號的用量彼此獨立計算，來自估算的數字一律標「估算」。</p>
+    </section>
 
-    <h3>非官方端點依賴</h3>
-    <p>Claude、Codex、Cursor 的用量查詢，以及 Kimi、Grok 的訂閱制用量查詢，走的都是<strong>非官方、非文件化的介面</strong>——不是這幾家公司保證會一直支援的公開合約，服務商隨時可能無預告改版或停用，屆時對應功能會失效，需要等修好。DeepSeek、Kimi 的 API key 餘額查詢走的是官方文件化的端點，不在此列。</p>
-    <ul>
-      <li><strong>Claude</strong>：呼叫 Anthropic 內部用量端點，用的是 Claude Code 自己在本機的 OAuth session。</li>
-      <li><strong>Codex</strong>：呼叫 OpenAI/ChatGPT 內部端點，用的是 Codex CLI 自己在本機的登入 session。</li>
-      <li><strong>Kimi 訂閱制</strong>：⚠️ 未實測——端點格式來自開源 <code>MoonshotAI/kimi-code</code> repo 原始碼，專案裡目前沒有人有真實 Kimi Code 帳號可以驗證。</li>
-      <li><strong>Grok 訂閱制</strong>：⚠️ 未實測（本機沒有 <code>~/.grok</code>）——端點格式來自開源 <code>xai-org/grok-build</code>。</li>
-    </ul>
-    <p>Claude／Codex 官方「API key 制」用量查詢已查證不可行：兩家的官方 Admin 用量/成本 API 都排除個人帳號，「查詢剩餘額度」這個功能本身官方甚至都還沒實作。</p>
+    <section class="risk-card">
+      <h3>非官方端點依賴</h3>
+      <p>Claude、Codex、Cursor 的用量查詢，以及 Kimi、Grok 的訂閱制用量查詢，走的都是<strong>非官方、非文件化的介面</strong>——不是這幾家公司保證會一直支援的公開合約，服務商隨時可能無預告改版或停用，屆時對應功能會失效，需要等修好。DeepSeek、Kimi 的 API key 餘額查詢走的是官方文件化的端點，不在此列。</p>
+      <ul>
+        <li><strong>Claude</strong>：呼叫 Anthropic 內部用量端點，用的是 Claude Code 自己在本機的 OAuth session。</li>
+        <li><strong>Codex</strong>：呼叫 OpenAI/ChatGPT 內部端點，用的是 Codex CLI 自己在本機的登入 session。</li>
+        <li><strong>Kimi 訂閱制</strong>：⚠️ 未實測——端點格式來自開源 <code>MoonshotAI/kimi-code</code> repo 原始碼，專案裡目前沒有人有真實 Kimi Code 帳號可以驗證。</li>
+        <li><strong>Grok 訂閱制</strong>：⚠️ 未實測（本機沒有 <code>~/.grok</code>）——端點格式來自開源 <code>xai-org/grok-build</code>。</li>
+      </ul>
+      <p>Claude／Codex 官方「API key 制」用量查詢已查證不可行：兩家的官方 Admin 用量/成本 API 都排除個人帳號，「查詢剩餘額度」這個功能本身官方甚至都還沒實作。</p>
+    </section>
 
-    <h3>多帳號怎麼運作</h3>
-    <p>Claude／Codex 多帳號不依賴任何額外安裝的外部工具——做法是「擷取目前已登入的 CLI 帳號」：在對應 CLI 本機完成登入後，回到 Haul 點「＋ 新增來源」擷取一次，用帳號 email 辨識；同一 email 再擷取一次視同換票（更新憑證），不同帳號才新增一筆卡片。純讀取，不會幫你切換系統目前登入中的 CLI 帳號。</p>
+    <section class="risk-card">
+      <h3>多帳號怎麼運作</h3>
+      <p>Claude／Codex 多帳號不依賴任何額外安裝的外部工具——做法是「擷取目前已登入的 CLI 帳號」：在對應 CLI 本機完成登入後，回到 Haul 點「＋ 新增來源」擷取一次，用帳號 email 辨識；同一 email 再擷取一次視同換票（更新憑證），不同帳號才新增一筆卡片。純讀取，不會幫你切換系統目前登入中的 CLI 帳號。</p>
+    </section>
 
-    <h3>不是官方產品</h3>
-    <p>sanring Haul 跟 Anthropic、OpenAI、DeepSeek、Moonshot AI（Kimi）、xAI（Grok）、Cursor 都沒有合作或任何官方關係，只是讀取你自己電腦上已經登入的本機 CLI session，或你自己貼上的 API key 去查詢用量——不會繞過任何付費牆，也不會查到不屬於你自己帳號的資料。</p>
+    <section class="risk-card">
+      <h3>不是官方產品</h3>
+      <p>sanring Haul 跟 Anthropic、OpenAI、DeepSeek、Moonshot AI（Kimi）、xAI（Grok）、Cursor 都沒有合作或任何官方關係，只是讀取你自己電腦上已經登入的本機 CLI session，或你自己貼上的 API key 去查詢用量——不會繞過任何付費牆，也不會查到不屬於你自己帳號的資料。</p>
+    </section>
 
-    <h3>未簽章 / 未公證</h3>
-    <p>目前處於小範圍分享階段，macOS 版沒有經過開發者簽章與公證，第一次開啟會被 Gatekeeper 擋下；Windows 版可能被 SmartScreen 擋。這不代表程式有問題，是還沒有花錢申請簽章憑證。</p>
+    <section class="risk-card">
+      <h3>未簽章 / 未公證</h3>
+      <p>目前處於小範圍分享階段，macOS 版沒有經過開發者簽章與公證，第一次開啟會被 Gatekeeper 擋下；Windows 版可能被 SmartScreen 擋。這不代表程式有問題，是還沒有花錢申請簽章憑證。</p>
+    </section>
 
-    <h3>Windows 版未經真實測試</h3>
-    <p>目前只在 macOS 上開發、只做過跨平台建置驗證，沒有人在真實 Windows 環境實際跑過——尤其是 API key 的本機儲存這塊，能不能正常運作還是未知數。</p>
+    <section class="risk-card">
+      <h3>Windows 版未經真實測試</h3>
+      <p>目前只在 macOS 上開發、只做過跨平台建置驗證，沒有人在真實 Windows 環境實際跑過——尤其是 API key 的本機儲存這塊，能不能正常運作還是未知數。</p>
+    </section>
 
-    <h3>資料只存在你自己的電腦</h3>
-    <p>帳號、設定、憑證全部存在本機（設定檔 + 系統的憑證管理服務），不會同步到任何雲端或伺服器，換一台電腦視同從零開始。</p>
-
-    <p>以上內容跟 repo 內的 <a href="https://github.com/sanringtech/haul/blob/main/RISKS.md" target="_blank" rel="noopener">RISKS.md</a> 同步維護，是同一份揭露的兩種呈現方式。</p>
+    <section class="risk-card">
+      <h3>資料只存在你自己的電腦</h3>
+      <p>帳號、設定、憑證全部存在本機（設定檔 + 系統的憑證管理服務），不會同步到任何雲端或伺服器，換一台電腦視同從零開始。</p>
+    </section>
   </div>
 </dialog>
 
@@ -648,7 +684,7 @@
   <div class="info-dialog-body">
     <p class="version-current">目前版本 <strong>v0.4.1</strong>（2026-09-03）</p>
 
-    <h3>這個版本新增了什麼</h3>
+    <h3>版本更新內容</h3>
     <ul>
       <li><strong>Claude 用量喚醒</strong>（設定頁，預設關閉）：Claude 的 5 小時／7 天用量視窗要送出訊息才會啟動，沒用過或上一輪視窗到期後會停在「尚未開始」狀態。開啟後可以逐帳號設定每天幾點（24 小時制）送一則最小訊息喚醒視窗——這是目前唯一會真的消耗用量額度的功能，其餘都是唯讀查詢，預設關閉、要自己選帳號才生效。</li>
       <li>用量歷史折線圖：5 小時／7 天分成兩張圖表，避免不同週期的百分比混在一起誤判緊急程度；圖例可點擊個別開關某條線、顯示消耗速率。</li>
@@ -665,8 +701,6 @@
     <button type="button" class="link-button" id="olderVersionsToggle" aria-expanded="false" aria-controls="olderVersions" onclick="toggleOlderVersions(this)">顯示更多版本 ▾</button>
 
     <div id="olderVersions" hidden>
-      <h3>之前的版本</h3>
-
       <details class="version-item">
         <summary>v0.4.0（2026-09-03）</summary>
         <ul>
