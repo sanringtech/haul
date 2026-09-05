@@ -48,7 +48,7 @@ backend/
 
 分三階段（自己用 → 小範圍分享 → 公開發布），各階段要做的事、目前進度 → [`RELEASE-PLAN.md`](RELEASE-PLAN.md)。
 
-現況（2026-09-05）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.4.3 加入 Windows 自動掃正在執行的 WSL 家目錄；下載頁 Windows 安裝檔在對應 exe 上傳前仍指向已驗證的 v0.4.2（macOS `.dmg` 暫仍為 v0.4.1）。
+現況（2026-09-05）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.4.3 Windows 單一 `.exe` 會自動掃正在執行的 WSL 家目錄（macOS `.dmg` 暫仍為 v0.4.1）。
 
 ### 第一次執行的警告說明
 
