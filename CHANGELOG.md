@@ -2,7 +2,7 @@
 
 開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
 
-## Unreleased：Windows 啟動黑畫面 + zip 分發修正
+## v0.4.2（2026-09-05）：Windows 單一 exe、黑畫面修正、Grok 訂閱制
 
 - **Windows 發佈版黑畫面修掉**：`backend/Program.cs` 不再用 top-level `await`，改成明確的 `[STAThread] Main()`，避免 Windows 上 WebView2/Photino 在 MTA 執行緒初始化失敗；正式版 UI 也不再 `Load("wwwroot/browser/index.html")` 走 `file://`，而是透過新的 `UiFileServer` 用 loopback HTTP 載入，避開 Angular 22 `type="module"` 在 WebView2 的 `origin: null` CORS 限制
 - **Windows 下載檔恢復成真的單一 `.exe`**：原本雖然開了 `PublishSingleFile`，實際上還是得帶著旁邊的 `wwwroot/` 資料夾一起分發，所以 release 只能掛 `.zip`。現在 `backend/SanringHaul.csproj` 把 `wwwroot/**` 同時當 publish content 與 embedded resources，`AppContent.cs` 啟動時會先找實體檔，找不到就從組件裡自行解到 temp；publish 目錄實測只剩 `SanringHaul.exe` + `.pdb`
@@ -10,6 +10,7 @@
 - **Windows 系統匣**：`TrayIcon`（`NotifyIcon`）+ 關閉鈕改隱藏到匣；`WindowHelper` 用 Win32 補 Photino 缺少的 Show/Hide／`WM_SETICON`
 - **應用圖示資產**：`scripts/make-ico.ps1` 從 haul PNG 產 DIB 多尺寸 `backend/app.ico`（並同步 `frontend/public/favicon.ico`）；工作列按鈕仍可能顯示 generic，見 README 待辦
 - **Credential Manager 錯誤 1783**：單一 blob 上限 2560 bytes（實測），訂閱快照（尤其 Codex JWT）用 UTF-16 會超限；`WindowsSecretStore` 改切塊寫入多筆 credential
+- **新增 Grok 訂閱制來源**：讀本機 Grok Build 登入、打 CLI 自己的 billing 端點；不寫回、不 refresh。⚠️ 未用真實帳號驗證
 
 ## v0.4.1（2026-09-03）：本機用量按月/週/日切面、日期選擇器、xlsx 匯出
 

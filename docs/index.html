@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sanring Haul — Claude／Codex／Cursor 用量追蹤工具</title>
-<meta name="description" content="一支常駐桌面小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。v0.4.1 現已提供 macOS / Windows 下載。">
+<meta name="description" content="一支常駐桌面小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。v0.4.2 現已提供 macOS / Windows 下載。">
 <link rel="canonical" href="https://haul.sanring.dev/">
 
 <!-- Open Graph——原本完全沒有這組 tag，連結被分享到 Slack/Discord/Twitter/LINE 這類地方時
@@ -513,7 +513,7 @@
 <canvas id="stars" aria-hidden="true"></canvas>
 
 <main>
-  <p class="kicker"><span class="dot"></span>Sanring Haul · v0.4.1</p>
+  <p class="kicker"><span class="dot"></span>Sanring Haul · v0.4.2</p>
 
   <svg class="mark" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
     <rect x="1" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="2" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="5" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/>
@@ -542,7 +542,7 @@
        列一次。換成短句子，直接呼應「Haul」這個品牌名本身的意象（撒網把散落各處的東西一次撈起、
        一網打盡），好記，也不用列舉會過時的服務清單（以後新增/移除來源，標題不用跟著改）。 -->
   <h1>一次網羅<span class="accent">所有額度</span></h1>
-  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視各帳號的剩餘額度與重置時間，不必在多個分頁間來回切換。v0.4.1 現在可以下載——小範圍分享階段，未簽章、Windows 版未實測，下載前請看下面的說明。</p>
+  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視各帳號的剩餘額度與重置時間，不必在多個分頁間來回切換。v0.4.2 現在可以下載——小範圍分享階段、未簽章；Windows 版已改為單一 exe，下載前請看下面的說明。</p>
 
   <div class="features">
     <div class="feature">
@@ -559,7 +559,7 @@
     </div>
   </div>
 
-  <p class="status-pill">v0.4.1 · 未簽章，開啟需手動繞過安全性警告</p>
+  <p class="status-pill">v0.4.2 · 未簽章，開啟需手動繞過安全性警告</p>
 
   <div class="preview" role="img" aria-label="用量卡片預覽：Claude Code，5 小時已用 62%，7 天已用 40%">
     <div class="preview-head">
@@ -607,10 +607,10 @@
       </span>
       <span class="platform-status">下載</span>
     </a>
-    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.4.1/SanringHaul-0.4.1-Windows-x64.zip">
+    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.4.2/SanringHaul-0.4.2-Windows-x64.exe">
       <svg viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4V11.5H3V5.5ZM11.4 4.27 21 3v8.5H11.4V4.27ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.4 12.5H21V21L11.4 19.73V12.5Z"/></svg>
       <span class="platform-text">
-        <span class="platform-name">Windows <span class="platform-sub">x64 · ⚠️ 未實測</span></span>
+        <span class="platform-name">Windows <span class="platform-sub">x64 · .exe</span></span>
       </span>
       <span class="platform-status">下載</span>
     </a>
@@ -665,8 +665,8 @@
     </section>
 
     <section class="risk-card">
-      <h3>Windows 版未經真實測試</h3>
-      <p>目前只在 macOS 上開發、只做過跨平台建置驗證，沒有人在真實 Windows 環境實際跑過——尤其是 API key 的本機儲存這塊，能不能正常運作還是未知數。</p>
+      <h3>Windows 版</h3>
+      <p>v0.4.2 已在真實 Windows 環境驗證可以啟動、載入介面，並修正 Credential Manager 寫入過大憑證失敗的問題。仍未簽章，第一次開啟可能被 SmartScreen 擋（右鍵 → 內容 → 解除封鎖）。若 Haul 裝在 Windows、AI CLI 卻登在 WSL，目前還不會自動去讀 WSL 家目錄裡的帳號。</p>
     </section>
 
     <section class="risk-card">
@@ -682,25 +682,34 @@
     <button type="button" class="info-dialog-close" aria-label="關閉" onclick="this.closest('dialog').close()">✕</button>
   </div>
   <div class="info-dialog-body">
-    <p class="version-current">目前版本 <strong>v0.4.1</strong>（2026-09-03）</p>
+    <p class="version-current">目前版本 <strong>v0.4.2</strong>（2026-09-05）</p>
 
     <h3>版本更新內容</h3>
     <ul>
-      <li><strong>Claude 用量喚醒</strong>（設定頁，預設關閉）：Claude 的 5 小時／7 天用量視窗要送出訊息才會啟動，沒用過或上一輪視窗到期後會停在「尚未開始」狀態。開啟後可以逐帳號設定每天幾點（24 小時制）送一則最小訊息喚醒視窗——這是目前唯一會真的消耗用量額度的功能，其餘都是唯讀查詢，預設關閉、要自己選帳號才生效。</li>
-      <li>用量歷史折線圖：5 小時／7 天分成兩張圖表，避免不同週期的百分比混在一起誤判緊急程度；圖例可點擊個別開關某條線、顯示消耗速率。</li>
-      <li>訂閱用量提醒改成單一軌道雙手柄的區間滑桿，操作更直覺。</li>
-      <li>一些穩定性/UX 修正：設定頁多處開關改成點下去立即存檔；帳號改名功能擴及更多設定列。</li>
+      <li><strong>Windows 改為單一 .exe</strong>：不用再解壓縮，也不會再出現只有 <code>wwwroot</code>、視窗全黑的情況。</li>
+      <li>修掉 Windows WebView2 用 <code>file://</code> 載入 Angular 時的黑畫面；關閉視窗會縮到系統匣。</li>
+      <li>修正 Windows Credential Manager 寫入過大憑證失敗（錯誤 1783）。</li>
+      <li>新增 Grok 訂閱制用量來源（⚠️ 未用真實帳號驗證）。</li>
     </ul>
     <h3>下載前請先讀</h3>
     <ul>
       <li>未簽章：macOS 會被 Gatekeeper 擋，Windows 可能被 SmartScreen 擋（見上方「已知風險與揭露」）。</li>
-      <li>Windows 版只做過建置驗證，沒有人在真實 Windows 上測試過。</li>
+      <li>Windows 請下載單一 <code>.exe</code>，右鍵 → 內容 → 解除封鎖後再開。</li>
+      <li>macOS 安裝檔此次未重打包，下載頁仍指向 v0.4.1 的 <code>.dmg</code>。</li>
       <li>部分功能依賴非官方端點，對應服務商可能無預告改版。</li>
     </ul>
 
     <button type="button" class="link-button" id="olderVersionsToggle" aria-expanded="false" aria-controls="olderVersions" onclick="toggleOlderVersions(this)">顯示更多版本 ▾</button>
 
     <div id="olderVersions" hidden>
+      <details class="version-item">
+        <summary>v0.4.1（2026-09-03）</summary>
+        <ul>
+          <li>帳簿頁「本機用量」新增按月／按周／按日篩選，並可匯出 30 天完整用量 Excel。</li>
+          <li>說明頁重新整理，加上測試階段、美金計價的固定提示。</li>
+        </ul>
+      </details>
+
       <details class="version-item">
         <summary>v0.4.0（2026-09-03）</summary>
         <ul>

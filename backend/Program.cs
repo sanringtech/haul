@@ -68,10 +68,10 @@ if (args.Contains("--probe-kimi-sub"))
 if (args.Contains("--probe-grok"))
 {
     var grok = new UsageMonitor.Desktop.Providers.GrokUsageProvider();
-    var probe = await grok.GetUsageAsync(
+    var probe = grok.GetUsageAsync(
         new TrackedAccount("grok", "grok", Label: null),
         SettingsStore.Load(),
-        CancellationToken.None);
+        CancellationToken.None).GetAwaiter().GetResult();
     Console.WriteLine(JsonSerializer.Serialize(probe, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
     return;
 }

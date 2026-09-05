@@ -48,7 +48,7 @@ backend/
 
 分三階段（自己用 → 小範圍分享 → 公開發布），各階段要做的事、目前進度 → [`RELEASE-PLAN.md`](RELEASE-PLAN.md)。
 
-現況（2026-09-03）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.1.0 已發布（macOS `.dmg` + Windows `.exe`）。
+現況（2026-09-05）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.4.2 已發布（macOS `.dmg` 暫仍為 v0.4.1、Windows 單一 `.exe`）。
 
 ### 第一次執行的警告說明
 
