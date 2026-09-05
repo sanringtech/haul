@@ -1,4 +1,5 @@
 using System.Text.Json;
+using UsageMonitor.Desktop.Services;
 
 namespace UsageMonitor.Desktop.Security;
 
@@ -17,7 +18,16 @@ public static class GrokAuthReader
 
     public static GrokAuthToken? Read()
     {
-        var path = AuthPath();
+        foreach (var home in CliHomeRoots.GrokHomes())
+        {
+            var token = ReadFromPath(Path.Combine(home, "auth.json"));
+            if (token is not null) return token;
+        }
+        return null;
+    }
+
+    private static GrokAuthToken? ReadFromPath(string path)
+    {
         string json;
         try
         {
@@ -52,15 +62,6 @@ public static class GrokAuthReader
         {
             return null;
         }
-    }
-
-    private static string AuthPath()
-    {
-        var grokHome = Environment.GetEnvironmentVariable("GROK_HOME");
-        var baseDir = string.IsNullOrEmpty(grokHome)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".grok")
-            : grokHome;
-        return Path.Combine(baseDir, "auth.json");
     }
 
     private static bool TryReadEntry(JsonElement root, string scope, out GrokAuthToken? token)

@@ -18,8 +18,6 @@ static class Program
 // During `dotnet run --dev` (see scripts/dev.sh) point the window at the Angular
 // dev server instead of the bundled wwwroot, so `ng serve`'s hot reload works.
 var devServerUrl = Environment.GetEnvironmentVariable("USAGEMONITOR_DEV_SERVER_URL");
-var usageService = new UsageService();
-usageService.ImportCswapIfNeededAsync().GetAwaiter().GetResult();
 
 // camelCase + case-insensitive so the wire format matches what the TS side expects
 // (`percentUsed`, not `PercentUsed`) without hand-writing [JsonPropertyName] everywhere.
@@ -29,14 +27,37 @@ var jsonOptions = new JsonSerializerOptions
     PropertyNameCaseInsensitive = true,
 };
 
-var quitRequested = 0;
-
-// Debug escape hatch: `dotnet run -- --print-usage` prints one refresh as JSON and exits,
-// without opening the GUI window (useful for verifying providers headlessly / in CI).
-if (args.Contains("--print-usage"))
+if (args.Contains("--print-cli-homes"))
 {
-    var summaries = usageService.GetSummariesAsync().GetAwaiter().GetResult();
-    Console.WriteLine(JsonSerializer.Serialize(summaries, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
+    foreach (var root in CliHomeRoots.All())
+        Console.WriteLine($"{(root.IsWindowsProfile ? "win" : "wsl")}\t{root.Path}");
+    return;
+}
+
+if (args.Contains("--self-test-cli-homes"))
+{
+    var cases = new (string Input, string? Expected)[]
+    {
+        ("Ubuntu (Default)", "Ubuntu"),
+        ("* Ubuntu", "Ubuntu"),
+        ("Ubuntu（預設）", "Ubuntu"),
+        ("podman-machine", "podman-machine"),
+        ("Windows Subsystem for Linux Distributions:", null),
+        ("NAME", null),
+        ("以下發行版本正在執行:", null),
+    };
+    var failed = 0;
+    foreach (var (input, expected) in cases)
+    {
+        var actual = CliHomeRoots.ParseDistroName(input);
+        if (actual != expected)
+        {
+            Console.Error.WriteLine($"FAIL: '{input}' => '{actual}', expected '{expected}'");
+            failed++;
+        }
+    }
+    if (failed > 0) Environment.Exit(1);
+    Console.WriteLine($"ok {cases.Length}");
     return;
 }
 
@@ -51,6 +72,20 @@ if (args.Contains("--print-codex-ledger"))
 {
     var ledger = CodexJsonlLedger.Scan();
     Console.WriteLine(JsonSerializer.Serialize(ledger, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
+    return;
+}
+
+var usageService = new UsageService();
+usageService.ImportCswapIfNeededAsync().GetAwaiter().GetResult();
+
+var quitRequested = 0;
+
+// Debug escape hatch: `dotnet run -- --print-usage` prints one refresh as JSON and exits,
+// without opening the GUI window (useful for verifying providers headlessly / in CI).
+if (args.Contains("--print-usage"))
+{
+    var summaries = usageService.GetSummariesAsync().GetAwaiter().GetResult();
+    Console.WriteLine(JsonSerializer.Serialize(summaries, new JsonSerializerOptions(jsonOptions) { WriteIndented = true }));
     return;
 }
 

@@ -19,9 +19,9 @@
 	<!-- SSOT 是 repo 根目錄的 VERSION 檔（backend/SanringHaul.csproj 會自動讀進 <Version>）——
 	     這裡是手動對齊，改版時記得跟著改，還沒到值得建自動同步的規模（見 RELEASE-PLAN.md）。 -->
 	<key>CFBundleShortVersionString</key>
-	<string>0.4.2</string>
+	<string>0.4.3</string>
 	<key>CFBundleVersion</key>
-	<string>0.4.2</string>
+	<string>0.4.3</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>11.0</string>
 	<key>NSHighResolutionCapable</key>

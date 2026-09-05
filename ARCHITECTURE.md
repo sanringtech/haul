@@ -58,5 +58,6 @@ Claude 多帳號靠偵測本機是否裝了選用的 `cswap`——有裝就 shel
 - **Angular `<base href="/">` 在 `file://` 下整頁空白**：`scripts/build.sh` 已加 `--base-href ./`。
 - **Windows 發佈版標題列出來了、內容卻是黑畫面（2026-09-03）**：根因有兩個，而且要一起修。第一，Top-level `await` 會生成 MTA 的 `Main()`，Windows 上 WebView2/Photino 需要 `[STAThread]` 才能正常初始化；第二，Angular 22 產物是 `type="module"`，WebView2 用 `file://` 開 `wwwroot/browser/index.html` 會因 `origin: null` 的 CORS 規則把所有 module script 擋掉，畫面只剩空的 `<app-root>`。修法：`Program.cs` 改成明確的 `[STAThread] Main`，正式 build 不再 `Load("wwwroot/...")`，而是啟動內建 `UiFileServer` 用 `http://127.0.0.1/...` 載入 UI。
 - **Windows 下載後還是 zip（2026-09-03）**：原本雖然開了 `PublishSingleFile`，但 `wwwroot/` 還是得跟在 exe 旁邊，否則 UI 載不到；實際上那不是真正可以直接發出去的「單檔 app」。修法是把 `wwwroot/**` 同時標成 publish content + embedded resource，正式啟動時若磁碟上找不到，就從組件資源自行解到 temp，再由 `UiFileServer` 提供。這樣 publish 目錄就只剩 `SanringHaul.exe`（加符號檔 `.pdb`），下載頁才有資格改掛 `.exe` 而不是 `.zip`。
+- **Windows Haul 讀不到 WSL 裡的 CLI 登入（2026-09-05）**：auth reader／JSONL 帳簿原本只看 Windows `UserProfile`。改成 `CliHomeRoots` 加上正在執行的 WSL distro `$HOME`（UNC），擷取時掃全部 home、同一帳號去重。
 - **DeepSeek/Kimi 的 JSON 是 snake_case**：`PropertyNameCaseInsensitive` 不會處理底線，導致「無法解析」，已加 `[JsonPropertyName]`。
 - **cswap 偵測失敗靜默退回單帳號模式**：見上「Claude 多帳號」一節的 `-ilc` 修法。

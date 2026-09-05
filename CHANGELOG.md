@@ -2,6 +2,10 @@
 
 開發過程記錄，依 PRD 里程碑分組（新到舊）。目前是給開發者看的技術細節，不是使用者視角的版本說明——那個轉換是 [`RELEASE-PLAN.md`](RELEASE-PLAN.md) 階段 2 才要做的事。版本號機制見 `VERSION` 檔（SSOT）。
 
+## v0.4.3（2026-09-05）：Windows Haul 讀取 WSL 裡的 CLI 登入
+
+- **Windows 版自動掃正在執行的 WSL 家目錄**：`CliHomeRoots` 用 `wsl -l --running` + `wslpath -w $HOME`，不叫醒停掉的 distro；沒有 `.claude`／`.codex`／`.kimi-code`／`.grok` 的（例如 podman-machine）會跳過。Claude／Codex 點一次擷取會加入所有找得到的帳號（同一 email 只留一份：未過期／有 refresh 優先，其次 Windows 再 WSL）；`.claude.json` 改跟憑證同一個 home 讀，email 標籤不再對不上。本機用量帳簿聯集各 home 的 JSONL。Kimi／Grok 訂閱制讀第一個找得到的家目錄。`$env:CODEX_HOME` / `$env:CLAUDE_CONFIG_DIR` / `$env:GROK_HOME` 仍可當額外覆寫，不再取代本機路徑。
+
 ## v0.4.2（2026-09-05）：Windows 單一 exe、黑畫面修正、Grok 訂閱制
 
 - **Windows 發佈版黑畫面修掉**：`backend/Program.cs` 不再用 top-level `await`，改成明確的 `[STAThread] Main()`，避免 Windows 上 WebView2/Photino 在 MTA 執行緒初始化失敗；正式版 UI 也不再 `Load("wwwroot/browser/index.html")` 走 `file://`，而是透過新的 `UiFileServer` 用 loopback HTTP 載入，避開 Angular 22 `type="module"` 在 WebView2 的 `origin: null` CORS 限制

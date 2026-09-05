@@ -164,20 +164,21 @@ public sealed class UsageService
     }
 
     /// <summary>
-    /// 擷取目前 CLI 登入進快照庫。同一 email 再擷取一次會覆蓋快照（換票）；不同帳號則新加一筆。
+    /// 擷取所有可見 CLI 家目錄（Windows + 正在跑的 WSL）的登入進快照庫。
+    /// 同一 email 再擷取一次會覆蓋快照（換票）；不同帳號則新加一筆。
     /// 舊版 AccountId 字面 <c>claude</c> / <c>codex</c> 在第一次成功擷取時升級成 <c>{source}:{email}</c>。
     /// </summary>
     private async Task<UsageSummary[]> CaptureSubscriptionAsync(
         string sourceId, IUsageProvider provider, AppSettings settings, CancellationToken ct)
     {
-        SubscriptionSnapshot? snap;
+        IReadOnlyList<SubscriptionSnapshot> snaps;
         string? errorKey;
         if (sourceId == "claude")
-            (snap, errorKey) = ((ClaudeUsageProvider)provider).TryCaptureCurrent();
+            (snaps, errorKey) = ((ClaudeUsageProvider)provider).TryCaptureAll();
         else
-            (snap, errorKey) = await ((CodexUsageProvider)provider).TryCaptureCurrentAsync(ct);
+            (snaps, errorKey) = await ((CodexUsageProvider)provider).TryCaptureAllAsync(ct);
 
-        if (snap is null)
+        if (snaps.Count == 0)
         {
             return [new UsageSummary(
                 Source: sourceId,
@@ -192,8 +193,20 @@ public sealed class UsageService
                 AccountLabel: null)];
         }
 
-        _snapshots.Save(snap);
+        var added = new List<TrackedAccount>();
+        foreach (var snap in snaps)
+        {
+            _snapshots.Save(snap);
+            ApplyCapturedAccount(settings, sourceId, snap);
+            added.Add(settings.TrackedAccounts.First(a => a.AccountId == snap.AccountId));
+        }
+        SettingsStore.Save(settings);
 
+        return await Task.WhenAll(added.Select(a => GetOneAsync(a, settings, ct)));
+    }
+
+    private static void ApplyCapturedAccount(AppSettings settings, string sourceId, SubscriptionSnapshot snap)
+    {
         var legacyIndex = settings.TrackedAccounts.FindIndex(a => a.AccountId == sourceId);
         if (legacyIndex >= 0)
         {
@@ -212,11 +225,7 @@ public sealed class UsageService
         if (!settings.TrackedAccounts.Any(a => a.AccountId == snap.AccountId))
             settings.TrackedAccounts.Add(new TrackedAccount(snap.AccountId, sourceId, snap.Email));
         settings.HiddenAccountIds.Remove(snap.AccountId);
-        SettingsStore.Save(settings);
         UsageHistoryStore.RemapAccountId(sourceId, snap.AccountId, snap.Email);
-
-        var tracked = settings.TrackedAccounts.First(a => a.AccountId == snap.AccountId);
-        return [await GetOneAsync(tracked, settings, ct)];
     }
 
     /// <summary>取消追蹤（constitution §8）— full deletion of this one account, siblings of the same source untouched (R5).</summary>

@@ -30,23 +30,36 @@ public sealed class ClaudeUsageProvider : IUsageProvider
 
     public ClaudeUsageProvider(SubscriptionSnapshotStore store) => _store = store;
 
-    /// <summary>讀目前 CLI 登入、組成快照。失敗時 ErrorKey 對應 i18n，Snapshot 為 null。</summary>
-    internal (SubscriptionSnapshot? Snapshot, string? ErrorKey) TryCaptureCurrent()
+    /// <summary>讀所有可見 CLI 家目錄（Windows + 正在跑的 WSL）的登入、組成快照。同一 email 只留一份。</summary>
+    internal (IReadOnlyList<SubscriptionSnapshot> Snapshots, string? ErrorKey) TryCaptureAll()
     {
-        var token = ClaudeAuthReader.Read();
-        if (token is null) return (null, MessageKeys.ClaudeCredentialsNotFound);
-        if (string.IsNullOrEmpty(token.RefreshToken)) return (null, MessageKeys.CaptureRefreshMissing);
-        var identity = token.Email ?? token.AccountUuid;
-        if (string.IsNullOrEmpty(identity)) return (null, MessageKeys.CaptureEmailMissing);
-        return (new SubscriptionSnapshot(
-            AccountIdFor(identity),
-            SourceId,
-            token.Email ?? identity,
-            token.AccessToken,
-            token.RefreshToken,
-            token.ExpiresAtMs,
-            token.SubscriptionType,
-            token.AccountUuid), null);
+        var tokens = ClaudeAuthReader.ReadAll();
+        if (tokens.Count == 0) return ([], MessageKeys.ClaudeCredentialsNotFound);
+
+        var snaps = new List<SubscriptionSnapshot>();
+        foreach (var token in tokens)
+        {
+            if (string.IsNullOrEmpty(token.RefreshToken)) continue;
+            var identity = token.Email ?? token.AccountUuid;
+            if (string.IsNullOrEmpty(identity)) continue;
+            snaps.Add(new SubscriptionSnapshot(
+                AccountIdFor(identity),
+                SourceId,
+                token.Email ?? identity,
+                token.AccessToken,
+                token.RefreshToken,
+                token.ExpiresAtMs,
+                token.SubscriptionType,
+                token.AccountUuid));
+        }
+
+        if (snaps.Count == 0)
+        {
+            if (tokens.Any(t => string.IsNullOrEmpty(t.RefreshToken)))
+                return ([], MessageKeys.CaptureRefreshMissing);
+            return ([], MessageKeys.CaptureEmailMissing);
+        }
+        return (snaps, null);
     }
 
     public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)

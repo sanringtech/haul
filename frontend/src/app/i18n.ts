@@ -70,6 +70,7 @@ export interface Translations {
   detecting: string;
   startDetect: string;
   capturedSuccess: string;
+  capturedSuccessMultiple: string;
   done: string;
   pleaseEnterApiKey: string;
   unknownAddFailure: string;
@@ -304,14 +305,15 @@ export const translations: Record<Lang, Translations> = {
     pasteApiKey: '貼上 {name} API KEY',
     addBtn: '新增',
     noInputNeeded: '不需要輸入任何東西——按下面的按鈕，讓工具去讀本機的登入資訊。',
-    captureHintClaude: '先確認終端機裡 Claude Code 已登入你要追蹤的帳號，再按擷取。Haul 只複製一份快照，不會改 CLI 的登入、也不會幫你切帳。',
-    captureHintCodex: '先確認終端機裡已 `codex login` 你要追蹤的帳號，再按擷取。Codex 的 refresh token 幾乎只能用一次：擷取後請立刻在終端機登入下一個帳號，不要先開 Codex CLI 讓它自己換票。Haul 絕不寫回 ~/.codex/auth.json。',
+    captureHintClaude: 'Haul 會讀本機家目錄裡的 Claude Code 登入；Windows 上還會一併掃正在執行的 WSL distro。按擷取會一次加入找到的帳號；同一 email 只留一份。Haul 只複製快照，不會改 CLI 的登入、也不會幫你切帳。',
+    captureHintCodex: 'Haul 會讀本機家目錄裡的 `codex login`；Windows 上還會一併掃正在執行的 WSL distro。按擷取會一次加入找到的帳號。Codex 的 refresh token 幾乎只能用一次：若還要加另一個尚未登入的帳號，擷取後請立刻在終端機登入那個帳號再按一次——不要先開 Codex CLI 讓它自己換票。Haul 絕不寫回 ~/.codex/auth.json。',
     grokAddHint: '先在終端機 `grok login`，再按偵測。Haul 只讀 ~/.grok/auth.json，不會寫回、也不會幫你換票。API KEY 查不到訂閱用量。',
     capturing: '擷取中…',
     captureBtn: '擷取目前登入',
     detecting: '偵測中…',
     startDetect: '開始偵測',
     capturedSuccess: '已擷取 {name}。要加另一個帳號，先在終端機登入那個帳號再按一次擷取。',
+    capturedSuccessMultiple: '已擷取 {count} 個帳號（含正在執行的 WSL 家目錄）。',
     done: '完成，返回列表',
     pleaseEnterApiKey: '請先輸入 API KEY',
     unknownAddFailure: '新增失敗，原因不明',
@@ -376,7 +378,7 @@ export const translations: Record<Lang, Translations> = {
     ledgerTitle: '用量紀錄',
     ledgerDescription: '已經發生的本機紀錄，不是未來用量預測。估算美元不是帳單。',
     ledgerSectionTokens: '本機用量',
-    ledgerSectionTokensHintSources: '只加總本機 Claude Code（~/.claude/projects JSONL）與 Codex CLI（~/.codex/sessions，每檔取最後累計）。',
+    ledgerSectionTokensHintSources: '加總本機 Claude Code（~/.claude/projects JSONL）與 Codex CLI（~/.codex/sessions，每檔取最後累計）；Windows 上會一併掃正在執行的 WSL 家目錄。',
     ledgerSectionTokensHintRange: '合計為最近 30 天；按月／按周／按日可選日期範圍（週從週一起算）。超出掃描窗的日期會顯示為空。',
     ledgerSectionTokensHintAccounts: '切換過的帳號仍會合計在這台機器上。',
     ledgerSectionTokensHintPricing: '金額依官方 API 標價估算，不是帳單；Codex 官價表沒有的模型不估算。',
@@ -538,14 +540,15 @@ export const translations: Record<Lang, Translations> = {
     pasteApiKey: 'Paste {name} API KEY',
     addBtn: 'Add',
     noInputNeeded: 'Nothing to type — press the button below and this tool will read your local login info.',
-    captureHintClaude: 'Make sure Claude Code in the terminal is logged into the account you want to track, then capture. Haul copies a snapshot only — it will not change the CLI login or switch accounts for you.',
-    captureHintCodex: 'Make sure you have `codex login`’d the account you want to track, then capture. Codex refresh tokens are near-single-use: after capturing, immediately log into the next account in the terminal — don’t open the Codex CLI first and let it rotate the token. Haul never writes back to ~/.codex/auth.json.',
+    captureHintClaude: 'Haul reads Claude Code logins from the local home directory, and on Windows also from running WSL distros. Capture adds every account it finds; the same email is kept once. Haul copies a snapshot only — it will not change the CLI login or switch accounts for you.',
+    captureHintCodex: 'Haul reads `codex login` from the local home directory, and on Windows also from running WSL distros. Capture adds every account it finds. Codex refresh tokens are near-single-use: to add another account that is not logged in yet, capture then immediately log into that account in the terminal — don’t open the Codex CLI first and let it rotate the token. Haul never writes back to ~/.codex/auth.json.',
     grokAddHint: 'Run `grok login` in the terminal first, then detect. Haul only reads ~/.grok/auth.json — it will not write it back or refresh tokens. An API KEY cannot query subscription usage.',
     capturing: 'Capturing…',
     captureBtn: 'Capture current login',
     detecting: 'Detecting…',
     startDetect: 'Start detecting',
     capturedSuccess: 'Captured {name}. To add another account, log into it in the terminal then capture again.',
+    capturedSuccessMultiple: 'Captured {count} accounts (including running WSL homes).',
     done: 'Done, back to list',
     pleaseEnterApiKey: 'Please enter an API KEY first',
     unknownAddFailure: 'Failed to add, reason unknown',
@@ -610,7 +613,7 @@ export const translations: Record<Lang, Translations> = {
     ledgerTitle: 'Usage records',
     ledgerDescription: 'What already happened on this machine — not a forecast. Estimated dollars are not a bill.',
     ledgerSectionTokens: 'Local usage',
-    ledgerSectionTokensHintSources: 'Only local Claude Code (~/.claude/projects JSONL) and Codex CLI (~/.codex/sessions, last cumulative total per file) are totaled here.',
+    ledgerSectionTokensHintSources: 'Local Claude Code (~/.claude/projects JSONL) and Codex CLI (~/.codex/sessions, last cumulative total per file) are totaled here; on Windows, running WSL homes are scanned too.',
     ledgerSectionTokensHintRange: 'All covers the last 30 days; Month / Week / Day select a date range (weeks start Monday). Dates outside the scan window are empty.',
     ledgerSectionTokensHintAccounts: 'Accounts switched on this machine remain combined in the total.',
     ledgerSectionTokensHintPricing: 'Dollar amounts use official API list prices and are estimates, not bills. Codex models missing from the price list remain unpriced.',

@@ -1434,7 +1434,9 @@ export class App implements AfterViewInit {
             (addedAccounts[0].source.startsWith('claude:') || addedAccounts[0].source.startsWith('codex:'));
           this.addResultMessage.set(
             captured
-              ? this.t('capturedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
+              ? addedAccounts.length === 1
+                ? this.t('capturedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
+                : this.t('capturedSuccessMultiple', { count: String(addedAccounts.length) })
               : addedAccounts.length === 1
                 ? this.t('addedSuccess', { name: addedAccounts[0].accountLabel ?? addedAccounts[0].displayName })
                 : this.t('addedSuccessMultiple', { count: String(addedAccounts.length) }),
