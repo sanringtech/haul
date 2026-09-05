@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sanring Haul — Claude／Codex／Cursor 用量追蹤工具</title>
-<meta name="description" content="一支常駐桌面小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。v0.4.2 現已提供 macOS / Windows 下載。">
+<meta name="description" content="一支常駐桌面小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視用量與重置時間。v0.4.3 現已提供 macOS / Windows 下載。">
 <link rel="canonical" href="https://haul.sanring.dev/">
 
 <!-- Open Graph——原本完全沒有這組 tag，連結被分享到 Slack/Discord/Twitter/LINE 這類地方時
@@ -513,7 +513,7 @@
 <canvas id="stars" aria-hidden="true"></canvas>
 
 <main>
-  <p class="kicker"><span class="dot"></span>Sanring Haul · v0.4.2</p>
+  <p class="kicker"><span class="dot"></span>Sanring Haul · v0.4.3</p>
 
   <svg class="mark" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
     <rect x="1" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="2" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/><rect x="5" y="1" width="1" height="1" fill="var(--accent)" opacity="0.35"/>
@@ -542,12 +542,12 @@
        列一次。換成短句子，直接呼應「Haul」這個品牌名本身的意象（撒網把散落各處的東西一次撈起、
        一網打盡），好記，也不用列舉會過時的服務清單（以後新增/移除來源，標題不用跟著改）。 -->
   <h1>一次網羅<span class="accent">所有額度</span></h1>
-  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視各帳號的剩餘額度與重置時間，不必在多個分頁間來回切換。v0.4.2 現在可以下載——小範圍分享階段、未簽章；Windows 版已改為單一 exe，下載前請看下面的說明。</p>
+  <p class="sub">sanring Haul 是一支常駐在你電腦上的小工具，支援 Claude、Codex、DeepSeek、Kimi、Cursor 等多種 AI 服務，統一檢視各帳號的剩餘額度與重置時間，不必在多個分頁間來回切換。v0.4.3 現在可以下載——小範圍分享階段、未簽章；Windows 版已改為單一 exe，並會自動讀取正在執行的 WSL 裡的 CLI 登入。下載前請看下面的說明。</p>
 
   <div class="features">
     <div class="feature">
       <p class="feature-title">多帳號一起追</p>
-      <p class="feature-desc">Claude／Codex 擷取本機已登入的 CLI 帳號逐一加入追蹤，不用來回切換登入</p>
+      <p class="feature-desc">Claude／Codex 擷取本機已登入的 CLI 帳號；Windows 上一次加入正在執行的 WSL 家目錄裡找到的帳號</p>
     </div>
     <div class="feature">
       <p class="feature-title">看得到重置時間</p>
@@ -559,7 +559,7 @@
     </div>
   </div>
 
-  <p class="status-pill">v0.4.2 · 未簽章，開啟需手動繞過安全性警告</p>
+  <p class="status-pill">v0.4.3 · 未簽章，開啟需手動繞過安全性警告</p>
 
   <div class="preview" role="img" aria-label="用量卡片預覽：Claude Code，5 小時已用 62%，7 天已用 40%">
     <div class="preview-head">
@@ -607,7 +607,7 @@
       </span>
       <span class="platform-status">下載</span>
     </a>
-    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.4.2/SanringHaul-0.4.2-Windows-x64.exe">
+    <a class="platform" href="https://github.com/sanringtech/haul/releases/download/v0.4.3/SanringHaul-0.4.3-Windows-x64.exe">
       <svg viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.4V11.5H3V5.5ZM11.4 4.27 21 3v8.5H11.4V4.27ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.4 12.5H21V21L11.4 19.73V12.5Z"/></svg>
       <span class="platform-text">
         <span class="platform-name">Windows <span class="platform-sub">x64 · .exe</span></span>
@@ -651,7 +651,7 @@
 
     <section class="risk-card">
       <h3>多帳號怎麼運作</h3>
-      <p>Claude／Codex 多帳號不依賴任何額外安裝的外部工具——做法是「擷取目前已登入的 CLI 帳號」：在對應 CLI 本機完成登入後，回到 Haul 點「＋ 新增來源」擷取一次，用帳號 email 辨識；同一 email 再擷取一次視同換票（更新憑證），不同帳號才新增一筆卡片。純讀取，不會幫你切換系統目前登入中的 CLI 帳號。</p>
+      <p>Claude／Codex 多帳號不依賴任何額外安裝的外部工具——做法是「擷取目前已登入的 CLI 帳號」：在對應 CLI 本機完成登入後，回到 Haul 點「＋ 新增來源」擷取一次，用帳號 email 辨識；同一 email 再擷取一次視同換票（更新憑證），不同帳號才新增一筆卡片。Windows 上一次擷取也會掃正在執行的 WSL 家目錄。純讀取，不會幫你切換系統目前登入中的 CLI 帳號。</p>
     </section>
 
     <section class="risk-card">
@@ -666,7 +666,7 @@
 
     <section class="risk-card">
       <h3>Windows 版</h3>
-      <p>v0.4.2 已在真實 Windows 環境驗證可以啟動、載入介面，並修正 Credential Manager 寫入過大憑證失敗的問題。仍未簽章，第一次開啟可能被 SmartScreen 擋（右鍵 → 內容 → 解除封鎖）。若 Haul 裝在 Windows、AI CLI 卻登在 WSL，目前還不會自動去讀 WSL 家目錄裡的帳號。</p>
+      <p>v0.4.3 會自動掃正在執行的 WSL 家目錄裡的 Claude／Codex／Kimi／Grok 登入（不叫醒停掉的 distro）。仍未簽章，第一次開啟可能被 SmartScreen 擋（右鍵 → 內容 → 解除封鎖）。</p>
     </section>
 
     <section class="risk-card">
@@ -682,19 +682,17 @@
     <button type="button" class="info-dialog-close" aria-label="關閉" onclick="this.closest('dialog').close()">✕</button>
   </div>
   <div class="info-dialog-body">
-    <p class="version-current">目前版本 <strong>v0.4.2</strong>（2026-09-05）</p>
+    <p class="version-current">目前版本 <strong>v0.4.3</strong>（2026-09-05）</p>
 
     <h3>版本更新內容</h3>
     <ul>
-      <li><strong>Windows 改為單一 .exe</strong>：不用再解壓縮，也不會再出現只有 <code>wwwroot</code>、視窗全黑的情況。</li>
-      <li>修掉 Windows WebView2 用 <code>file://</code> 載入 Angular 時的黑畫面；關閉視窗會縮到系統匣。</li>
-      <li>修正 Windows Credential Manager 寫入過大憑證失敗（錯誤 1783）。</li>
-      <li>新增 Grok 訂閱制用量來源（⚠️ 未用真實帳號驗證）。</li>
+      <li><strong>Windows 自動讀取 WSL 裡的 CLI 登入</strong>：掃正在執行的 distro 家目錄；Claude／Codex 擷取一次加入找到的帳號，本機帳簿聯集 JSONL。</li>
+      <li>Windows 仍為單一 <code>.exe</code>。未簽章，第一次開啟請右鍵 → 內容 → 解除封鎖。</li>
     </ul>
     <h3>下載前請先讀</h3>
     <ul>
       <li>未簽章：macOS 會被 Gatekeeper 擋，Windows 可能被 SmartScreen 擋（見上方「已知風險與揭露」）。</li>
-      <li>Windows 請下載單一 <code>.exe</code>，右鍵 → 內容 → 解除封鎖後再開。</li>
+      <li>Windows 請下載單一 <code>.exe</code>，右鍵 → 內容 → 解除封鎖後再開。WSL 裡的 CLI 要被掃到，對應 distro 必須正在執行。</li>
       <li>macOS 安裝檔此次未重打包，下載頁仍指向 v0.4.1 的 <code>.dmg</code>。</li>
       <li>部分功能依賴非官方端點，對應服務商可能無預告改版。</li>
     </ul>
@@ -702,6 +700,14 @@
     <button type="button" class="link-button" id="olderVersionsToggle" aria-expanded="false" aria-controls="olderVersions" onclick="toggleOlderVersions(this)">顯示更多版本 ▾</button>
 
     <div id="olderVersions" hidden>
+      <details class="version-item">
+        <summary>v0.4.2（2026-09-05）</summary>
+        <ul>
+          <li>Windows 改為單一 .exe，修掉 WebView2 <code>file://</code> 黑畫面與 Credential Manager 錯誤 1783。</li>
+          <li>新增 Grok 訂閱制用量來源（⚠️ 未用真實帳號驗證）。</li>
+        </ul>
+      </details>
+
       <details class="version-item">
         <summary>v0.4.1（2026-09-03）</summary>
         <ul>
