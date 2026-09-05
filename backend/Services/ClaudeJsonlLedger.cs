@@ -111,16 +111,8 @@ public static class ClaudeJsonlLedger
 
     private static IEnumerable<string> ProjectRoots()
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var env = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        if (!string.IsNullOrWhiteSpace(env))
-        {
-            foreach (var part in env.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
-                yield return Path.Combine(part, "projects");
-            yield break;
-        }
-        yield return Path.Combine(home, ".config", "claude", "projects");
-        yield return Path.Combine(home, ".claude", "projects");
+        foreach (var dir in CliHomeRoots.ClaudeConfigDirs())
+            yield return Path.Combine(dir, "projects");
     }
 
     private static bool TryReadAssistantUsage(

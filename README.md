@@ -48,7 +48,7 @@ backend/
 
 分三階段（自己用 → 小範圍分享 → 公開發布），各階段要做的事、目前進度 → [`RELEASE-PLAN.md`](RELEASE-PLAN.md)。
 
-現況（2026-09-05）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.4.2 已發布（macOS `.dmg` 暫仍為 v0.4.1、Windows 單一 `.exe`）。
+現況（2026-09-05）：repo 已公開（`sanringtech/haul`），下載頁：[haul.sanring.dev](https://haul.sanring.dev)。v0.4.3 加入 Windows 自動掃正在執行的 WSL 家目錄；下載頁 Windows 安裝檔在對應 exe 上傳前仍指向已驗證的 v0.4.2（macOS `.dmg` 暫仍為 v0.4.1）。
 
 ### 第一次執行的警告說明
 
@@ -92,7 +92,6 @@ brew install --cask haul
 
 ### 未完成
 
-- [ ] **Windows Haul + WSL 裡的 AI CLI**（2026-09-04 拍板，尚未實作）：Haul 裝在 Windows、Claude/Codex/Kimi CLI 登在 WSL 時，要能讀到憑證與本機 JSONL。實測 `\\wsl.localhost\Ubuntu\home\…` 路徑通、9p 掃 sessions 可接受。作法：新增 `CliHomeRoots`，掃 Windows 家目錄 + **正在執行**的 distro `$HOME`（`wsl -l --running`，不叫醒停掉的 VM；沒有 `.claude`/`.codex`/`.kimi-code` 的 distro 跳過）。帳號卡片依 AccountId 去重只留一份（未過期 token > Windows > WSL）；本機用量帳簿改聯集各 home 的 JSONL（既有 requestId／per-file 去重）。Capture 從「讀目前那一份」改成掃全部 home。刻意不做：設定頁選 distro、Cursor/Gemini、把 Haul 設定寫進 WSL。過渡期可用 `$env:CODEX_HOME` / `$env:CLAUDE_CONFIG_DIR` 指到 UNC，但 `.claude.json` 寫死 Windows 家目錄，email 標籤會對不上，實作時一併修。
 - [ ] **工作列按鈕圖示仍是 Windows generic 佔位圖**（原因未找到）：標題列、Alt+Tab、檔案總管的 `.exe` 圖示已正確（DIB 多尺寸 `backend/app.ico` + `WM_SETICON` / `GCLP_HICON`）。已排除：壞 ICO、HICON 被 `using` 提早釋放、Explorer 快取（換路徑重測）、隱藏 owner 視窗、AppUserModelID。不要再盲猜，要有新證據再動手。
 - [ ] **執行期圖示來源分裂**：PE/`ApplicationIcon` 讀 `backend/app.ico`，執行期 `AppContent.FindIconPath` 優先 `wwwroot/browser/favicon.ico`。兩份目前靠手動複製同步，之後只改一邊就會不一致。應單一來源（建議：嵌入的 `app.ico`）。
 - [ ] **系統匣 tray**：`TrayIcon` + 關閉改最小化已寫好，**尚未在真機確認**通知區圖示、雙擊還原、右鍵顯示/結束是否正確。
@@ -105,5 +104,6 @@ brew install --cask haul
 - 單一 `.exe`：`wwwroot` 嵌入組件，啟動時解出
 - Credential Manager 寫入錯誤 1783：blob 上限 2560 bytes（UTF-16），快照切塊存多筆 credential；已對真實 CredWrite 往返測過
 - `.gitignore`：補上 `frontend/node_modules`、`dist`、`.angular`、`build-log.txt`
+- **Windows Haul + WSL 裡的 AI CLI**：`CliHomeRoots` 掃 Windows 家目錄 + 正在執行的 distro `$HOME`（不叫醒停掉的 VM）。Claude／Codex 擷取一次加入找到的帳號並去重；帳簿聯集 JSONL。`$env:CODEX_HOME` / `$env:CLAUDE_CONFIG_DIR` / `$env:GROK_HOME` 仍可當額外覆寫。
 
 要新增新的 AI 來源之前，先看 [`AI-LANDSCAPE.md`](AI-LANDSCAPE.md)——已查證哪些 AI 的個人 API key/訂閱制有辦法查到用量、哪些是死路，不要重複查證過的東西。

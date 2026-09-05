@@ -1,4 +1,5 @@
 using System.Text.Json;
+using UsageMonitor.Desktop.Services;
 
 namespace UsageMonitor.Desktop.Security;
 
@@ -8,15 +9,22 @@ namespace UsageMonitor.Desktop.Security;
 /// (<c>access_token</c>/…), mode 0600. Older CLI wrote <c>kimi-code.json</c>; current CLI on this
 /// machine writes <c>kimi-code-env-{hash}.json</c> (storage name is the OAuth key, see kimi-code
 /// <c>packages/oauth/src/storage.ts</c> <c>pathFor(name)</c>). Prefer the legacy filename, else the
-/// newest <c>*.json</c> in that directory.
+/// newest <c>*.json</c> in that directory. On Windows also scans running WSL homes (Windows first).
 /// </summary>
 public static class KimiCliAuthReader
 {
     public static string? Read()
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".kimi-code", "credentials");
+        foreach (var (dir, _) in CliHomeRoots.HomesWith(Path.Combine(".kimi-code", "credentials")))
+        {
+            var token = ReadFromDir(dir);
+            if (token is not null) return token;
+        }
+        return null;
+    }
+
+    private static string? ReadFromDir(string dir)
+    {
         var path = ResolvePath(dir);
         if (path is null) return null;
 

@@ -64,27 +64,28 @@ public static class CodexJsonlLedger
 
     private static IEnumerable<string> EnumerateJsonlFiles()
     {
-        var home = Environment.GetEnvironmentVariable("CODEX_HOME");
-        if (string.IsNullOrWhiteSpace(home))
-            home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
-        var sessions = Path.Combine(home, "sessions");
-        if (!Directory.Exists(sessions)) yield break;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var home in CliHomeRoots.CodexHomes())
+        {
+            var sessions = Path.Combine(home, "sessions");
+            if (!Directory.Exists(sessions)) continue;
 
-        IEnumerable<string> files;
-        try
-        {
-            files = Directory.EnumerateFiles(sessions, "*.jsonl", SearchOption.AllDirectories);
-        }
-        catch (Exception)
-        {
-            yield break;
-        }
-
-        foreach (var file in files)
-        {
-            if (string.Equals(Path.GetFileName(file), "session_index.jsonl", StringComparison.OrdinalIgnoreCase))
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(sessions, "*.jsonl", SearchOption.AllDirectories);
+            }
+            catch (Exception)
+            {
                 continue;
-            yield return file;
+            }
+
+            foreach (var file in files)
+            {
+                if (string.Equals(Path.GetFileName(file), "session_index.jsonl", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (seen.Add(file)) yield return file;
+            }
         }
     }
 

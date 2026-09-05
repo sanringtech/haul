@@ -31,31 +31,39 @@ public sealed class CodexUsageProvider : IUsageProvider
 
     public CodexUsageProvider(SubscriptionSnapshotStore store) => _store = store;
 
-    internal async Task<(SubscriptionSnapshot? Snapshot, string? ErrorKey)> TryCaptureCurrentAsync(CancellationToken ct)
+    internal async Task<(IReadOnlyList<SubscriptionSnapshot> Snapshots, string? ErrorKey)> TryCaptureAllAsync(CancellationToken ct)
     {
-        var auth = CodexAuthReader.Read();
-        if (auth is null) return (null, MessageKeys.CodexCredentialsNotFound);
-        if (string.IsNullOrEmpty(auth.RefreshToken)) return (null, MessageKeys.CaptureRefreshMissing);
+        var auths = CodexAuthReader.ReadAll();
+        if (auths.Count == 0) return ([], MessageKeys.CodexCredentialsNotFound);
 
-        string? email = auth.Email;
-        string? plan = null;
-        var parsed = await TryFetchWhamAsync(auth.AccessToken, auth.AccountId, ct);
-        if (parsed is not null)
+        var snaps = new List<SubscriptionSnapshot>();
+        foreach (var auth in auths)
         {
-            email ??= parsed.Email;
-            plan = parsed.PlanType;
+            if (string.IsNullOrEmpty(auth.RefreshToken)) continue;
+
+            string? email = auth.Email;
+            string? plan = null;
+            var parsed = await TryFetchWhamAsync(auth.AccessToken, auth.AccountId, ct);
+            if (parsed is not null)
+            {
+                email ??= parsed.Email;
+                plan = parsed.PlanType;
+            }
+
+            email ??= auth.AccountId;
+            snaps.Add(new SubscriptionSnapshot(
+                AccountIdFor(email),
+                SourceId,
+                email,
+                auth.AccessToken,
+                auth.RefreshToken,
+                AccessExpiresAtMs: null,
+                plan,
+                auth.AccountId));
         }
 
-        email ??= auth.AccountId;
-        return (new SubscriptionSnapshot(
-            AccountIdFor(email),
-            SourceId,
-            email,
-            auth.AccessToken,
-            auth.RefreshToken,
-            AccessExpiresAtMs: null,
-            plan,
-            auth.AccountId), null);
+        if (snaps.Count == 0) return ([], MessageKeys.CaptureRefreshMissing);
+        return (snaps, null);
     }
 
     public async Task<UsageSummary> GetUsageAsync(TrackedAccount account, AppSettings settings, CancellationToken ct)
